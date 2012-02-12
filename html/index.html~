@@ -1,0 +1,30 @@
+<html>
+  <head>
+    <title>Stellar Expanse</title>
+    <script src="/js/jquery-latest.js"></script>
+    <script src="/js/jquery.dumper.js"></script>
+    <script src="/js/jquery.base64.min.js"></script>
+    <script src="/js/json2.js"></script>
+    <script src="/js/yote/yote.js"></script>
+    <script src="/js/yote/yote.util.js"></script>
+    <script>
+    $().ready(function(){
+
+	$.yote.util.make_login_box( { 
+		target:'#login_div'/*,
+				     on_login:function(){ var x = $.yote.get_app('Yote::Test::TestAppNeedsLogin'); alert(x.get_scalar()); },
+				     on_logout:function(){ var x = $.yote.get_app('Yote::Test::TestAppNeedsLogin'); alert(x.get_scalar()) }*/
+		    });
+	
+	});
+    </script>
+    <style>
+      .emp   { font-family:"Lucida Console",monospace;  }
+#login_div { border: 1px solid black;padding:5px; margin: 5px;}
+    </style>
+  </head>
+  <body>
+    <h1>Stellar Exapnse</h1>
+    <div id=login_div>
+  </body>
+</html>

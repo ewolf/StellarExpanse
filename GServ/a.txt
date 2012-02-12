@@ -1,0 +1,1756 @@
+
+ewolf@WFF1025:~/proj/GServ$ cat *pm *cgi
+package GServ::AppProvider;
+
+use strict;
+
+use GServ::AppRoot;
+use GServ::ObjProvider qw/fetch a_child_of_b/;
+
+use base 'GServ::ObjProvider';
+
+sub fetch_root {
+    my $root = fetch( 1 );
+    unless( $root ) {
+        $root = new GServ::AppRoot;
+        $root->save;
+    }
+    return $root;
+}
+
+
+1;
+
+__END__
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::AppRoot;
+
+use strict;
+
+use GServ::Obj;
+
+use base 'GServ::Obj';
+
+sub init {
+    my $self = shift;
+    # account root is used to hold account specific data for this app.
+    $self->set_account_root( new GServ::Obj );
+} #init
+
+#
+# Returns the account root attached to this AppRoot for the given account.
+#
+sub get_account_root {
+    my( $self, $acct ) = @_;
+
+    my $acct_roots = $self->get_account_roots({});
+    my $root = $acct_roots->{$acct->{ID}};
+    unless( $root ) {
+        $root = new GServ::Obj;
+    }
+    return $root;
+
+} #get_account_root
+
+#
+# Process_command is only called on the master root, which will route the command to the appropriate root.
+#
+# The AppRoot is the root object. It forwards to the correct app root.
+# The request object has the fields :
+#
+#   id - id of object to run method against
+#   a - app that the object is for.
+#   c - command or method to run
+#   d - argument data
+#   t - token for being logged in
+#
+# either c or i must be given
+sub process_command {
+    my( $root, $cmd ) = @_;
+#    print STDERR Data::Dumper->Dump( ["PC",$root,$cmd] );
+
+    my $command = $cmd->{c};
+
+    #
+    # this will not process private (beginning with _) commands,
+    # and will execute the command if its a login request,
+    # new account request or has a valid token.
+    #
+    my $acct = _valid_token( $cmd->{t}, $cmd->{oi} );
+
+    if( $command eq 'create_account' ) {
+        return $root->_create_account( $cmd->{d}, $cmd->{oi} );
+    }
+    elsif( $command eq 'login' ) {
+        return _login( $cmd->{d}, $cmd->{oi} );
+    }
+    else {
+        my $appstr = $cmd->{a};
+        my $app = $appstr ? $root->get_apps({})->{$appstr} : $root;
+
+        #generate the app if not present.
+        unless( $app ) {
+            eval( "use $appstr" );
+            if( $@ =~ /Can.t locate/ ) {
+                return { err => "App '$a' not found" };
+            }
+            my $apps = $root->get_apps({});
+            $app = $appstr->new;
+            $apps->{$appstr} = $app;
+            $app->save;
+        }
+
+        if( $command eq 'fetch_root' ) {
+            return _fetch( $app, { id => $app->{ID} }, $acct );
+        }
+        elsif( $command eq 'fetch' ) {
+            return _fetch( $app, $cmd, $acct );
+        }
+        elsif( index( $command, '_' ) != 0 && $acct ) {
+            my $obj = GServ::ObjProvider::fetch( $cmd->{id} );
+            my $ret = $app->$command( $cmd->{d}, $acct );
+            if( ref( $ret ) eq 'HASH' ) {
+                return $ret;
+            }
+            return { err => 'Command did not return' };
+        }
+        return { err => "'$cmd->{c}' not found for app '$appstr'" };
+    }
+} #process_command
+
+sub _valid_token {
+    my( $t, $ip ) = @_;
+    if( $t =~ /(.+)\+(.+)/ ) {
+        my( $uid, $token ) = ( $1, $2 );
+        my $acct = GServ::ObjProvider::fetch( $uid );
+        return $acct && $acct->get_token() eq "${token}x$ip" ? $acct : undef;
+    }
+    return undef;
+} #valid_token
+
+sub _create_account {
+    my( $root, $args, $ip ) = @_;
+
+    #
+    # validate account args. Needs handle (,email at some point)
+    #
+    my( $handle, $email, $password ) = ( $args->{h}, $args->{e}, $args->{p} );
+    if( $handle ) {# && $email ) {
+        if( GServ::ObjProvider::xpath("/handles/$handle") ) {
+            return { err => "handle already taken" };
+        }
+        if( $email ) {
+            if( GServ::ObjProvider::xpath("/emails/$email") ) {
+                return { err => "email already taken" };
+            }
+        }
+        unless( $password ) {
+            return { err => "password required" };
+        }
+        my $newacct = new GServ::Obj();
+
+        #
+        # check to see how many accounts there are. If there are none,
+        # give the first root access.
+        #
+        if( GServ::ObjProvider::xpath_count( "/handles" ) == 0 ) {
+            $newacct->set_is_root( 1 );
+        }
+        $newacct->set_handle( $handle );
+        $newacct->set_email( $email );
+        $newacct->set_created_ip( $ip );
+
+        # todo
+        # $newacct->set_time_created();
+
+        # save password plaintext for now. crypt later
+        $newacct->set_password( $password );
+
+        $newacct->save();
+
+        my $accts = $root->get_handles({});
+        $accts->{ $handle } = $newacct;
+        GServ::ObjProvider::stow( $accts );
+        my $emails = $root->get_emails({});
+        $emails->{ $email } = $newacct;
+        GServ::ObjProvider::stow( $emails );
+        $root->save;
+        return { msg => "created account", t => _create_token( $newacct, $ip ) };
+    } #if handle
+    return { err => "no handle given" };
+
+} #_create_account
+
+
+#
+# Create token and store with the account and return it.
+#
+sub _create_token {
+    my( $acct, $ip ) = @_;
+    my $token = int( rand 9 x 10 );
+    $acct->set_token( $token."x$ip" );
+    return $acct->{ID}.'+'.$token;
+}
+
+sub _login {
+    my( $data, $ip ) = @_;
+    if( $data->{h} ) {
+        my $root = GServ::ObjProvider::fetch_root;
+        my $acct = GServ::ObjProvider::xpath("/handles/$data->{h}");
+        if( $acct && ($acct->get_password() eq $data->{p}) ) {
+            return { msg => "logged in", t => _create_token( $acct, $ip ) };
+        }
+    }
+    return { err => "incorrect login" };
+} #_login
+
+#
+# Returns if the fetch is allowed to proceed. Meant to override. Default is true.
+# Takes two args : object to be fetched and data of request.
+#
+sub fetch_permitted {
+    my( $obj, $data ) = @_;
+    return 1;
+}
+
+
+#
+# Returns if the stow is allowed to proceed. Meant to override. Default is true.
+# Takes two args : object to be stowed and data of request.
+#
+sub stow_permitted {
+    my( $obj, $data ) = @_;
+    return 1;
+}
+
+sub _fetch {
+    my( $app, $data, $acct ) = @_;
+    if( $data->{id} ) {
+        my $obj = GServ::ObjProvider::fetch( $data->{id} );
+        if( $obj &&
+            GServ::AppProvider::a_child_of_b( $obj, $app ) &&
+            $app->fetch_permitted( $obj, $data ) )
+        {
+            my $ref = ref( $obj );
+            if( $ref ne 'ARRAY' && $ref ne 'HASH' && $ref ne 'GServ::Hash' && $ref ne 'GServ::Array' ) {
+                no strict 'refs';
+                my( @methods );
+                eval( qq<\@methods = grep { defined \&${ref}::$_\} keys \%${ref}\::;> );
+                use strict 'refs';
+
+                return { d => GServ::ObjProvider::raw_data( $obj ), 'm' => \@methods };
+            }
+            else {
+                return { d => GServ::ObjProvider::raw_data( $obj ) };
+            }
+        }
+    }
+    return { err => "Unable to fetch $data->{ID}" };
+} #_fetch
+
+sub _stow {
+    my( $app, $data, $acct ) = @_;
+    if( $data->{id} ) {
+        my $obj = GServ::ObjProvider::fetch( $data->{id} );
+        if( $obj &&
+            GServ::AppProvider::a_child_of_b( $obj, $app ) &&
+            $app->stow( $obj, $data ) )
+        {
+            #verify all incoming objects are also stowable
+            my $check = ref( $data->{v} ) eq 'ARRAY' ? @{$data->{v}}: [map { $data->{v}{$_} } grep { $_ ne '__KEY__' } %{$data->{v}}];
+            for my $item (grep { $_ > 0 } @$check) { #check all ids
+                my $child = GServ::ObjProvider::fetch( $item );
+                unless( $child &&
+                        GServ::AppProvider::a_child_of_b( $child, $app ) &&
+                        $app->stow( $child, $data ) )
+                {
+                    return { err => "Unable to update $data->{ID}" };
+                }
+            }
+
+            #adjust the target object
+            if( ref( $obj ) eq 'ARRAY' ) {
+                if( ref( $data->{v} ) eq 'ARRAY' ) {
+                    my $tied = tied @$obj;
+                    splice( @$tied, 1, $#$tied, @{$data->{v}} );
+                } else {
+                    return { err => "Missing data to update $data->{ID}" };
+                }
+            }
+            elsif( ref( $obj ) eq 'HASH' ) {
+                if( ref( $data->{v} ) eq 'HASH' ) {
+                    my $tied = tied %$obj;
+                    for my $k (%{$data->{v}}) {
+                        $tied->{$k} = $data->{v}{$k};
+                    }
+                    for my $k (%$tied) {
+                        next if $k eq '__ID__';
+                        unless( defined( $data->{v}{$k} ) ) {
+                            delete $tied->{$k};
+                        }
+                    }
+                } else {
+                    return { err => "Missing data to update $data->{ID}" };
+                }
+            }
+            else { #object
+                if( ref( $data->{v} ) eq 'HASH' ) {
+                    for my $k (%{$data->{v}}) {
+                        $obj->{DATA}{$k} = $data->{v}{$k};
+                    }
+                    for my $k (%{$obj->{DATA}}) {
+                        unless( defined( $data->{v}{$k} ) ) {
+                            delete $obj->{DATA}{$k};
+                        }
+                    }
+                } else {
+                    return { err => "Missing data to update $data->{ID}" };
+                }
+            }
+            GServ::ObjProvider::stow( $obj );
+            return { o => GServ::ObjProvider::raw_data( $obj ), msg => 'updated' };
+        }
+    }
+    return { err => "Unable to update $data->{ID}" };
+} #_stow
+
+1;
+
+__END__
+
+=head1 NAME
+
+GServ::AppRoot - Application Server Base Objects
+
+=head1 SYNOPSIS
+
+    This object is meant to be extended to provide GServ apps.
+
+=head1 DESCRIPTION
+
+
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::AppServer;
+
+#
+# Proof of concept server with main loop.
+#
+use strict;
+
+use forks;
+use forks::shared;
+
+use HTTP::Request::Params;
+use Net::Server::Fork;
+use MIME::Base64;
+use JSON;
+use Data::Dumper;
+
+use GServ::AppProvider;
+use GServ::ObjIO;
+my $CGI;
+
+use base qw(Net::Server::Fork);
+
+use Carp;
+$SIG{ __DIE__ } = sub { Carp::confess( @_ ) };
+
+my( @commands, %prid2wait, %prid2result );
+share( @commands );
+share( %prid2wait );
+share( %prid2result );
+
+# find apps to install
+
+our @DBCONNECT;
+
+sub new {
+    my $pkg = shift;
+    my $class = ref( $pkg ) || $pkg;
+    return bless {}, $class;
+}
+my( $db, $args );
+sub start_server {
+    my( $self, @args ) = @_;
+    $args = scalar(@args) == 1 ? $args[0] : { @args };
+
+    $args->{port}      ||= 8008;
+    $args->{datastore} ||= 'GServ::MysqlIO';
+
+    GServ::ObjIO::init( %$args );
+
+    # fork out for two starting threads
+    #   - one a multi forking server and the other an event loop.
+    my $thread = threads->new( sub { $self->run( %$args ); } );
+
+    _poll_commands();
+
+    $thread->join;
+} #start_server
+
+#
+# Sets up Initial database server and tables.
+#
+sub init_server {
+    my( $self, @args ) = @_;
+    GServ::ObjIO::init_datastore( @args );
+} #init_server
+
+#
+# Called when a request is made. This does an initial parsing and
+# sends a data structure to process_command.
+#
+# Commands are sent with a single HTTP request parameter : m for message.
+#
+# Commands have the following structure :
+#   * a - app
+#   * c - cmd
+#   * d - data
+#   * w - if true, waits for command to be processed before returning
+#
+#
+# This ads a command to the list of commands. If
+#
+sub process_request {
+    my $self = shift;
+
+    my $reqstr;
+    while(<STDIN>) {
+        $reqstr .= $_;
+        last if $_ =~ /^[\n\r]+$/s;
+    }
+#    print STDERR Data::Dumper->Dump( [$reqstr] );
+    my $parse_params = HTTP::Request::Params->new( { req => $reqstr } );
+    my $params       = $parse_params->params;
+    print STDERR Data::Dumper->Dump( [$CGI,$params] );
+    my $callback     = $params->{callback};
+    my $command = from_json( MIME::Base64::decode($params->{m}) );
+#    print STDERR Data::Dumper->Dump( [$params,$command] );
+    $command->{oi} = $self->{server}{peeraddr}; #origin ip
+
+    my $wait = $command->{w};
+    my $procid = $$;
+    {
+        lock( %prid2wait );
+        $prid2wait{$procid} = $wait;
+    }
+#    print STDERR Data::Dumper->Dump(["locking comands"]);
+    #
+    # Queue up the command for processing in a separate thread.
+    #
+    {
+        lock( @commands );
+        push( @commands, [$command, $procid] );
+        cond_broadcast( @commands );
+    }
+
+
+    if( $wait ) {
+        while( 1 ) {
+            my $wait;
+            {
+                lock( %prid2wait );
+                $wait = $prid2wait{$procid};
+            }
+            if( $wait ) {
+                lock( %prid2wait );
+                cond_wait( %prid2wait );
+                last unless $prid2wait{$procid};
+            } else {
+                last;
+            }
+        }
+        my $result;
+        {
+#            print STDERR Data::Dumper->Dump( ["loop locking prid2res",\%prid2result] );
+            lock( %prid2result );
+            $result = $prid2result{$procid};
+            delete $prid2result{$procid};
+        }
+#        print STDERR Data::Dumper->Dump(["after wait ($callback)",$command,$result]);
+        print STDOUT "$callback( '$result' )";
+    } else {
+        print STDOUT qq|$callback( '{"msg":"Added command"}' );|;
+    }
+
+} #process_request
+
+#
+# Run by a threat that constantly polls for commands.
+#
+sub _poll_commands {
+    while(1) {
+#        print STDERR Data::Dumper->Dump( ["StartLoop"] );
+        my $cmd;
+        {
+            lock( @commands );
+            $cmd = shift @commands;
+        }
+        if( $cmd ) {
+            _process_command( $cmd );
+        }
+        unless( @commands ) {
+            lock( @commands );
+            cond_wait( @commands );
+        }
+    }
+
+} #_poll_commands
+
+sub _process_command {
+    my $req = shift;
+    my( $command, $procid ) = @$req;
+#    print STDERR Data::Dumper->Dump( ["PC"] );
+    _reconnect();
+#    print STDERR Data::Dumper->Dump( ["Reconnect"] );
+
+    my $root = GServ::AppProvider::fetch_root();
+#    print STDERR Data::Dumper->Dump( [$command,$root] );
+    my $ret  = $root->process_command( $command );
+
+    #
+    # Send return value back to the caller if its waiting for it.
+    #
+#    print STDERR Data::Dumper->Dump( ["about to return and lock",\%prid2wait] );
+    lock( %prid2wait );
+    {
+#        print STDERR Data::Dumper->Dump( ["Locking prid2res",\%prid2result] );
+        lock( %prid2result );
+        $prid2result{$procid} = to_json($ret);
+    }
+    delete $prid2wait{$procid};
+#    print STDERR Data::Dumper->Dump( ["broadcasting",\%prid2wait] );
+    cond_broadcast( %prid2wait );
+
+} #_process_command
+
+sub _reconnect {
+    GServ::ObjIO::reconnect();
+} #_reconnect
+
+1
+
+__END__
+
+=head1 NAME
+
+GServ::AppServer - is a library used for creating prototype applications for the web.
+
+=head1 SYNOPSIS
+
+    use GServ::AppServer;
+    use GServ::ObjIO::DB;
+    use GServ::AppServer;
+
+    my $persistance_engine = new GServ::ObjIO::DB(connection params);
+    $persistance_engine->init_gserv;
+
+    my $server = new GServ::AppServer( persistance => $persistance_engine );
+
+    # --- or ----
+    my $server = new GServ::AppServer;
+    $server->attach_persistance( $persistance_engine );
+
+    $server->start_server( port => 8008 );
+
+=head1 DESCRIPTION
+
+
+
+=head1 BUGS
+
+Given that this is pre pre alpha. Many yet undiscovered.
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::Array;
+
+use strict;
+
+use Tie::Array;
+
+use Data::Dumper;
+
+use constant {
+    OFFSET => 1,
+};
+
+sub TIEARRAY {
+    my( $class, @list ) = @_;
+    my $storage = bless [], $class;
+    my( $id, @rest ) = @list;
+    push( @$storage, $id );
+    for my $item (@rest) {
+        push( @$storage, $item );
+    }
+    return $storage;
+}
+
+sub FETCH {
+    my( $self, $idx ) = @_;
+    return GServ::ObjProvider::xform_out ( $self->[$idx+OFFSET] );
+}
+
+sub FETCHSIZE {
+    my $self = shift;
+    return scalar(@$self) - OFFSET;
+}
+
+sub STORE {
+    my( $self, $idx, $val ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+    $self->[$idx+OFFSET] = GServ::ObjProvider::xform_in( $val );
+}
+sub EXISTS {
+    my( $self, $idx ) = @_;
+    return defined( $self->[$idx+OFFSET] );
+}
+sub DELETE {
+    my( $self, $idx ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+    undef $self->[$idx+OFFSET];
+}
+
+sub CLEAR {
+    my $self = shift;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+    splice @$self, 1;
+}
+sub PUSH {
+    my( $self, @vals ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+    push( @$self, map { GServ::ObjProvider::xform_in($_) } @vals );
+}
+sub POP {
+    my $self = shift;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+    if( @$self > OFFSET ) {
+        return GServ::ObjProvider::xform_out( pop @$self );
+    }
+    return undef;
+}
+sub SHIFT {
+    my( $self ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+    my $val = splice @$self, OFFSET, 1;
+    return GServ::ObjProvider::xform_out( $val );
+}
+sub UNSHIFT {
+    my( $self, @vals ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+    if( @$self > OFFSET ) {
+        splice @$self, OFFSET, 0, @vals;
+    }
+    return undef;
+}
+sub SPLICE {
+    my( $self, $offset, $length, @vals ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->[0] );
+
+    my $start = OFFSET + $offset;
+    if( $offset < 0 ) {
+        my $start = $#$self - $offset;
+        if( $start <= OFFSET ) {
+            $start = OFFSET;
+        }
+    }
+    splice @$self, $start, $length, @vals;
+
+}
+
+1;
+__END__
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::Hash;
+
+use strict;
+
+use Tie::Hash;
+
+use Data::Dumper;
+use GServ::ObjProvider;
+
+sub TIEHASH {
+    my( $class, %hash ) = @_;
+    my $id = $hash{__ID__};
+    my $storage = bless { __ID__ => $hash{__ID__} }, $class;
+    for my $key (grep { $_ ne '__ID__' } keys %hash) {
+        $storage->{$key} = $hash{$key};
+    }
+    return $storage;
+}
+
+sub STORE {
+    my( $self, $key, $val ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->{__ID__} );
+    $self->{$key} = GServ::ObjProvider::xform_in( $val );
+}
+
+sub FIRSTKEY {
+    my $self = shift;
+    my $a = scalar keys %$self;
+    my( $k, $val ) = each %$self;
+    if( $k ne '__ID__' ) {
+        return wantarray ? ( $k => $val ) : $k;
+    }
+    ( $k, $val ) = each %$self;
+    return wantarray ? ( $k => $val ) : $k;
+}
+sub NEXTKEY  {
+    my $self = shift;
+    my( $k, $val ) = each %$self;
+    if( $k ne '__ID__' ) {
+        return wantarray ? ( $k => $val ) : $k;
+    }
+    ( $k, $val ) = each %$self;
+    return wantarray ? ( $k => $val ) : $k;
+}
+
+sub FETCH {
+    my( $self, $key ) = @_;
+    return $self->{$key} if $key eq '__ID__';
+    return GServ::ObjProvider::xform_out( $self->{$key} );
+}
+
+sub EXISTS {
+    my( $self, $key ) = @_;
+    return defined( $self->{$key} );
+}
+sub DELETE {
+    my( $self, $key ) = @_;
+    GServ::ObjProvider::dirty( $self, $self->{__ID__} );
+    return delete $self->{$key};
+}
+sub CLEAR {
+    my $self = shift;
+    GServ::ObjProvider::dirty( $self, $self->{__ID__} );
+    for my $key (%$self) {
+        delete $self->{$key};
+    }
+}
+
+1;
+__END__
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::Hello;
+
+use strict;
+
+use GServ::AppRoot;
+
+use base 'GServ::AppRoot';
+
+
+sub hello {
+    my( $self, $data, $acct ) = @_;
+    my $name = $acct ? $acct->get_handle() : '?';
+    return { r => "hello there $name" };
+}
+
+1;
+package GServ::MysqlIO;
+
+#
+# This stows and fetches G objects from a database store and provides object ids.
+#
+
+use strict;
+use feature ':5.10';
+
+use Data::Dumper;
+use DBI;
+
+use constant {
+    DATA => 2,
+    MAX_LENGTH => 1025,
+};
+
+sub new {
+    my $pkg = shift;
+    my $class = ref( $pkg ) || $pkg;
+    my $args = ref( $_[0] ) ? $_[0] : { @_ };
+
+    my $self = {
+        args => $args,
+    };
+    bless $self, $class;
+    $self->connect( $args );
+    return $self;
+} #new
+
+sub connect {
+    my $self  = shift;
+    my $args  = ref( $_[0] ) ? $_[0] : { @_ };
+    my $db    = $args->{database} || $self->{args}{database} || 'sg';
+    my $uname = $args->{uname} || $self->{args}{uname};
+    my $pword = $args->{pword} || $self->{args}{pword};
+    $self->database( "DBI:mysql:$db", $uname, $pword );
+} #connect
+
+sub reconnect {
+    my $self = shift;
+    $self->connect();
+}
+
+sub init_datastore {
+    my $self = shift;
+    my $args = ref( $_[0] ) ? $_[0] : { @_ };
+    my $db = $args->{db}       || $self->{args}{db};
+    my $uname = $args->{uname} || $self->{args}{uname};
+    my $pword = $args->{pword} || $self->{args}{pword};
+
+    $self->database( "DBI:mysql:$db", $uname, $pword );
+
+    my %definitions = (
+        field => q~CREATE TABLE `field` (
+                   `obj_id` int(10) unsigned NOT NULL,
+                   `field` varchar(300) DEFAULT NULL,
+                   `ref_id` int(10) unsigned DEFAULT NULL,
+                   `value` varchar(1025) DEFAULT NULL,
+                   KEY `obj_id` (`obj_id`),
+                   KEY `ref_id` (`ref_id`)
+               ) ENGINE=InnoDB DEFAULT CHARSET=latin1~,
+        big_text => q~CREATE TABLE `big_text` (
+                       `obj_id` int(10) unsigned NOT NULL,
+                       `text` text,
+                       PRIMARY KEY (`obj_id`)
+                      ) ENGINE=InnoDB CHARSET=latin1~,
+        objects => q~CREATE TABLE `objects` (
+                     `id` int(11) NOT NULL AUTO_INCREMENT,
+                     `class` varchar(255) DEFAULT NULL,
+                      PRIMARY KEY (`id`)
+                      ) ENGINE=InnoDB DEFAULT CHARSET=latin1~
+        );
+    $self->{DBH}->do( "START TRANSACTION" );
+    my $today = $self->{DBH}->selectrow_array( "SELECT now()" );
+    $today =~ s/[^0-9]+//g;
+    for my $table (keys %definitions ) {
+        my( $t ) = $self->{DBH}->selectrow_array( "SHOW TABLES LIKE '$table'" );
+        if( $t ) {
+            my $existing_def = $self->{DBH}->selectall_arrayref( "SHOW CREATE TABLE $table" );
+            my $current_def = $definitions{$table};
+
+            #normalize whitespace for comparison
+            $current_def =~ s/[\s\n\r]+/ /gs;
+            $existing_def =~ s/[\s\n\r]+/ /gs;
+
+            if( lc( $current_def ) eq lc( $existing_def ) ) {
+                print STDERR "Table '$table' exists and is the same version\n";
+            } else {
+                my $backup = "${table}_$today";
+                print STDERR "Table definition mismatch for $table. Rename old table '$table' to '$backup' and creating new one.\n";
+                $self->{DBH}->do("RENAME TABLE $table TO $backup\n");
+                $self->{DBH}->do( $definitions{$table} );
+            }
+        } else {
+            print STDERR "Creating table $table\n";
+            $self->{DBH}->do( $definitions{$table} );
+        }
+    }
+    $self->{DBH}->selectrow_array( "COMMIT" );
+} #init_datastore
+
+sub database {
+    my $self = shift;
+    if( @_ ) {
+        $self->{DBH} = DBI->connect( @_ );
+    }
+    return $self->{DBH};
+}
+
+#
+# Returns the number of entries in the data structure given.
+#
+sub xpath_count {
+    my( $self, $path ) = @_;
+    my( @list ) = split( /\//, $path );
+    my $next_ref = 1;
+    for my $l (@list) {
+        next unless $l; #skip blank paths like /foo//bar/  (should just look up foo -> bar
+        my( $ref ) = $self->{DBH}->selectrow_array( "SELECT ref_id FROM field WHERE field=? AND obj_id=?", {}, $l, $next_ref );
+        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+        $next_ref = $ref;
+        last unless $next_ref;
+    } #each path part
+
+    my( $count ) = $self->{DBH}->selectrow_array( "SELECT count(*) FROM field WHERE obj_id=?", {}, $next_ref );
+    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+
+    return $count;
+
+} #xpath_count
+
+#
+# Returns a single value given the xpath (hash only, and notation is slash separated from root)
+# This will always query persistance directly for the value, bypassing objects.
+# The use for this is to fetch specific things from potentially very long hashes that you don't want to
+#   load in their entirety.
+#
+sub xpath {
+    my( $self, $path ) = @_;
+    my( @list ) = split( /\//, $path );
+    my $next_ref = 1;
+    my $final_val;
+    for my $l (@list) {
+        next unless $l; #skip blank paths like /foo//bar/  (should just look up foo -> bar
+        undef $final_val;
+        my( $val, $ref ) = $self->{DBH}->selectrow_array( "SELECT value, ref_id FROM field WHERE field=? AND obj_id=?", {}, $l, $next_ref );
+        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+        if( $ref && $val ) {
+            my ( $big_val ) = $self->{DBH}->selectrow_array( "SELECT text FROM big_text WHERE obj_id=?", {}, $ref );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+            $final_val = "v$big_val";
+            last;
+        } elsif( $ref ) {
+            $next_ref = $ref;
+            $final_val = $ref;
+        } else {
+            $final_val = "v$val";
+            last;
+        }
+    } #each path part
+
+    # @TODO: log bad xpath if final_value not defined
+
+    return $final_val;
+} #xpath
+
+#
+# Returns a list of objects as a result : All objects connected to the one specified
+# by the id.
+#
+# The objects are returned as array refs with 3 fields :
+#   id, class, data
+#
+sub fetch_deep {
+    my( $self, $id, $seen ) = @_;
+
+    $seen ||= {};
+
+    my( $class ) = $self->{DBH}->selectrow_array( "SELECT class FROM objects WHERE id=?", {}, $id );
+    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+
+    return undef unless $class;
+    my $obj = [$id,$class];
+    given( $class ) {
+        when('ARRAY') {
+            $obj->[DATA] = [];
+        }
+        default {
+            $obj->[DATA] = {};
+        }
+    }
+
+    $seen->{$id} = $obj;
+
+    given( $class ) {
+        when('ARRAY') {
+            my $res = $self->{DBH}->selectall_arrayref( "SELECT field, ref_id, value FROM field WHERE obj_id=?", {}, $id );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+            for my $row (@$res) {
+                my( $idx, $ref_id, $value ) = @$row;
+                $obj->[DATA][$idx] = $ref_id || $value;
+                if( $ref_id ) {
+                    fetch_deep( $ref_id, $seen );
+                }
+            }
+        }
+        when('BIGTEXT') {
+            ($obj->[DATA]) = $self->{DBH}->selectrow_array( "SELECT text FROM big_text WHERE obj_id=?", {}, $id );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+        }
+        default {
+            my $res = $self->{DBH}->selectall_arrayref( "SELECT field, ref_id, value FROM field WHERE obj_id=?", {}, $id );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+            for my $row (@$res) {
+                my( $field, $ref_id, $value ) = @$row;
+                $obj->[DATA]{$field} = $ref_id || $value;
+                if( $ref_id ) {
+                    fetch_deep( $ref_id, $seen );
+                }
+            }
+        } # hash or object
+    }
+
+    return [values %$seen];
+} #fetch_deep
+
+#
+# Returns a single object specified by the id. The object is returned as a hash ref with id,class,data.
+#
+sub fetch {
+    my( $self, $id ) = @_;
+
+    my( $class ) = $self->{DBH}->selectrow_array( "SELECT class FROM objects WHERE id=?", {}, $id );
+    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+    return undef unless $class;
+    my $obj = [$id,$class];
+    given( $class ) {
+        when('ARRAY') {
+            $obj->[DATA] = [];
+            my $res = $self->{DBH}->selectall_arrayref( "SELECT field, ref_id, value FROM field WHERE obj_id=?", {}, $id );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+            for my $row (@$res) {
+                my( $idx, $ref_id, $value ) = @$row;
+                if( $ref_id && $value ) {
+                    my( $val ) = $self->{DBH}->selectrow_array( "SELECT text FROM big_text WHERE obj_id=?", {}, $ref_id );
+                    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                    ( $obj->[DATA][$idx] ) = "v$val";
+                } else {
+                    $obj->[DATA][$idx] = $ref_id || "v$value";
+                }
+            }
+        }
+        default {
+            $obj->[DATA] = {};
+            my $res = $self->{DBH}->selectall_arrayref( "SELECT field, ref_id, value FROM field WHERE obj_id=?", {}, $id );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+            for my $row (@$res) {
+                my( $field, $ref_id, $value ) = @$row;
+                if( $ref_id && $value ) {
+                    my( $val ) = $self->{DBH}->selectrow_array( "SELECT text FROM big_text WHERE obj_id=?", {}, $ref_id );
+                    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                    ( $obj->[DATA]{$field} ) = "v$val";
+                } else {
+                    $obj->[DATA]{$field} = $ref_id || "v$value";
+                }
+            }
+        }
+    }
+    return $obj;
+} #fetch
+
+#
+# Given a class, makes new entry in the objects table and returns the generated id
+#
+sub get_id {
+    my( $self, $class ) = @_;
+
+    my $res = $self->{DBH}->do( "INSERT INTO objects (class) VALUES (?)", {}, $class );
+    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+    return $self->{DBH}->last_insert_id(undef,undef,undef,undef);
+} #get_id
+
+#
+# Stores the object to persistance. Object is an array ref in the form id,class,data
+#
+sub stow {
+    my( $self, $id, $class, $data ) = @_;
+
+    given( $class ) {
+        when('ARRAY') {
+            $self->{DBH}->do( "DELETE FROM field WHERE obj_id=?", {}, $id );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+            for my $i (0..$#$data) {
+                my $val = $data->[$i];
+                if( index( $val, 'v' ) == 0 ) {
+                    if( length( $val ) > MAX_LENGTH ) {
+                        my $big_id = $self->get_id( "BIGTEXT" );
+                        $self->{DBH}->do( "INSERT INTO field (obj_id,field,ref_id,value) VALUES (?,?,?,'V')", {}, $id, $i, $big_id );
+                        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                        $self->{DBH}->do( "INSERT INTO big_text (obj_id,text) VALUES (?,?)", {}, $big_id, substr($val,1) );
+                        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                    } else {
+                        $self->{DBH}->do( "INSERT INTO field (obj_id,field,value) VALUES (?,?,?)", {}, $id, $i, substr($val,1) );
+                        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                    }
+                } else {
+                    $self->{DBH}->do( "INSERT INTO field (obj_id,field,ref_id) VALUES (?,?,?)", {}, $id, $i, $val );
+                    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                }
+            }
+        }
+        default {
+            $self->{DBH}->do( "DELETE FROM field WHERE obj_id=?", {}, $id );
+            print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+            for my $key (keys %$data) {
+                next if $key eq '__ID__';
+                my $val = $data->{$key};
+                if( index( $val, 'v' ) == 0 ) {
+                    if( length( $val ) > MAX_LENGTH ) {
+                        my $big_id = $self->get_id( "BIGTEXT" );
+                        $self->{DBH}->do( "INSERT INTO field (obj_id,field,ref_id,value) VALUES (?,?,?,'V')", {}, $id, $key, $big_id );
+                        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                        $self->{DBH}->do( "INSERT INTO big_text (obj_id,text) VALUES (?,?)", {}, $big_id, substr($val,1) );
+                        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                    } else {
+                        $self->{DBH}->do( "INSERT INTO field (obj_id,field,value) VALUES (?,?,?)", {}, $id, $key, substr($val,1) );
+                        print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                    }
+                }
+                else {
+                    $self->{DBH}->do( "INSERT INTO field (obj_id,field,ref_id) VALUES (?,?,?)", {}, $id, $key, $val );
+                    print STDERR Data::Dumper->Dump(["db __LINE__",$self->{DBH}->errstr()]) if $self->{DBH}->errstr();
+
+                }
+            } #each key
+        }
+    }
+} #stow
+
+
+1;
+__END__
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::Obj;
+
+#
+# A GServ object, mostly just syntactic sugar
+#
+
+use strict;
+
+use GServ::ObjProvider;
+use Data::Dumper;
+
+sub new {
+    my( $pkg, $id ) = @_;
+    my $class = ref($pkg) || $pkg;
+
+    my $obj = bless {
+        ID       => $id,
+        DATA     => {},
+    }, $class;
+
+    $obj->{ID} ||= GServ::ObjProvider::get_id( $obj );
+
+    $obj->init;
+
+    return $obj;
+} #new
+
+# returns true if the object passsed in is the same as this one.
+sub is {
+    my( $self, $obj ) = @_;
+    return ref( $obj ) && $obj->isa( 'GServ::Obj' ) && $obj->{ID} == $self->{ID};
+}
+
+sub init {}
+
+sub save {
+    my $self = shift;
+    GServ::ObjProvider::stow( $self );
+} #save
+
+sub AUTOLOAD {
+    my( $s, $arg ) = @_;
+    my $func = our $AUTOLOAD;
+
+    if( $func =~/:add_to_(.*)/ ) {
+        my( $fld ) = $1;
+        my $get = "get_$fld";
+        my $arry = $s->$get([]); # init array if need be
+        no strict 'refs';
+        *$AUTOLOAD = sub {
+            my( $self, @vals ) = @_;
+            push( @$arry, @vals );
+        };
+        goto &$AUTOLOAD;
+
+    }
+    elsif( $func =~ /:remove_from_(.*)/ ) {
+        my $fld = $1;
+        my $get = "get_$fld";
+        my $arry = $s->$get([]); # init array if need be
+        no strict 'refs';
+        *$AUTOLOAD = sub {
+            my( $self, $val ) = @_;
+            my $count = grep { $_ eq $val } @$arry;
+            while( $count ) {
+                for my $i (0..$#$arry) {
+                    if( $arry->[$i] eq $val ) {
+                        --$count;
+                        splice @$arry, $i, 1;
+                        last;
+                    }
+                }
+            }
+        };
+        goto &$AUTOLOAD;
+
+    }
+    elsif ( $func =~ /:set_(.*)/ ) {
+        my $fld = $1;
+        no strict 'refs';
+        *$AUTOLOAD = sub {
+            my( $self, $val ) = @_;
+            my $inval = GServ::ObjProvider::xform_in( $val );
+            GServ::ObjProvider::dirty( $self, $self->{ID} ) if $self->{DATA}{$fld} ne $inval;
+            $self->{DATA}{$fld} = $inval
+        };
+        goto &$AUTOLOAD;
+    }
+    elsif( $func =~ /:get_(.*)/ ) {
+        my $fld = $1;
+        no strict 'refs';
+        *$AUTOLOAD = sub {
+            my( $self, $init_val ) = @_;
+            if( ! defined( $self->{DATA}{$fld} ) && defined($init_val) ) {
+                $self->{DATA}{$fld} = GServ::ObjProvider::xform_in( $init_val );
+                GServ::ObjProvider::dirty( $self, $self->{ID} );
+            }
+            return GServ::ObjProvider::xform_out( $self->{DATA}{$fld} );
+        };
+        goto &$AUTOLOAD;
+    }
+    else {
+        die "Unknown GServ::Obj function '$func'";
+    }
+
+} #AUTOLOAD
+
+sub DESTROY {}
+
+1;
+__END__
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::ObjIO;
+
+#
+# This stows and fetches G objects from a database store and provides object ids.
+#
+
+use strict;
+use feature ':5.10';
+
+use Data::Dumper;
+
+our $SINGLETON;
+
+sub init {
+    my $args = ref( $_[0] ) ? $_[0] : { @_ };
+    my $ds = $args->{datastore};
+    eval("use $ds");
+    die $@ if $@;
+    $SINGLETON = $ds->new( $args );
+} #init
+
+sub _get_singleton {
+    die "fatal: ObjIO did not run init" unless $SINGLETON;
+    return $SINGLETON;
+}
+
+sub reconnect {
+    return _get_singleton()->reconnect(@_);
+} #reconnect
+
+sub init_datastore {
+    return _get_singleton()->init_datastore(@_);
+} #init_datastore
+
+#
+# Returns the number of entries in the data structure given.
+#
+sub xpath_count {
+    return _get_singleton()->xpath_count(@_);
+} #xpath_count
+
+#
+# Returns a single value given the xpath (hash only, and notation is slash separated from root)
+# This will always query persistance directly for the value, bypassing objects.
+# The use for this is to fetch specific things from potentially very long hashes that you don't want to
+#   load in their entirety.
+#
+sub xpath {
+    return _get_singleton()->xpath(@_);
+} #xpath
+
+#
+# Returns a list of objects as a result : All objects connected to the one specified
+# by the id.
+#
+# The objects are returned as array refs with 3 fields :
+#   id, class, data
+#
+sub fetch_deep {
+    return _get_singleton()->fetch_deep(@_);
+} #fetch_deep
+
+#
+# Returns a single object specified by the id. The object is returned as a hash ref with id,class,data.
+#
+sub fetch {
+    return _get_singleton()->fetch(@_);
+} #fetch
+
+#
+# Given a class, makes new entry in the objects table and returns the generated id
+#
+sub get_id {
+    return _get_singleton()->get_id(@_);
+} #get_id
+
+#
+# Stores the object to persistance. Object is an array ref in the form id,class,data
+#
+sub stow {
+    return _get_singleton()->stow(@_);
+} #stow
+
+
+1;
+__END__
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+package GServ::ObjProvider;
+
+use strict;
+
+use feature ':5.10';
+
+use GServ::Array;
+use GServ::Hash;
+use GServ::Obj;
+use GServ::ObjIO;
+
+use Data::Dumper;
+
+use WeakRef;
+
+use Exporter;
+use base 'Exporter';
+
+our @EXPORT_OK = qw(fetch stow a_child_of_b);
+
+$GServ::ObjProvider::DIRTY = {};
+$GServ::ObjProvider::WEAK_REFS = {};
+
+# --------------------
+#   PACKAGE METHODS
+# --------------------
+
+sub fetch_root {
+    my $root = fetch( 1 );
+
+    unless( $root ) {
+        $root = new GServ::Obj;
+        stow( $root );
+    }
+
+    return $root;
+} #fetch_root;
+
+sub xpath {
+    my $path = shift;
+    return xform_out( GServ::ObjIO::xpath( $path ) );
+}
+
+sub xpath_count {
+    my $path = shift;
+    return GServ::ObjIO::xpath_count( $path );
+}
+
+sub fetch {
+    my( $id ) = @_;
+
+    #
+    # Return the object if we have a reference to its dirty state.
+    #
+    my $ref = $GServ::ObjProvider::DIRTY->{$id} || $GServ::ObjProvider::WEAK_REFS->{$id};
+
+    return $ref if $ref;
+
+    my $obj_arry = GServ::ObjIO::fetch( $id );
+
+    if( $obj_arry ) {
+        my( $id, $class, $data ) = @$obj_arry;
+        given( $class ) {
+            when('ARRAY') {
+                my( @arry );
+                tie @arry, 'GServ::Array', $id, @$data;
+                store_weak( $id, \@arry );
+                return \@arry;
+            }
+            when('HASH') {
+                my( %hash );
+                tie %hash, 'GServ::Hash', __ID__ => $id, map { $_ => $data->{$_} } keys %$data;
+                store_weak( $id, \%hash );
+                return \%hash;
+            }
+            default {
+                eval("require $class");
+                my $obj = $class->new( $id );
+                $obj->{DATA} = $data;
+                $obj->{ID} = $id;
+                store_weak( $id, $obj );
+                return $obj;
+            }
+        }
+    }
+    return undef;
+} #fetch
+
+sub get_id {
+    my $ref = shift;
+
+    my $class = ref( $ref );
+    given( $class ) {
+        when('GServ::Array') {
+            return $ref->[0];
+        }
+        when('ARRAY') {
+            my $tied = tied @$ref;
+            if( $tied ) {
+                return $tied->[0] || GServ::ObjIO::get_id( "ARRAY" );
+            }
+            my( @data ) = @$ref;
+            my $id = GServ::ObjIO::get_id( $class );
+            tie @$ref, 'GServ::Array', $id;
+            push( @$ref, @data );
+            dirty( $ref, $id );
+            store_weak( $id, $ref );
+            return $id;
+        }
+        when('GServ::Hash') {
+            my $wref = $ref;
+            return $ref->{__ID__};
+        }
+        when('HASH') {
+            my $tied = tied %$ref;
+            if( $tied ) {
+                my $id = $tied->{__ID__} || GServ::ObjIO::get_id( "HASH" );
+                store_weak( $id, $ref );
+                return $id;
+            }
+            my $id = GServ::ObjIO::get_id( $class );
+            my( %vals ) = %$ref;
+            tie %$ref, 'GServ::Hash', __ID__ => $id;
+            for my $key (keys %vals) {
+                $ref->{$key} = $vals{$key};
+            }
+            dirty( $ref, $id );
+            store_weak( $id, $ref );
+            return $id;
+        }
+        default {
+            $ref->{ID} ||= GServ::ObjIO::get_id( $class );
+            store_weak( $ref->{ID}, $ref );
+            return $ref->{ID};
+        }
+    }
+} #get_id
+
+sub a_child_of_b {
+    my( $a, $b, $seen ) = @_;
+    my $bref = ref( $b );
+    return 0 unless $bref && ref($a);
+    $seen ||= {};
+    my $bid = get_id( $b );
+    return 0 if $seen->{$bid};
+    $seen->{$bid} = 1;
+    return 1 if get_id($a) == get_id($b);
+    given( $bref ) {
+        when(/^(ARRAY|GServ::Array)$/) {
+            for my $obj (@$b) {
+                return 1 if( a_child_of_b( $a, $obj ) );
+            }
+        }
+        when(/^(HASH|GServ::Hash)$/) {
+            for my $obj (values %$b) {
+                return 1 if( a_child_of_b( $a, $obj ) );
+            }
+        }
+        default {
+            for my $obj (values %{$b->{DATA}}) {
+                return 1 if( a_child_of_b( $a, xform_out( $obj ) ) );
+            }
+        }
+    }
+    return 0;
+} #a_child_of_b
+
+sub stow_all {
+    my( @objs ) = values %{$GServ::ObjProvider::DIRTY};
+    for my $obj (@objs) {
+        stow( $obj );
+    }
+} #stow_all
+
+#
+# Returns data structure representing object. References are integers. Values start with 'v'.
+#
+sub raw_data {
+    my( $obj ) = @_;
+    my $class = ref( $obj );
+    return unless $class;
+    my $id = get_id( $obj );
+    die unless $id;
+    given( $class ) {
+        when('ARRAY') {
+            my $tied = tied @$obj;
+            if( $tied ) {
+                my( $id, @rest ) = @$tied;
+                return \@rest;
+            } else {
+                die;
+            }
+        }
+        when('HASH') {
+            my $tied = tied %$obj;
+            if( $tied ) {
+                return $tied;
+            } else {
+                die;
+            }
+        }
+        when('GServ::Array') {
+            my( $id, @rest ) = @$obj;
+            return \@rest;
+        }
+        when('GServ::Hash') {
+            return $obj;
+        }
+        default {
+            return $obj->{DATA};
+        }
+    }
+} #raw_data
+
+sub stow {
+
+    my( $obj ) = @_;
+    my $class = ref( $obj );
+    return unless $class;
+    my $id = get_id( $obj );
+    die unless $id;
+    my $data = raw_data( $obj );
+    given( $class ) {
+        when('ARRAY') {
+            GServ::ObjIO::stow( $id,'ARRAY', $data );
+            clean( $id );
+        }
+        when('HASH') {
+            GServ::ObjIO::stow( $id,'HASH',$data );
+            clean( $id );
+        }
+        when('GServ::Array') {
+            if( is_dirty( $id ) ) {
+                GServ::ObjIO::stow( $id,'ARRAY',$data );
+                clean( $id );
+            }
+            for my $child (@$data) {
+                if( $child > 0 && $GServ::ObjProvider::DIRTY->{$child} ) {
+                    stow( $GServ::ObjProvider::DIRTY->{$child} );
+                }
+            }
+        }
+        when('GServ::Hash') {
+            if( is_dirty( $id ) ) {
+                GServ::ObjIO::stow( $id, 'HASH', $data );
+            }
+            clean( $id );
+            for my $child (values %$data) {
+                if( $child > 0 && $GServ::ObjProvider::DIRTY->{$child} ) {
+                    stow( $GServ::ObjProvider::DIRTY->{$child} );
+                }
+            }
+        }
+        default {
+            if( is_dirty( $id ) ) {
+                GServ::ObjIO::stow( $id, $class, $data );
+                clean( $id );
+            }
+            for my $val (values %$data) {
+                if( $val > 0 && $GServ::ObjProvider::DIRTY->{$val} ) {
+                    stow( $GServ::ObjProvider::DIRTY->{$val} );
+                }
+            }
+        }
+    } #given
+
+} #stow
+
+sub xform_out {
+    my $val = shift;
+    return undef unless defined( $val );
+    if( index($val,'v') == 0 ) {
+        return substr( $val, 1 );
+    }
+    return fetch( $val );
+}
+
+sub xform_in {
+    my $val = shift;
+    if( ref( $val ) ) {
+        return get_id( $val );
+    }
+    return "v$val";
+}
+
+sub store_weak {
+    my( $id, $ref ) = @_;
+    die "SW" if ref($ref) eq 'GServ::Hash';
+    my $weak = $ref;
+    weaken( $weak );
+    $GServ::ObjProvider::WEAK_REFS->{$id} = $weak;
+}
+
+sub dirty {
+    my $obj = shift;
+    my $id = shift;
+    $GServ::ObjProvider::DIRTY->{$id} = $obj;
+}
+
+sub is_dirty {
+    my $id = shift;
+    return $GServ::ObjProvider::DIRTY->{$id};
+}
+
+sub clean {
+    my $id = shift;
+    delete $GServ::ObjProvider::DIRTY->{$id};
+}
+
+1;
+__END__
+
+=head1 AUTHOR
+
+Eric Wolf
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2011 Eric Wolf
+
+This module is free software; it can be used under the same terms as perl
+itself.
+
+=cut
+#!/usr/bin/perl
+
+use strict;
+
+use Data::Dumper;
+use JSON;
+use CGI;
+
+my( $ret );
+eval {
+    $ret = &main();
+};
+if( $ret ) {
+    print "Content-Type: text/x-json\n\n({ \"err\" : \"$@\" })\n";
+}
+sub main {
+    my $CGI = new CGI;
+    my $param = $CGI->Vars;
+    print STDERR Data::Dumper->Dump( [$param] );
+print "Content-Type: text/html\n\n<pre>".Data::Dumper->Dump(["BOO"]).'</pre>';
+    return 0;
+} #main
+ewolf@WFF1025:~/proj/GServ$

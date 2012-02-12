@@ -1,0 +1,117 @@
+<html>
+  <head>
+    <title>Stellar Expanse</title>
+    <script src="/js/jquery-latest.js"></script>
+    <script src="/js/jquery.dumper.js"></script>
+    <script src="/js/jquery.base64.min.js"></script>
+    <script src="/js/json2.js"></script>
+    <script src="/js/yote/yote.js"></script>
+    <script src="/js/yote/yote.util.js"></script>
+    <script>
+    $().ready(function(){
+
+        var se_app = $.yote.get_app( 'StellarExpanse::App' );
+
+        function message( msg ) {
+            $('#msg').empty();
+            if( typeof msg !== 'undefined' ) {
+                $('#msg').append( msg + '<BR>' );
+            }
+        } //message
+
+        function games_table( games ) {
+            var buff = "<table><tr><th>Game</th><th>Number of Players</th><th>Created By</th></tr>";
+            for( var i=0; i<games.length(); ++i ) {
+                var game = games.get(i);
+                buff = buff + "<tr><td>" + game.get('name') + "</td><td>" + 
+                    game.get('number_players') + '</td><td>' +
+                    game.get('created_by').get('handle') + '</td><td></tr>';
+            }
+            return buff +  "</table>";
+        } //games_table
+
+        function to_game_login(msg) {
+            message(msg);
+            var active_games = se_app.my_active_games();
+            var pending_games = se_app.my_pending_games();            
+            var avail_games = se_app.available_games();            
+            $('#active_games').empty();
+            if( active_games.length() === 0 ) {
+                $('#active_games').append( "Not playing any games currently" );
+            } else {
+                $('#active_games').append( games_table( active_games ) );
+            }
+            $('#pending_games').empty();
+            if( pending_games.length() == 0 ) {
+                $('#pending_games').append( "Not joined any pending games" );
+            } else {
+                $('#pending_games').append( games_table( pending_games ) );                
+            }
+            $('#avail_games').empty();
+            if( avail_games.length() == 0 ) {
+                $('#avail_games').append( "No available games" );
+            } else {
+                $('#avail_games').append( games_table( avail_games ) );                
+            }
+
+            $('#gamefield').empty();
+            $('#gamefield').append('<button type=button id=newgame>New Game</button>');
+            
+            $('#newgame').click( to_create_game );
+
+            $('#games').show();
+        } //to_game_login
+
+        function to_create_game(msg) {
+            message(msg);
+            $('#gamefield').empty();
+            $('#gamefield').append(
+                '<h2>Create New Game</h2>' + 
+                    '<table><tr><th>Name</th><td><input type=text id=game_name></td></tr>' +
+                    '<tr><th>Number of Players</th><td><input type=text id=number_players></td></tr>' +
+                    '<tr><th>Flavor</th><td></td></tr>' +
+                    '<button type=button id=Create>Create</button>'
+            );
+            $('#Create').click( function() {
+                se_app.create_game( 
+                    { //data
+                        name:$('#game_name').val(),
+                        number_players:$('#number_players').val()
+                    },
+                    function(d) { //passhandler
+                        to_game_login( d.msg );
+                    },
+                    function(err) { //failhandler
+                        to_create_game(err);
+                    }
+                );
+            } );
+        } //to_create_game
+
+	    $.yote.util.make_login_box( { 
+	        target:'#login_div',
+            on_login:to_game_login,
+            on_register:to_game_login,
+            on_logout:function(){$('#games').hide();}
+	    });
+	    
+	});
+    </script>
+    <style>
+      .emp   { font-family:"Lucida Console",monospace;  }
+#login_div { border: 1px solid black;padding:5px; margin: 5px;}
+    </style>
+  </head>
+  <body>
+    <h1>Stellar Exapnse</h1>
+    <div id=login_div></div>
+    <hr>
+    <div id=msg></div>
+    <div id=games style=display:none>
+      <div id=active_games></div>
+      <div id=pending_games></div>
+      <div id=avail_games></div>
+      <div id=gamefield></div>
+    </div>
+  </body>
+</html>
