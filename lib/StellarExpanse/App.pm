@@ -2,6 +2,7 @@ package StellarExpanse::App;
 
 use strict;
 
+use StellarExpanse::Flavor;
 use StellarExpanse::Game;
 use Yote::ObjProvider;
 use base 'Yote::AppRoot';
@@ -23,6 +24,26 @@ sub create_game {
 
     return { msg => 'created game', g => $game };
 } #create_game
+
+#
+# Returns installed flavors as a list
+#
+sub flavors {
+    my $self = shift;
+    my $flavs = $self->get_flavors([]);
+    if( @$flavs == 0 ) {
+	my $flav = $self->new_flavor();
+	$flav->set_name( "primary flavor" );
+    }
+    return $self->get_flavors();
+} #flavors
+
+sub new_flavor {
+    my( $self, $data, $acct_root, $acct ) = @_;
+    my $flav = new StellarExpanse::Flavor();
+    $self->add_to_flavors( $flav );
+    return $flav;
+}
 
 sub my_active_games {
     my( $self, $data, $acct_root, $acct ) = @_;

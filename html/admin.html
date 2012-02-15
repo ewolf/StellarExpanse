@@ -10,16 +10,45 @@
     <script src="/js/yote/yote.util.js"></script>
     <script>
     $().ready(function(){
-	$('div').hide();
+	$('div.info').hide();
         var se_app = $.yote.get_app( 'StellarExpanse::App' );
 	
 	$('#nav a').each( function(idx) {
 	    $( this ).click( function() { 
-		$('div').hide();  
-		alert( $.dump( this ) );
+		$('div.info').hide();  
+		$( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
 	    } );
 	} );
 
+	/*
+	  set up flavors to be edited.
+	 */
+	function edit_flavor( flav ) {
+	    $('#flavor_edit_box').empty();
+	    $('#flavor_edit_box').append( '<h2>Ships</h2><table id=ship_tab><tr><th>Name</th></tr>');
+	    var ships = flav.get('ships');
+	    for( var i=0; i<ships.length(); ++i ) {
+		$( '#ship_tab' ).append( '<tr><td>' + ships.get(i).get('name') + '</td></tr>' );
+	    }
+	    
+	} //edit flavor
+	var flavs = se_app.flavors();
+
+	$('#flavor_div').append( "<div id=flavor_selector_box><select id=flavor_sel></select><br><input type=submit id=flavor_new_sub></div><div id=flavor_edit_box></div>" );
+	for( var i=0; i<flavs.length(); i++ ) {
+	    var flav = flavs.get(i);
+	    $('#flavor_sel').append( "<option id=flavor_" + i + ">" + flav.get('name') + "</option>" );
+	}
+	$('#flavor_new_sub').click(
+	    function() {
+		alert('click');
+		var newflav = se_app.new_flavor();
+		$('#flavor_sel').append( "<option id=flavor_" + (flavs.length()-1) + ">" + newflav.get('name') + "</option>" );
+	    }
+	);
+
+	$( '#flavor_div' ).show();
+    
     } );
     </script>
 
@@ -28,7 +57,7 @@
 	     margin:0px;
 	     padding:0px;
 	   }
-ul#nav li { display:inline; float: left }
+ul#nav li { display:inline; float: left; }
 ul#nav a { width:120px; display:block; padding: 5px;border:1px solid black; }
 </style>
 
@@ -36,16 +65,22 @@ ul#nav a { width:120px; display:block; padding: 5px;border:1px solid black; }
 
 <body>
 <h1>Stellar Exapnse Admin</h1>
-<ul id=nav>
-    <li><a id=flavor_li href=#>Edit Flavors</a></li>
-    <li><a id=config_li href=#>Edit Configs</a></li>
-    <li><a id=player_li href=#>Show Players</a></li>
-    <li><a id=stats_li href=#>Stats</a></li>
-</ul>
-<div id=flavor_div>a</div>
-<div id=config_div>b</div>
-<div id=player_div>c</div>
-<div id=stats_div>d</div>
-
+<table><tr><td>
+  <div id=nav>
+    <ul id=nav>
+      <li><a id=flavor_li href=#>Edit Flavors</a></li>
+      <li><a id=config_li href=#>Edit Configs</a></li>
+      <li><a id=player_li href=#>Show Players</a></li>
+      <li><a id=stats_li href=#>Stats</a></li>
+    </ul>
+  </div>
+</td></tr><tr><td>
+  <div id=body>
+    <div class=info id=flavor_div>a</div>
+    <div class=info id=config_div>b</div>
+    <div class=info id=player_div>c</div>
+    <div class=info id=stats_div>d</div>
+  </div>
+</td></tr></table>
 </body>
 </html>
