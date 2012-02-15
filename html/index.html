@@ -12,6 +12,7 @@
 
         var se_app = $.yote.get_app( 'StellarExpanse::App' );
 
+    // show warning or message on screen
         function message( msg ) {
             $('#msg').empty();
             if( typeof msg !== 'undefined' ) {
@@ -30,6 +31,7 @@
             return buff +  "</table>";
         } //games_table
 
+        //once logged in, show games
         function to_game_login(msg) {
             message(msg);
             var active_games = se_app.my_active_games();
@@ -103,7 +105,7 @@
     </style>
   </head>
   <body>
-    <h1>Stellar Exapnse</h1>
+    <h1>Stellar Expanse</h1>
     <div id=login_div></div>
     <hr>
     <div id=msg></div>

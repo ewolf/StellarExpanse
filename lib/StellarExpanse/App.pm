@@ -4,7 +4,6 @@ use strict;
 
 use StellarExpanse::Game;
 use Yote::ObjProvider;
-
 use base 'Yote::AppRoot';
 
 sub create_game {

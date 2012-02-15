@@ -1,0 +1,51 @@
+<html>
+  <head>
+<title>Stellar Exapnse Admin</title>
+
+    <script src="/js/jquery-latest.js"></script>
+    <script src="/js/jquery.dumper.js"></script>
+    <script src="/js/jquery.base64.min.js"></script>
+    <script src="/js/json2.js"></script>
+    <script src="/js/yote/yote.js"></script>
+    <script src="/js/yote/yote.util.js"></script>
+    <script>
+    $().ready(function(){
+	$('div').hide();
+        var se_app = $.yote.get_app( 'StellarExpanse::App' );
+	
+	$('#nav a').each( function(idx) {
+	    $( this ).click( function() { 
+		$('div').hide();  
+		alert( $.dump( this ) );
+	    } );
+	} );
+
+    } );
+    </script>
+
+<style>
+    ul#nav { list-style-type:none;
+	     margin:0px;
+	     padding:0px;
+	   }
+ul#nav li { display:inline; float: left }
+ul#nav a { width:120px; display:block; padding: 5px;border:1px solid black; }
+</style>
+
+</head>
+
+<body>
+<h1>Stellar Exapnse Admin</h1>
+<ul id=nav>
+    <li><a id=flavor_li href=#>Edit Flavors</a></li>
+    <li><a id=config_li href=#>Edit Configs</a></li>
+    <li><a id=player_li href=#>Show Players</a></li>
+    <li><a id=stats_li href=#>Stats</a></li>
+</ul>
+<div id=flavor_div>a</div>
+<div id=config_div>b</div>
+<div id=player_div>c</div>
+<div id=stats_div>d</div>
+
+</body>
+</html>

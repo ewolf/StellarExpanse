@@ -37,6 +37,7 @@ sub add_player {
             $self->set_active( 1 );
             $self->get_app()->remove_from_pending_games( $self );
             $self->get_app()->add_to_active_games( $self );
+	    $self->_start();
             return { msg => "added to game, which is now starting" };
         }
     }
@@ -50,6 +51,15 @@ sub needs_players {
     my $self = shift;
     return $self->get_number_players() - scalar( %{$self->get_players({})} );
 } #needs_players
+
+#
+# Called automatically upon the last person joining
+#
+sub _start {
+    my $self = shift;
+
+    
+} #_start
 
 sub submit_orders {
     my( $self, $data, $acct ) = @_;
