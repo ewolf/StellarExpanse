@@ -12,7 +12,6 @@
 
         var se_app = $.yote.get_app( 'StellarExpanse::App' );
 
-    // show warning or message on screen
         function message( msg ) {
             $('#msg').empty();
             if( typeof msg !== 'undefined' ) {
@@ -20,18 +19,81 @@
             }
         } //message
 
-        function games_table( games ) {
-            var buff = "<table><tr><th>Game</th><th>Number of Players</th><th>Created By</th></tr>";
+        function show_game(game, already_member) {
+            $('#games').hide();
+            var eg = $('#examine_game');
+            eg.empty();
+            eg.
+                append($("<p/>").append(game.get('name'))).
+                append($("<p/>").append(game.get('number_players'))).
+                append($("<p/>").append(game.get('created_by').get('handle'))).
+                append($("<button type='button'/>").attr({
+                    name: 'action',
+                    value: 'do'
+                }).append(already_member?"Leave Game":"Join Game").click( function() {
+                    if (already_member) {
+                    }
+                    else {
+                        game.add_player({});
+                    }
+                    eg.hide();
+                    to_game_login('');
+                })).
+                append($("<button type='button'/>").attr({
+                    name: 'action',
+                    value: 'ret'
+                }).append("Return to game list").click( function() {
+                    eg.hide();
+                    to_game_login('');
+                }));
+            eg.show();
+        }
+
+        function games_table( games, type ) {
+            var obj = $("<table/>");
+            var header = $("<tr/>").
+             append($("<th/>").append("Game")).
+             append($("<th/>").append("Number of Players")).
+             append($("<th/>").append("Created by"));
+            obj.append(header);
+
             for( var i=0; i<games.length(); ++i ) {
                 var game = games.get(i);
-                buff = buff + "<tr><td>" + game.get('name') + "</td><td>" + 
-                    game.get('number_players') + '</td><td>' +
-                    game.get('created_by').get('handle') + '</td><td></tr>';
+                var gameLine = $("<tr/>").
+                    append($("<td/>").append(game.get('name'))).
+                    append($("<td/>").append(game.get('number_players'))).
+                    append($("<td/>").append(game.get('created_by').get('handle')));
+
+                var action = $("<td/>");
+                var label;
+                var clickEv;
+		if (type === 'avail') {
+                    label = "Examine";
+                    clickEv = function() {
+                        show_game(game, false);
+                    }
+                } else if (type === 'pending') {
+                    label = "Examine";
+                    clickEv = function() {
+                        show_game(game, true);
+                    }
+                } else if (type === 'active') {
+                    label = "Play";
+                    clickEv = function() {
+                        alert('not yet ready');
+                    }
+                }
+                var button = $("<button type='button'/>").attr({
+                    name: 'action',
+                    value: label
+		}).append(label).appendTo(action);
+                button.click( clickEv );
+                gameLine.append(action);
+                obj.append(gameLine);
             }
-            return buff +  "</table>";
+            return obj;
         } //games_table
 
-        //once logged in, show games
         function to_game_login(msg) {
             message(msg);
             var active_games = se_app.my_active_games();
@@ -41,19 +103,19 @@
             if( active_games.length() === 0 ) {
                 $('#active_games').append( "Not playing any games currently" );
             } else {
-                $('#active_games').append( games_table( active_games ) );
+                $('#active_games').append( games_table( active_games, 'active' ) );
             }
             $('#pending_games').empty();
             if( pending_games.length() == 0 ) {
                 $('#pending_games').append( "Not joined any pending games" );
             } else {
-                $('#pending_games').append( games_table( pending_games ) );                
+                $('#pending_games').append( games_table( pending_games, 'pending' ) );                
             }
             $('#avail_games').empty();
             if( avail_games.length() == 0 ) {
                 $('#avail_games').append( "No available games" );
             } else {
-                $('#avail_games').append( games_table( avail_games ) );                
+                $('#avail_games').append( games_table( avail_games, 'avail' ) );                
             }
 
             $('#gamefield').empty();
@@ -115,5 +177,6 @@
       <div id=avail_games></div>
       <div id=gamefield></div>
     </div>
+    <div id=examine_game style=display:none></div>
   </body>
 </html>
