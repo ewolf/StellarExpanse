@@ -5,17 +5,6 @@ use strict;
 use base 'Yote::Obj';
 
 
-sub init {
-    my $self = shift;
-
-    for my $def (@defaultships) {
-	my $prototype = new Yote::Obj;
-	$prototype->absorb( $def );
-	$self->add_to_ships( $prototype );
-    }
-} #init
-
-
 our @defaultships=(
     {
 	name => 'Scout',
@@ -581,6 +570,18 @@ our @defaultships=(
     },
 
     ); #defaultships
+
+sub init {
+    my $self = shift;
+
+    for my $def (@defaultships) {
+	my $prototype = new Yote::Obj;
+	$prototype->absorb( $def );
+	$self->add_to_ships( $prototype );
+    }
+} #init
+
+
 
 1;
 
