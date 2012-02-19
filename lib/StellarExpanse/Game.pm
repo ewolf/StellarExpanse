@@ -49,7 +49,15 @@ sub add_player {
 #
 sub needs_players {
     my $self = shift;
-    return $self->get_number_players() - scalar( %{$self->get_players({})} );
+    my $xx = $self->get_players({});
+    my %x;
+    if (ref($xx) eq 'HASH')  {
+        %x = %{$xx};
+    }
+    else {
+        eval { %x = %{$xx->[1]} };
+    }
+    return $self->get_number_players() - scalar( %x );
 } #needs_players
 
 #
