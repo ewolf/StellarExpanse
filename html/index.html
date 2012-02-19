@@ -32,6 +32,7 @@
                     value: 'do'
                 }).append(already_member?"Leave Game":"Join Game").click( function() {
                     if (already_member) {
+                        game.remove_player({});
                     }
                     else {
                         game.add_player({});
@@ -49,6 +50,40 @@
             eg.show();
         }
 
+	function game_line(game, type) {
+            var gameLine = $("<tr/>").
+                append($("<td/>").append(game.get('name'))).
+                append($("<td/>").append(game.get('number_players'))).
+                append($("<td/>").append(game.get('created_by').get('handle')));
+
+            var action = $("<td/>");
+            var label;
+            var clickEv;
+            if (type === 'avail') {
+                label = "Examine";
+                clickEv = function() {
+                    show_game(game, false);
+                };
+            } else if (type === 'pending') {
+                label = "Examine";
+                clickEv = function() {
+                    show_game(game, true);
+                };
+            } else if (type === 'active') {
+                label = "Play";
+                clickEv = function() {
+                    alert("Not yet ready.");
+                };
+            }
+            var button = $("<button type='button'/>").attr({
+                name: 'action',
+                value: label
+            }).append(label).appendTo(action);
+            button.click( clickEv );
+            gameLine.append(action);
+            return gameLine;
+        }
+
         function games_table( games, type ) {
             var obj = $("<table/>");
             var header = $("<tr/>").
@@ -59,36 +94,7 @@
 
             for( var i=0; i<games.length(); ++i ) {
                 var game = games.get(i);
-                var gameLine = $("<tr/>").
-                    append($("<td/>").append(game.get('name'))).
-                    append($("<td/>").append(game.get('number_players'))).
-                    append($("<td/>").append(game.get('created_by').get('handle')));
-
-                var action = $("<td/>");
-                var label;
-                var clickEv;
-		if (type === 'avail') {
-                    label = "Examine";
-                    clickEv = function() {
-                        show_game(game, false);
-                    }
-                } else if (type === 'pending') {
-                    label = "Examine";
-                    clickEv = function() {
-                        show_game(game, true);
-                    }
-                } else if (type === 'active') {
-                    label = "Play";
-                    clickEv = function() {
-                        alert('not yet ready');
-                    }
-                }
-                var button = $("<button type='button'/>").attr({
-                    name: 'action',
-                    value: label
-		}).append(label).appendTo(action);
-                button.click( clickEv );
-                gameLine.append(action);
+                var gameLine = game_line(game, type);
                 obj.append(gameLine);
             }
             return obj;
