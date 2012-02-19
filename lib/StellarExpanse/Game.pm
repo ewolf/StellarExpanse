@@ -45,6 +45,23 @@ sub add_player {
 } #add_player
 
 #
+# Removes the account from this game
+#
+sub remove_player {
+    my( $self, $data, $acct_root, $acct ) = @_;
+    my $players = $self->get_players({});
+    if( !$players->{$acct->get_handle()} ) {
+        return { err => "account not a member of this game" };
+    }
+    if ($self->get_active()) {
+        return { err => "cannot leave an active game" };
+    }
+    $acct_root->remove_from_my_joined_games( $self );
+    delete $players->{$acct->get_handle()};
+    return { msg => "player removed from game" };
+}
+
+#
 # Returns number of players needed by game.
 #
 sub needs_players {
