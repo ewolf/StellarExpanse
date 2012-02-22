@@ -10,45 +10,75 @@
     <script src="/js/yote/yote.util.js"></script>
     <script>
     $().ready(function(){
-	$('div.info').hide();
+	    $('div.info').hide();
         var se_app = $.yote.get_app( 'StellarExpanse::App' );
-	
-	$('#nav a').each( function(idx) {
-	    $( this ).click( function() { 
-		$('div.info').hide();  
-		$( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
-	    } );
-	} );
-
-	/*
-	  set up flavors to be edited.
-	 */
-	function edit_flavor( flav ) {
-	    $('#flavor_edit_box').empty();
-	    $('#flavor_edit_box').append( '<h2>Ships</h2><table id=ship_tab><tr><th>Name</th></tr>');
-	    var ships = flav.get('ships');
-	    for( var i=0; i<ships.length(); ++i ) {
-		$( '#ship_tab' ).append( '<tr><td>' + ships.get(i).get('name') + '</td></tr>' );
-	    }
 	    
-	} //edit flavor
-	var flavs = se_app.flavors();
+	    $('#nav a').each( function(idx) {
+	        $( this ).click( function() { 
+		        $('div.info').hide();  
+		        $( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
+	        } );
+	    } );
 
-	$('#flavor_div').append( "<div id=flavor_selector_box><select id=flavor_sel></select><br><input type=submit id=flavor_new_sub></div><div id=flavor_edit_box></div>" );
-	for( var i=0; i<flavs.length(); i++ ) {
-	    var flav = flavs.get(i);
-	    $('#flavor_sel').append( "<option id=flavor_" + i + ">" + flav.get('name') + "</option>" );
-	}
-	$('#flavor_new_sub').click(
-	    function() {
-		alert('click');
-		var newflav = se_app.new_flavor();
-		$('#flavor_sel').append( "<option id=flavor_" + (flavs.length()-1) + ">" + newflav.get('name') + "</option>" );
+        var editing;
+
+	    /*
+	      set up flavors to be edited.
+	    */
+	    function edit_flavor( flav ) {
+            editing = flav;
+	        $('#flavor_edit_box').empty();
+	        $('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
+                                          ' <button type=button id=reset>Reset</button> ' +
+                                          '<h2>Ships</h2><table id=ship_tab></table>' );
+            var fields = {
+                name:'Name'                
+            };
+            var field_keys = Array();
+            for( var key in fields ) { 
+                $('#ship_tab').append( "<th>" + fields[key] + '</th>' );
+            }
+            $('#reset').click( function() { if( confirm("Really Revert?") ) { edit_flavor(editing) }} );
+
+	        var ships = flav.get('ships');
+
+            $('#save').click( function() {
+                editing.send_update();
+                for( var i=0; i<ships.length(); ++i ) {
+                    ships.get(i).send_update();
+                }
+            } );
+
+	        for( var i=0; i<ships.length(); ++i ) {
+                var ship = ships.get(i);
+                $( '#ship_tab' ).append( '<tr id=ship_'+i+'>' );
+                for( var key in fields ) {
+                    var val = ship.get(key);
+                    var idname = 'fl_' + i + '_' + key;
+		            $( 'tr#ship_' + i ).append( '<td><input type=text id=' + idname + '></td>' );
+                    $( '#'+idname ).val( val );
+                    $( '#'+idname ).keypress( (function (s,k,id) { return function(e) {  s.stage(k,$(id).val());console.dir(s,$(id).val() ) } } )(ship,key,'#'+idname ) );
+                }
+            }
+	    } //edit flavor
+	    var flavs = se_app.flavors();
+
+	    $('#flavor_div').append( "<div id=flavor_selector_box>Available Flavors <select id=flavor_sel></select><br><input type=submit id=flavor_new_sub value=\"New Flavor\"></div><div id=flavor_edit_box></div>" );
+	    for( var i=0; i<flavs.length(); i++ ) {
+	        var flav = flavs.get(i);
+	        $('#flavor_sel').append( "<option id=flavor_" + i + ">" + flav.get('name') + "</option>" );
 	    }
-	);
-
-	$( '#flavor_div' ).show();
-    
+	    $('#flavor_new_sub').click(
+	        function() {
+		        var newflav = se_app.new_flavor();
+		        $('#flavor_sel').append( "<option id=flavor_" + (flavs.length()-1) + ">" + newflav.get('name') + "</option>" );
+                edit_flavor( newflav );
+	        }
+	    );
+        edit_flavor( flavs.get(0) );
+        
+	    $( '#flavor_div' ).show();
+        
     } );
     </script>
 
@@ -76,10 +106,10 @@ ul#nav a { width:120px; display:block; padding: 5px;border:1px solid black; }
   </div>
 </td></tr><tr><td>
   <div id=body>
-    <div class=info id=flavor_div>a</div>
-    <div class=info id=config_div>b</div>
-    <div class=info id=player_div>c</div>
-    <div class=info id=stats_div>d</div>
+    <div class=info id=flavor_div></div>
+    <div class=info id=config_div></div>
+    <div class=info id=player_div></div>
+    <div class=info id=stats_div></div>
   </div>
 </td></tr></table>
 </body>
