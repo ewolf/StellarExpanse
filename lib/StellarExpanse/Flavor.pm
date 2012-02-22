@@ -424,12 +424,7 @@ our @defaultships=(
 	name => 'Battlecruiser',
 	tech_level => '4',
 	damage_control => '3',
-
-# -- 2010-05-01, trying variation for rebalancing with removing racks
-#'jumpsleft' => '2',
-#jumps => '2',
 	jumps => '4',
-#racksize => '4',
 	racksize => '0',
 
 	design_id => '27',
@@ -579,7 +574,6 @@ sub init {
 	$self->add_to_ships( $prototype );
     }
 } #init
-
 
 1;
 
