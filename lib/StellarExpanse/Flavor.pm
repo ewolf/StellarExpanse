@@ -569,9 +569,9 @@ sub init {
     my $self = shift;
 
     for my $def (@defaultships) {
-	my $prototype = new Yote::Obj;
-	$prototype->absorb( $def );
-	$self->add_to_ships( $prototype );
+        my $prototype = new Yote::Obj;
+        $prototype->absorb( $def );
+        $self->add_to_ships( $prototype );
     }
 } #init
 

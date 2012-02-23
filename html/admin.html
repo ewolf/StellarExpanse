@@ -57,7 +57,7 @@
                     var idname = 'fl_' + i + '_' + key;
 		            $( 'tr#ship_' + i ).append( '<td><input type=text id=' + idname + '></td>' );
                     $( '#'+idname ).val( val );
-                    $( '#'+idname ).keypress( (function (s,k,id) { return function(e) {  s.stage(k,$(id).val());console.dir(s,$(id).val() ) } } )(ship,key,'#'+idname ) );
+                    $( '#'+idname ).keyup( (function (s,k,id) { return function(e) {  s.stage(k,$(id).val());console.dir(s,$(id).val() ) } } )(ship,key,'#'+idname ) );
                 }
             }
 	    } //edit flavor
