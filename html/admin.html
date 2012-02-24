@@ -29,35 +29,48 @@
             editing = flav;
 	        $('#flavor_edit_box').empty();
 	        $('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
-                                          ' <button type=button id=reset>Reset</button> ' +
-                                          '<h2>Ships</h2><table id=ship_tab></table>' );
+                                          ' <button type=button id=reset>Reset</button> <BR><br>Name : ' );
+            $.yote.util.stage_text_field( $('#flavor_edit_box'), editing, 'name' );
+
+            $('#flavor_edit_box').append( '<p>ToDO : have a registry of javascript object to form control and vice versa, and build a page object that is aware of the objects in it and how a change in the object and a change in the control interact' );
+
+            $('#flavor_edit_box').append( '<h2>Ships</h2><table border=1 id=ship_tab><tr></tr></table>' );
             var fields = {
-                name:'Name'                
+	            name:'Name',
+	            tech_level:'Tech Level',
+	            damage_control:'Damage Control',
+	            jumps:'Jumps',
+	            cost:'Cost',
+	            targets:'Targets',
+	            self_destruct:'Self Destruct',
+	            attack_beams:'Attack Beams',
+	            defense:'Defense',
+	            size:'Size',
+	            racksize:'Rack Size'
             };
             var field_keys = Array();
             for( var key in fields ) { 
-                $('#ship_tab').append( "<th>" + fields[key] + '</th>' );
+                $('#ship_tab tr').append( "<th>" + fields[key] + '</th>' );
             }
             $('#reset').click( function() { if( confirm("Really Revert?") ) { edit_flavor(editing) }} );
 
 	        var ships = flav.get('ships');
+            ships.load_direct_descendents();
 
             $('#save').click( function() {
                 editing.send_update();
                 for( var i=0; i<ships.length(); ++i ) {
                     ships.get(i).send_update();
                 }
+                edit_flavor(editing);
             } );
 
 	        for( var i=0; i<ships.length(); ++i ) {
                 var ship = ships.get(i);
                 $( '#ship_tab' ).append( '<tr id=ship_'+i+'>' );
                 for( var key in fields ) {
-                    var val = ship.get(key);
-                    var idname = 'fl_' + i + '_' + key;
-		            $( 'tr#ship_' + i ).append( '<td><input type=text id=' + idname + '></td>' );
-                    $( '#'+idname ).val( val );
-                    $( '#'+idname ).keyup( (function (s,k,id) { return function(e) {  s.stage(k,$(id).val());console.dir(s,$(id).val() ) } } )(ship,key,'#'+idname ) );
+                    var tr = $( 'tr#ship_' + i ).append('<td id=ship_' + i + '_' + key + ' >');
+		            $.yote.util.stage_text_field( $('#ship_' + i + '_' + key ), ship, key );
                 }
             }
 	    } //edit flavor
