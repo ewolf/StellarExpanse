@@ -21,12 +21,35 @@
 	    } );
 
         var editing;
+        var flavors;
 
 	    /*
 	      set up flavors to be edited.
 	    */
 	    function edit_flavor( flav ) {
+            if( typeof flav === 'undefined' ) {
+                flavs = se_app.get_flavors();
+                flavs.load_direct_descendents();
+            }
+            $('#flavor_div').empty();
+	        $('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
+                                     '<select id=flavor_sel></select><br>' + 
+                                     '<input type=submit id=flavor_new_sub value="New Flavor"></div>' +
+                                     '<div id=flavor_edit_box></div>' );
+	        for( var i=0; i<flavs.length(); i++ ) {
+	            var flav = flavs.get(i);
+	            $('#flavor_sel').append( "<option id=flavor_" + i + ">" + flav.get('name') + "</option>" );
+	        }
+	        $('#flavor_new_sub').click(
+	            function() {
+		            var newflav = se_app.new_flavor();
+		            $('#flavor_sel').append( "<option id=flavor_" + (flavs.length()-1) + ">" + newflav.get('name') + "</option>" );
+                    edit_flavor( newflav );
+	            }
+	        );
+
             editing = flav;
+
 	        $('#flavor_edit_box').empty();
 	        $('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
                                           ' <button type=button id=reset>Reset</button> <BR><br>Name : ' );
@@ -74,21 +97,8 @@
                 }
             }
 	    } //edit flavor
-	    var flavs = se_app.flavors();
 
-	    $('#flavor_div').append( "<div id=flavor_selector_box>Available Flavors <select id=flavor_sel></select><br><input type=submit id=flavor_new_sub value=\"New Flavor\"></div><div id=flavor_edit_box></div>" );
-	    for( var i=0; i<flavs.length(); i++ ) {
-	        var flav = flavs.get(i);
-	        $('#flavor_sel').append( "<option id=flavor_" + i + ">" + flav.get('name') + "</option>" );
-	    }
-	    $('#flavor_new_sub').click(
-	        function() {
-		        var newflav = se_app.new_flavor();
-		        $('#flavor_sel').append( "<option id=flavor_" + (flavs.length()-1) + ">" + newflav.get('name') + "</option>" );
-                edit_flavor( newflav );
-	        }
-	    );
-        edit_flavor( flavs.get(0) );
+        edit_flavor();
         
 	    $( '#flavor_div' ).show();
         
@@ -112,7 +122,7 @@ ul#nav a { width:120px; display:block; padding: 5px;border:1px solid black; }
   <div id=nav>
     <ul id=nav>
       <li><a id=flavor_li href=#>Edit Flavors</a></li>
-      <li><a id=config_li href=#>Edit Configs</a></li>
+      <li><a id=config_li href=#>Edit Configs (system pattern configuration)</a></li>
       <li><a id=player_li href=#>Show Players</a></li>
       <li><a id=stats_li href=#>Stats</a></li>
     </ul>

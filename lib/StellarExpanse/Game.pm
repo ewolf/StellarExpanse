@@ -2,16 +2,33 @@ package StellarExpanse::Game;
 
 use strict;
 
-use StellarExpanse::Game;
+use StellarExpanse::Turn;
 
 use base 'Yote::Obj';
+
+#
+# Starts the game on turn 0.
+#
+sub init {
+    my $self = shift;
+
+    $self->set_turn( 0 );
+    my $first_turn = new StellarExpanse::Turn();
+    $self->add_to_turns( $first_turn );
+
+} #init
+
+sub current_turn {
+    my $self = shift;
+    return $self->get_turns()->[$self->get_turn()];
+}
 
 #
 # Returns the player object associated with the account, if any.
 #
 sub find_player {
     my( $self, $data, $acct_root, $acct ) = @_;
-    return $self->get_players({})->{$acct->get_handle()};
+    return $self->current_turn()->get_players()->{$acct->get_handle()};
 } #find_player
 
 #
@@ -19,12 +36,14 @@ sub find_player {
 #
 sub add_player {
     my( $self, $data, $acct_root, $acct ) = @_;
-    my $players = $self->get_players({});
+    my $players = $self->current_turn()->get_players();
     if( $players->{$acct->get_handle()} ) {
         return { err => "account already added to this game" };
     }
     if( $self->needs_players() ) {
-        my $player = new Yote::Obj;
+        my $player = new StellarExpanse::Player();
+        $player->set_game( $self );
+        $player->set_account_root( $acct_root );
         if( $data->{name} ) {
             $player->set_name( $data->{name} );
         }
@@ -34,10 +53,7 @@ sub add_player {
         if( $self->needs_players() ) { #see if the game is now full
             return { msg => "added to game" };
         } else {
-            $self->set_active( 1 );
-            $self->get_app()->remove_from_pending_games( $self );
-            $self->get_app()->add_to_active_games( $self );
-	    $self->_start();
+            $self->_start();
             return { msg => "added to game, which is now starting" };
         }
     }
@@ -49,7 +65,7 @@ sub add_player {
 #
 sub remove_player {
     my( $self, $data, $acct_root, $acct ) = @_;
-    my $players = $self->get_players({});
+    my $players = $self->current_turn()->get_players();
     if( !$players->{$acct->get_handle()} ) {
         return { err => "account not a member of this game" };
     }
@@ -66,15 +82,8 @@ sub remove_player {
 #
 sub needs_players {
     my $self = shift;
-    my $xx = $self->get_players({});
-    my %x;
-    if (ref($xx) eq 'HASH')  {
-        %x = %{$xx};
-    }
-    else {
-        eval { %x = %{$xx->[1]} };
-    }
-    return $self->get_number_players() - scalar( %x );
+    return (! $self->get_active() ) &&
+        $self->get_number_players() > keys %{$self->get_turn()->get_players()};
 } #needs_players
 
 #
@@ -83,51 +92,17 @@ sub needs_players {
 sub _start {
     my $self = shift;
 
+    $self->set_active( 1 );
+    my $players = $self->current_turn()->get_players();
+    for my $player (values %$players) {
+        my $acct_root = $player->get_account_root();
+        $acct_root->remove_from_pending_games( $self );
+        $acct_root->add_to_active_games( $self );
+    }
     
 } #_start
 
-sub submit_orders {
-    my( $self, $data, $acct ) = @_;
-    my $game = fetch( $data->{game} );
-    my $player = $game->get_player( $acct );
-    if( $player ) {
-        if( $data->{turn} == $game->get_turn() ) {
-            $player->get_orders([])->[$data->{turn}] = $data->{orders};
-            return { msg => "Submitted orders for turn ".$data->{turn} };
-        } else {
-            return { err => "Turn already over for these orders" };
-        }
-    }
-    return { err => "Not part of this game" };
-} #submit_orders
-
-sub get_orders {
-    my( $self, $data, $acct ) = @_;
-    my $game = fetch( $data->{game} );
-    my $player = $game->get_player( $acct );
-    if( $player ) {
-        my $orders = $player->get_orders([])->[$game->get_turn()];
-        return { d => $orders, msg => "got orders for turn ".$game->get_turn() };
-    }
-    return { err => "Not part of this game" };
-} #get_orders
-
-sub mark_as_ready {
-    my( $self, $data, $acct ) = @_;
-    my $game = fetch( $data->{game} );    
-    my $player = $game->get_player( $acct );
-    if( $player ) {
-        if( $game->get_turn() > $data->{turn} ) {
-            return { err => "Turn $data->{turn} already over" };
-        }
-        $player->get_ready([])->[$game->get_turn()] = $data->{ready};
-        if( $game->is_ready() ) {
-            $game->take_turn();
-        }
-        return { msg => "marked as".($data->{ready}?" ready ":" unready ")." for turn ".$game->get_turn() };
-    }
-    return { err => "Not part of this game" };
-    
-} #mark_as_ready
 
 1;
+
+__END__
