@@ -102,9 +102,9 @@
 
         function to_game_login(msg) {
             message(msg);
-            var active_games = se_app.my_active_games();
-            var pending_games = se_app.my_pending_games();            
-            var avail_games = se_app.available_games();            
+            var active_games  = se_app.fetch_account_root().get('active_games');
+            var pending_games = se_app.fetch_account_root().get('pending_games');            
+            var avail_games   = se_app.available_games();            
             $('#active_games').empty();
             if( active_games.length() === 0 ) {
                 $('#active_games').append( "Not playing any games currently" );
@@ -135,11 +135,12 @@
         function to_create_game(msg) {
             message(msg);
             $('#gamefield').empty();
+            var flavors = se_app.get( 'flavors' );
             $('#gamefield').append(
                 '<h2>Create New Game</h2>' + 
                     '<table><tr><th>Name</th><td><input type=text id=game_name></td></tr>' +
                     '<tr><th>Number of Players</th><td><input type=text id=number_players></td></tr>' +
-                    '<tr><th>Flavor</th><td></td></tr>' +
+                    '<tr><th>Flavor</th><td id=flavor_td></td></tr>' +
                     '<button type=button id=Create>Create</button>'
             );
             $('#Create').click( function() {

@@ -5,7 +5,15 @@ use strict;
 use StellarExpanse::Flavor;
 use StellarExpanse::Game;
 use Yote::ObjProvider;
+
 use base 'Yote::AppRoot';
+
+sub init {
+    my $self = shift;
+    my $flav = $self->new_flavor();
+    $flav->set_name( "primary flavor" );
+    $self->add_to_flavors( $flav );
+}
 
 sub create_game {
     my( $self, $data, $acct_root, $acct ) = @_;
@@ -25,19 +33,6 @@ sub create_game {
     return { msg => 'created game', g => $game };
 } #create_game
 
-#
-# Returns installed flavors as a list
-#
-sub flavors {
-    my $self = shift;
-    my $flavs = $self->get_flavors([]);
-    if( @$flavs == 0 ) {
-	my $flav = $self->new_flavor();
-	$flav->set_name( "primary flavor" );
-    }
-    return $self->get_flavors();
-} #flavors
-
 sub new_flavor {
     my( $self, $data, $acct_root, $acct ) = @_;
     my $flav = new StellarExpanse::Flavor();
@@ -45,20 +40,10 @@ sub new_flavor {
     return $flav;
 }
 
-sub my_active_games {
-    my( $self, $data, $acct_root, $acct ) = @_;
-    return [ grep { $_->find_player(undef,undef,$acct) } @{$self->get_active_games([])}];
-} #my_active_games
-
 sub available_games {
     my( $self, $data, $acct_root, $acct ) = @_;
-    return [ grep { ! $_->find_player(undef,undef,$acct) } @{$self->get_pending_games([])}];
+    return [ grep { ! $_->find_player($data,$acct_root,$acct) } @{$self->get_pending_games([])}];
 } #available_games
-
-sub my_pending_games {
-    my( $self, $data, $acct_root, $acct ) = @_;
-    return [ grep { $_->find_player(undef,undef,$acct) } @{$self->get_pending_games([])}];
-} #my_pending_games
 
 1;
 
