@@ -13,6 +13,14 @@ sub init {
     $self->set_players({});
 }
 
+#
+# List of joined players
+#
+sub players {
+    my $self = shift;
+    return [values %{ $self->get_players() }];
+}
+
 1;
 
 __END__

@@ -93,12 +93,16 @@ sub _start {
     my $self = shift;
 
     $self->set_active( 1 );
-    my $players = $self->current_turn()->get_players();
-    for my $player (values %$players) {
+    my $players = $self->current_turn()->players();
+    for my $player (@players) {
         my $acct_root = $player->get_account_root();
         $acct_root->remove_from_pending_games( $self );
         $acct_root->add_to_active_games( $self );
+	$player->set_resources( $self->get_starting_resources() );
+	$player->set_tech_level( $self->get_starting_tech_level() );
     }
+
+    
     
 } #_start
 
