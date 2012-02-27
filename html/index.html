@@ -143,6 +143,9 @@
                     '<tr><th>Flavor</th><td id=flavor_td></td></tr>' +
                     '<button type=button id=Create>Create</button>'
             );
+	    $.yote.util.stage_select( $('#flavor_td'),
+				      flavors,
+				      'name' );
             $('#Create').click( function() {
                 se_app.create_game( 
                     { //data
