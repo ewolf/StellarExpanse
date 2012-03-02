@@ -10,66 +10,104 @@
     <script src="/js/yote/yote.util.js"></script>
     <script>
     $().ready(function(){
-	    $('div.info').hide();
+	$('div.info').hide();
         var se_app = $.yote.get_app( 'StellarExpanse::App' );
-	    
-	    $('#nav a').each( function(idx) {
-	        $( this ).click( function() { 
-		        $('div.info').hide();  
-		        $( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
-	        } );
+	
+	$('#nav a').each( function(idx) {
+	    $( this ).click( function() { 
+		$('div.info').hide();  
+		$( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
 	    } );
+	} );
 
         var editing;
         var flavors;
 
-	    /*
-	      set up flavors to be edited.
-	    */
-	    function edit_flavor( flav ) {
+	/*
+	  set up flavors to be edited.
+	*/
+	function edit_flavor( flav ) {
             if( typeof flav === 'undefined' ) {
                 flavs = se_app.get_flavors();
                 flavs.load_direct_descendents();
             }
             $('#flavor_div').empty();
-	        $('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
+	    $('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
                                      '<select id=flavor_sel></select><br>' + 
                                      '<input type=submit id=flavor_new_sub value="New Flavor"></div>' +
                                      '<div id=flavor_edit_box></div>' );
-	        for( var i=0; i<flavs.length(); i++ ) {
-	            var flav = flavs.get(i);
-	            $('#flavor_sel').append( "<option id=flavor_" + i + ">" + flav.get('name') + "</option>" );
-	        }
-	        $('#flavor_new_sub').click(
-	            function() {
-		            var newflav = se_app.new_flavor();
-		            $('#flavor_sel').append( "<option id=flavor_" + (flavs.length()-1) + ">" + newflav.get('name') + "</option>" );
+	    for( var i=0; i<flavs.length(); i++ ) {
+	        var flav = flavs.get(i);
+	        $('#flavor_sel').append( "<option id=flavor_" + i + ">" + flav.get('name') + "</option>" );
+	    }
+	    $('#flavor_new_sub').click(
+	        function() {
+		    var newflav = se_app.new_flavor();
+		    $('#flavor_sel').append( "<option id=flavor_" + (flavs.length()-1) + ">" + newflav.get('name') + "</option>" );
                     edit_flavor( newflav );
-	            }
-	        );
+	        }
+	    );
 
             editing = flav;
 
-	        $('#flavor_edit_box').empty();
-	        $('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
+	    $('#flavor_edit_box').empty();
+	    $('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
                                           ' <button type=button id=reset>Reset</button> <BR><br>Name : ' );
             $.yote.util.stage_text_field( $('#flavor_edit_box'), editing, 'name' );
 
-            $('#flavor_edit_box').append( '<p>ToDO : have a registry of javascript object to form control and vice versa, and build a page object that is aware of the objects in it and how a change in the object and a change in the control interact' );
+	    $('#flavor_edit_box').append( '<br><table><tr id=arow><th>Configs</th><td><span style="margin:2px;border:solid black 1px" id=ship_span>ship</span></td></tr></table>' );
+	    $( '#ship_span' ).css( 'cursor', 'pointer' );
+	    $( '#ship_span' ).click(
+		function() {
+		    $( '#flavor_edit_switch div' ).hide();
+		    $( '#arow span' ).css( 'background-color', 'white' );
+		    $( '#ship_box' ).show();
+		    $( this ).css( 'background-color', 'yellow' );
+		}
+	    );
 
-            $('#flavor_edit_box').append( '<h2>Ships</h2><table border=1 id=ship_tab><tr></tr></table>' );
+	    var configs = Array( 'empire', 'base', 'game', 'universe' );
+	    for( var i in configs ) {
+		var val = configs[i];
+		$( '#arow' ).append( '<td><span style="margin:2px;border:solid black 1px" id=' + val + '_span>' + val + '</span></td>' );
+		$( '#' + val + '_span' ).css( 'cursor', 'pointer' );
+		$( '#' + val + '_span' ).click(
+		    (function( boxname ) { 
+			return function() {
+			    $( '#flavor_edit_switch div' ).hide();
+			    $( '#arow span' ).css( 'background-color', 'white' );
+			    $( boxname ).show();
+			    $( this ).css( 'background-color', 'yellow' );
+			}
+		    } )( '#' + val + '_box' )
+		);
+	    }
+	    $('#flavor_edit_box').append( '<div id=flavor_edit_switch></div>' );
+	    edit_ships( flav );
+	    for( var i in configs ) {
+		var val = configs[i];
+		$('#flavor_edit_switch').append( '<div id=' + val + '_box>' + val + '<BR>' );
+		$.yote.util.stage_textarea( $( '#' + val + '_box' ), flav, val + '_config', 40, 15 );
+	    }	    
+	    $( '#flavor_edit_switch div' ).hide();
+	    $( '#ship_box' ).show();
+	    $( '#ship_span' ).css( 'background-color', 'yellow' );
+	} //edit_flavor
+
+  	function edit_ships( flav ) {
+            $('#flavor_edit_switch').append( '<div id=ship_box><h2>Ships</h2><table border=1 id=ship_tab><tr></tr></table></div>' );
             var fields = {
-	            name:'Name',
-	            tech_level:'Tech Level',
-	            damage_control:'Damage Control',
-	            jumps:'Jumps',
-	            cost:'Cost',
-	            targets:'Targets',
-	            self_destruct:'Self Destruct',
-	            attack_beams:'Attack Beams',
-	            defense:'Defense',
-	            size:'Size',
-	            racksize:'Rack Size'
+	        name:'Name',
+	        tech_level:'Tech Level',
+	        damage_control:'Damage Control',
+	        jumps:'Jumps',
+	        cost:'Cost',
+	        targets:'Targets',
+	        self_destruct:'Self Destruct',
+	        attack_beams:'Attack Beams',
+	        defense:'Defense',
+	        size:'Size',
+	        racksize:'Rack Size'
             };
             var field_keys = Array();
             for( var key in fields ) { 
@@ -77,7 +115,7 @@
             }
             $('#reset').click( function() { if( confirm("Really Revert?") ) { edit_flavor(editing) }} );
 
-	        var ships = flav.get('ships');
+	    var ships = flav.get('ships');
             ships.load_direct_descendents();
 
             $('#save').click( function() {
@@ -88,19 +126,20 @@
                 edit_flavor(editing);
             } );
 
-	        for( var i=0; i<ships.length(); ++i ) {
+	    for( var i=0; i<ships.length(); ++i ) {
                 var ship = ships.get(i);
                 $( '#ship_tab' ).append( '<tr id=ship_'+i+'>' );
                 for( var key in fields ) {
                     var tr = $( 'tr#ship_' + i ).append('<td id=ship_' + i + '_' + key + ' >');
-		            $.yote.util.stage_text_field( $('#ship_' + i + '_' + key ), ship, key );
+		    $.yote.util.stage_text_field( $('#ship_' + i + '_' + key ), ship, key );
                 }
             }
-	    } //edit flavor
+	    
+	} //edit ships
 
         edit_flavor();
         
-	    $( '#flavor_div' ).show();
+	$( '#flavor_div' ).show();
         
     } );
     </script>
@@ -122,7 +161,7 @@ ul#nav a { width:120px; display:block; padding: 5px;border:1px solid black; }
   <div id=nav>
     <ul id=nav>
       <li><a id=flavor_li href=#>Edit Flavors</a></li>
-      <li><a id=config_li href=#>Edit Configs (system pattern configuration)</a></li>
+      <li><a id=config_li href=#>Setup Configs</a></li>
       <li><a id=player_li href=#>Show Players</a></li>
       <li><a id=stats_li href=#>Stats</a></li>
     </ul>

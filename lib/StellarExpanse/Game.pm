@@ -98,9 +98,19 @@ sub _start {
         my $acct_root = $player->get_account_root();
         $acct_root->remove_from_pending_games( $self );
         $acct_root->add_to_active_games( $self );
+
+	#
+	# Set up starting stats
+	#
 	$player->set_resources( $self->get_starting_resources() );
 	$player->set_tech_level( $self->get_starting_tech_level() );
-    }
+
+	#
+	# Give the player a system group for the empires.
+	#
+	
+
+    } #each player
 
     
     
