@@ -2,6 +2,7 @@ package StellarExpanse::Game;
 
 use strict;
 
+use Config::General;
 use StellarExpanse::Turn;
 
 use base 'Yote::Obj';
@@ -108,6 +109,8 @@ sub _start {
 	#
 	# Give the player a system group for the empires.
 	#
+	my $conf = new Config::General( -String => $self->get_flavor()->get_empire_config() );
+	
 	
 
     } #each player

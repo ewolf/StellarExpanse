@@ -25,6 +25,7 @@ sub create_game {
     $game->set_name( $data->{name} );
     $game->set_number_players( $data->{number_players} );
     $game->set_created_by( $acct );
+    $game->set_flavor( $data->{flavor} );
     my $id = Yote::ObjProvider::get_id( $game );
     $games->{$id} = $game;
 

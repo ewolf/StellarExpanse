@@ -22,6 +22,7 @@
 
         var editing;
         var flavors;
+	var config;
 
 	/*
 	  set up flavors to be edited.
@@ -57,29 +58,36 @@
 
 	    $('#flavor_edit_box').append( '<br><table><tr id=arow><th>Configs</th><td><span style="margin:2px;border:solid black 1px" id=ship_span>ship</span></td></tr></table>' );
 	    $( '#ship_span' ).css( 'cursor', 'pointer' );
+	    console.dir( config );
+	    if( typeof config === 'undefined' ) {
+		config = 'ship';
+	    }
 	    $( '#ship_span' ).click(
 		function() {
 		    $( '#flavor_edit_switch div' ).hide();
 		    $( '#arow span' ).css( 'background-color', 'white' );
 		    $( '#ship_box' ).show();
 		    $( this ).css( 'background-color', 'yellow' );
+		    config = 'ship';
 		}
 	    );
-
+	
 	    var configs = Array( 'empire', 'base', 'game', 'universe' );
 	    for( var i in configs ) {
 		var val = configs[i];
 		$( '#arow' ).append( '<td><span style="margin:2px;border:solid black 1px" id=' + val + '_span>' + val + '</span></td>' );
 		$( '#' + val + '_span' ).css( 'cursor', 'pointer' );
 		$( '#' + val + '_span' ).click(
-		    (function( boxname ) { 
+		    (function( v ) { 
 			return function() {
+			    var boxname = '#' + v + '_box';
 			    $( '#flavor_edit_switch div' ).hide();
 			    $( '#arow span' ).css( 'background-color', 'white' );
 			    $( boxname ).show();
 			    $( this ).css( 'background-color', 'yellow' );
+			    config = v;
 			}
-		    } )( '#' + val + '_box' )
+		    } )( val )
 		);
 	    }
 	    $('#flavor_edit_box').append( '<div id=flavor_edit_switch></div>' );
@@ -90,8 +98,8 @@
 		$.yote.util.stage_textarea( $( '#' + val + '_box' ), flav, val + '_config', 40, 15 );
 	    }	    
 	    $( '#flavor_edit_switch div' ).hide();
-	    $( '#ship_box' ).show();
-	    $( '#ship_span' ).css( 'background-color', 'yellow' );
+	    $( '#' + config + '_box' ).show();
+	    $( '#' + config + '_span' ).css( 'background-color', 'yellow' );
 	} //edit_flavor
 
   	function edit_ships( flav ) {
