@@ -15,9 +15,14 @@ sub init {
 
     $self->set_turn( 0 );
     my $first_turn = new StellarExpanse::Turn();
+    $first_turn->set_game( $self );
     $self->add_to_turns( $first_turn );
-
 } #init
+
+sub _on_load {
+    my $self = shift;
+    $self->{NO_DEEP_CLONE} = 1;
+}
 
 sub current_turn {
     my $self = shift;
@@ -43,6 +48,7 @@ sub add_player {
     }
     if( $self->needs_players() ) {
         my $player = new StellarExpanse::Player();
+        $player->set_turn( $self->current_turn() );
         $player->set_game( $self );
         $player->set_account_root( $acct_root );
         if( $data->{name} ) {
@@ -83,7 +89,7 @@ sub remove_player {
 #
 sub needs_players {
     my $self = shift;
-    return (! $self->get_active() ) &&
+    return ( 0 == $self->get_active() ) &&
         $self->get_number_players() > keys %{$self->get_turn()->get_players()};
 } #needs_players
 
@@ -93,6 +99,9 @@ sub needs_players {
 sub _start {
     my $self = shift;
 
+    my $flav = $self->get_flavor();
+    my $turn = $self->current_turn();
+
     #
     # Load/use configs and merge into a master config
     #
@@ -100,14 +109,25 @@ sub _start {
 
     for my $conf qw( game empire base universe ) {
         my $get_cfg = "get_${conf}_config";
-        my $conf_obj = new Config::General( -String => $self->get_flavor()->$get_cfg() );
+        my $conf_obj = new Config::General( -String => $flav->$get_cfg() );
         my( %conf ) = $conf_obj->getall;
         for my $key (keys %conf) {
             $master_config->{$key} = $conf{$key};
         }
     } #each config component
 
-    my $players = $self->current_turn()->players();
+    #
+    # Temporary variables used for building the sectors.
+    # 
+    my @links;
+    my $unclaimed_groups = [];
+    my $empire_groups = [];
+    my $sector_count = 0;
+
+    #
+    # Configure each player and their starting group.
+    #
+    my $players = $turn->_players();
     for my $player (@$players) {
         my $acct_root = $player->get_account_root();
         $acct_root->remove_from_pending_games( $self );
@@ -123,17 +143,149 @@ sub _start {
         #
         # Give the player a system group for the empires.
         #
-        my $group = $self->make_random_group( $master_config, 'empires', $player );
+        my $map = $player->get_maps( {} );
+        my $group = $self->_make_random_group( $master_config, 'empires', $player );
+        my $gsecs = $g->{sectors};
 
+        for my $gsec (@$gsects) {
+            next unless $gsec->get_owner();
+            my $node = new Yote::Obj();
+            $node->set_game( $self );
+            $node->set_turn( $turn );
+            $map->{ $gsec->{ID} } = $node;
+            $node->add_to_notes( "Starting Sector" );
+        } #each sector created for players starting sector group
+        $group->{is_empire} = 1;
+        $sector_count += $group->sector_count();
+        push @$empire_groups, $g;
     } #each player
 
+    #
+    # Create a basegroups sector (if a configuration exists) or a vanilla groups sector.
+    #
+    my $base_group_name = $configuration{basegroups} ? 'basegroups' : 'groups';
+    my $g = $self->make_random_group( \%configuration, $base_group_name);
+    $sector_count += $g->get_sector_count();
+    push @$unclaimed_groups, $g;
+
+    #
+    # Continue to make sectors until the target number of sectors is reached.
+    # 
+    while ($sector_count < $targetsect) {
+        my $g = $self->make_random_group(\%configuration, "groups");
+        $sector_count += $g->get_sector_count();
+        push @$unclaimed_groups, $g;
+    }
+
+    #
+    # Pick a starting group, then glom other groups into it until all the groups are connected.
+    #
+    my( @selector );
+    for my $g (@$unclaimed_groups) {
+        for(1..$g->get_outbound_count()) {
+            push @selector, $g;
+        }
+    }
+
+    #
+    # Create an empty 'glom group', then pick a random group of sectors to start and join the 
+    # glom group. Then add all the rest of the unclaimed (non-empire) groups to the glom.
+    # 
+    my $start_group = $selector[int(rand(scalar @selector))];
+
+    my $glom = StellarExpanse::GlomGroup();
+    $glom->glom( $start_group );
+
+    for my $g (@$unclaimed_groups) {
+        next if $g eq $start_group;
+        $glom->glom( $g );	
+    }
+
+    #
+    # Connect all the empire groups that have loose ends to the glom group. 
+    # There are cases where this can fail, so retry a number of times. 
+    # By the end, all empire groups
+    # will be 'glommed' together with the other sectors, their outgoing links all connected.
+    #
+    my( @free_groups ) = grep { $_->get_outbound_count() > 0 } (@$empire_groups);
+    my $tries = 0;
+    my $unconnected_empire_sectors = 0;
+    for my $fg (@free_groups) {
+        $unconnected_empire_sectors += $fg->get_outbound_count();
+    }
+    while( @free_groups && $unconnected_empire_sectors > 1 && $tries < 10 ) {
+        for my $g (@free_groups) {
+            $glom->connect( $g ) if $g->get_outbound_count() > 0;
+        }
+        ( @free_groups ) = grep { $_->get_outbound_count() > 0 } (@free_groups);
+        ++$tries;
+        $unconnected_empire_sectors = 0;
+        for my $fg (@free_groups) {
+            $unconnected_empire_sectors += $fg->get_outbound_count();
+        }
+    }
+    die "Unable to make connections" if $tries == 10;
+
+    #
+    # Connect any loose ends together inside the glom group.
+    #
+    my( @free_groups ) = grep { $_->get_outbound_count() > 0 } (@$unclaimed_groups);
+    while( $glom->get_unlinked_groups() > 1 && @free_groups > 1) {
+        for my $g (@free_groups) {
+            $glom->connect( $g ) if $g->get_outbound_count() > 0;
+        }
+        ( @free_groups ) = grep { $_->get_outbound_count() > 0 } (@free_groups);
+    }
+
+#
+# Deprecating the making of the map for now
+#
+# -------- make map ------------------------------------
+#     my $gv = new GraphViz(directed => 0);    
+#     my %seen;
+#     for my $g (@$empire_groups,@$unclaimed_groups) {
+#         my $sects = $g->{sectors};
+#         for my $s (@$sects) {
+#             $gv->add_node( $s->{ID}, 
+#                            label => $s->get_name( $s->{ID} ),
+#                 );
+#             my $links = $s->get_links();
+#             for my $link_to (keys %$links) {
+#                 unless( $seen{$link_to}{$s->{ID}} ) {
+#                     $gv->add_edge( $s->{ID} => $link_to );
+#                     $seen{$s->{ID}}{$link_to} = 1;
+#                 }
+#             } #each link
+#         } #each sector
+#     } #each group
+#
+#     my $dir = "/home1/irrespon/proj/data/StellarExpanse/maps/$self->{ID}";
+#     mkdir $dir unless -e $dir;
+#     open(FH, ">$dir/map.png");
+#     print FH $gv->as_png;
+#     close(FH);
+#---
+#
+#    $self->_make_player_maps( { map { $_->{ID} => $_  } @$players } );
+#
     
     $self->set_active( 1 );
     
 } #_start
 
+sub _end {
+    my $self = shift;
+    $self->set_active( 2 );
+} #_end
+
+#
+# Use the game full config to create a group of systems that belong together. Return the group.
+#
 sub _make_random_group {
     my ( $self, $full_config, $basename, $owner) = @_;
+
+    my $flav = $self->get_flavor();
+    my $turn = $self->current_turn();
 
     #
     # Looks up the configuration data structure for the basename.
@@ -157,16 +309,25 @@ sub _make_random_group {
 
     my( %key2GSector );
 
-    my $word = shift @{$self->{rand_names}};
-    chomp $word;
-    $word =~ s/[\'\"]//g;
+    my $words = $flav->get_system_names();
+    my @words = @$words;
+    unless( @words ) {
+        # use random dictionary words
+        open( IN, "</etc/dictionaries-common/words" );
+        while( <IN> ) {
+            chomp;
+            next unless /^[a-z]+$/ && length( $_ ) > 2;
+            push @words, $_;
+        }
+    }
+    my $word = splice @words, int(rand(@words)), 1;
 
     for my $key (sort keys %$sectors) {
         my $sector_template = $sectors->{$key};
 
-        my $newsector = new GServ::SE::Sector();
+        my $newsector = new StellarExpanse::Sector();
         $newsector->set_game( $self );
-        $self->add_to_sectors( $newsector );
+        $turn->add_to_sectors( $newsector );
         $key2GSector{$key} = $newsector;
 
         my $moniker = $key eq 'A' ? 'alpha' :
@@ -178,18 +339,17 @@ sub _make_random_group {
             $key;
         $newsector->set_name( "$moniker $word" );
 
-        
         my $prod_type = $sector_template->{prod_type} || 'default';
 
         # ---- set max and current production values ----
-        my $rangeString = getProdValue($full_config, $sector_template, $prod_type, 'sectormaxprodrange');
+        my $rangeString = _getProdValue($full_config, $sector_template, $prod_type, 'sectormaxprodrange');
         my ($min, $max) = split ' ',$rangeString;
         $min = $min || 0;   $max = $max || 0;
         
         my $maxprod = $max < $min ? $min : int(rand($max-$min+1) + $min);
         $newsector->set_maxprod( $max < $min ? $min : int(rand($max-$min+1) + $min) );
 
-        my $rangeString = getProdValue($full_config, $sector_template, $prod_type, 'sectorprodrange');
+        my $rangeString = _getProdValue($full_config, $sector_template, $prod_type, 'sectorprodrange');
 
         my ($min, $max) = split ' ',$rangeString;
         $min = $min || 0;   $max = $max || 0;
@@ -220,13 +380,147 @@ sub _make_random_group {
         $link =~ s/^\s*//; $link =~ s/\s*$//;
         my( $sectA, $sectB ) = map { $key2GSector{$_} } split ' ', $link, 2;
         die "Bad configuration, $link" unless $sectA && $sectB;
-        $sectA->link_sectors( $sectB );
+        $sectA->_link_sectors( $sectB );
     } #each internal to group link
 
-    my $group = new GServ::SE::Group();
+    my $group = new StellarExpanse::Group();
     $group->set_sectors( [values %key2GSector] );
     return $group;
 } #_make_random_group
+
+
+#
+# Gets the production value for a production type
+#
+sub _getProdValue {
+    my( $full_config, $sector_template, $prod_type, $prod_key ) = @_;
+    # create a list of value options, like [0,1,1,1,5,5,5,8,9] and randomly pick from that list. The 
+    # list is weighted, and the weightings show up as repetition of a value in the list.
+    my $rangeStringOpts = $sector_template->{$prod_key} || 
+        _buildRangeStringOptList($sector_template->{prod_type_group}{$prod_type}, $prod_key) ||
+        _buildRangeStringOptList($full_config->{prod_type_group}{$prod_type}, $prod_key)     ||
+        ["0"];
+    my $opt = 0;
+    if( scalar( @$rangeStringOpts ) ) {
+        $opt = $rangeStringOpts->[int(rand(scalar @{$rangeStringOpts}))];
+    }
+    return $opt;
+} #_getProdValue
+
+
+#
+# Builds a list of values that the group has for the given key.
+# The values have a weight, and the values appear as many times
+# in the list as the value of their weight.
+#
+sub _buildRangeStringOptList {
+    my ($group, $key) = @_;
+    my $rangeStringOpts;
+    my $subgroup = $group->{prod_type};
+    
+    foreach my $ptg (values %{$subgroup}) {
+        my $s = $ptg->{$key} || 0;
+        my $c = $ptg->{weight} || 1;
+        for (my $i = 0; $i < $c; ++$i) {
+            push @$rangeStringOpts, $s;
+        }
+    }   
+    return $rangeStringOpts;
+} #_buildRangeStringOptList
+
+
+#
+# Called for each turn. Deprecated out for now.
+#
+# sub _make_player_maps {
+#     my $self = shift;
+
+#     my $players = shift || $self->get_players();
+#     for my $player (values %$players) {
+#         # map 
+#         my $g = new GraphViz( directed => 0, ratio => 8.0/7 );
+#         my $map = $player->get_maps({});
+#         my( %mapped_edges );
+#         for my $mnode (values %$map) {
+#             my $loc = $mnode->get_system();
+#             my $owner = $loc->get_owner();
+
+#             my $label = $loc->get_name();
+#             $g->add_node( $loc->{ID},
+#                           label  => $label,
+#                           style  => $loc->get_owner() eq $player ? 'solid' : 'filled', 
+#                           shape  => 'box',
+#                           width  => 0.3,
+#                           height => 0.3,
+#                           fontsize => 10,
+#                           URL => $loc->{ID},
+#                           color => $loc->get_owner() eq $player ? 'Turquoise' :
+#                           $loc->get_owner() ? 'pink' : 'Coral',
+#                 );
+#             my $connections = $loc->get_links();
+#             for my $con (values %$connections) {
+#                 # check if this node leads to an other mapped node, or to an unknown connection.
+#                 if( $map->{$con->{ID}} ) {
+#                     #known
+#                     $g->add_edge( $con->{ID}, $loc->{ID} ) 
+#                         unless $mapped_edges{"$con->{ID} $loc->{ID}"} || $mapped_edges{"$loc->{ID} $con->{ID}"};
+#                     $mapped_edges{"$con->{ID} $loc->{ID}"} = 1;
+#                 } else {
+#                     #add unexplored node
+#                     $g->add_node( $con->{ID},
+#                                   label  => $con->get_name( ),
+#                                   style  => 'filled', 
+#                                   shape  => 'box',
+#                                   width  => 0.3,
+#                                   height => 0.3,
+#                                   fontsize => 10,
+#                                   URL => $con->{ID},
+#                                   color => 'Chartreuse',
+#                         );
+#                     $g->add_edge( $con->{ID}, $loc->{ID} ) 
+#                 }
+#             } #each connection from node
+#         } #each node in players map
+#         my $turn = $self->get_turn();
+
+#         my $base = Cwd::getcwd();
+#         my $dir = "/home1/irrespon/proj/data/StellarExpanse/maps/$self->{ID}/$turn";
+
+#         mkdir $dir unless -e $dir;
+#         open(FH, ">$dir/".$player->{ID}.".png");
+#         print FH $g->as_png;
+#         close(FH);
+#         open(FH, ">$dir/".$player->{ID}.".cmapx");
+#         my $cpam = $g->as_cmapx;
+#         print FH $cpam;
+#         close(FH);    
+
+#         # 3.png: PNG image, 795 x 504, 8-bit/color RGBA, non-interlaced
+#         my $x = `file $dir/$player->{ID}.png`;
+#         my( $w, $h );
+#         if( $x =~ /^[^,]*,\s*(\d+)\s*[Xx]\s*(\d+)/ ) {
+#             ( $w, $h ) = ( $1, $2 );
+#         }
+
+#         my $jsfile = "$dir/$player->{ID}.js";
+#         open(FH, ">$jsfile");
+#         print FH "function set_dimentions() {\n";
+#         print FH "img_w = $w;\nimg_h = $h;\n}\n";
+# #<area shape="rect" href="#se79" title="pasionfruit(79)\nprod 5/5" alt="" coords="557,379,672,424"/>
+#         print FH "function init_map(c) {\n";
+#         while( $cpam =~ /(.*?)href=\"([^\"]*)\"(.*?)coords=\"([^\"]*)\"(.*)/is ) {
+#             my( $name, $coords ) = ( $2, $4 );
+#             $cpam = $5;
+#             my( $x1, $y1, $x2, $y2 ) = split( /,/, $coords );
+#             my $w = $x2 - $x1;
+#             my $h = $y2 - $y1;
+#             print FH "c.add_control( make_click( c, function() { show_system($name) }, $x1, $y1, $w, $h ) );\n";
+#         }
+#         print FH "}\n";
+#         close( FH );
+
+#     } #each player
+# } #_make_player_maps
 
 
 1;
