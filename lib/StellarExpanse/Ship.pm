@@ -15,7 +15,7 @@ sub _unload {
     my $orders = $self->get_orders([]);
     my $carrier = $self->get_carrier();
     if( $carrier ) {
-n        if( grep { $_->get_order() eq 'unload' } @$orders) {
+        if( grep { $_->get_order() eq 'unload' } @$orders) {
             my $loc = $carrier->get_location();
             $self->set_location( $loc );
             $loc->add_to_ships( $self );

@@ -32,6 +32,7 @@ sub _check_ready {
 sub _increment_turn {
     my $self = shift;
     
+    # orders have been given to this turn for next turn. They are copied with the clone, then used in _take_turn
     my $clone = $self->_power_clone();
     $clone->_take_turn();
     my $game = $self->set_game();
@@ -84,8 +85,8 @@ sub _take_turn {
 
     my $sectors = $self->get_sectors([]);
     for my $sector (@$sectors) {
-        $sector->_check_owner();
-        $sector->_check_bombardment();
+        $sector->_check_owner_and_bombardment();
+	$sector->_build();
     }
 
     for my $ship (@$ships) {
