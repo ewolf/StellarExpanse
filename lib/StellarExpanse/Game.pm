@@ -94,7 +94,7 @@ sub _start {
 
     $self->set_active( 1 );
     my $players = $self->current_turn()->players();
-    for my $player (@players) {
+    for my $player (@$players) {
         my $acct_root = $player->get_account_root();
         $acct_root->remove_from_pending_games( $self );
         $acct_root->add_to_active_games( $self );
