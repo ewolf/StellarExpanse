@@ -10,7 +10,7 @@ sub init {
 }
 
 #
-# Notifies any ships or system owners of an occurance.
+# Notifies any ships or sector owners of an occurance.
 #
 sub _notify {
     my( $self, $msg ) = @_;
@@ -67,7 +67,7 @@ sub _check_owner_and_bombardment {
     my $self = shift;
     $self->set_indict( 0 ); #reset indict flag
 
-    # find the power affecting this system
+    # find the power affecting this sector
     my $ships = $self->get_ships([]);
     my( %player2attack_power );
     for my $ship (@$ships) {
@@ -76,7 +76,7 @@ sub _check_owner_and_bombardment {
 	}
     }
 
-    # check for uncontested system
+    # check for uncontested sector
     if( scalar( keys %player2attack_power ) == 1 ) {
 	my( $attack_player_id ) = ( keys %player2attack_power );
 	my $attacker = Yote::ObjProvider::fetch( $attack_player_id );
@@ -84,15 +84,15 @@ sub _check_owner_and_bombardment {
 	
 	
             #
-            # Can change hands if there is only one force in the system and there is no industry.
+            # Can change hands if there is only one force in the sector and there is no industry.
             #
             if( ! $self->get_owner()->is( $attacker ) ) {
                 if( $self->get_currprod() < 1 ) {
                     my $old_owner = $self->get_owner();
                     if( $old_owner ) {
-                        $old_owner->remove_from_systems( $self );
+                        $old_owner->remove_from_sectors( $self );
                     }
-                    $attacker->add_to_systems( $self );
+                    $attacker->add_to_sectors( $self );
 		    $self->_notify( $attacker->get_name()." conquered ".$self->namestr() );
                     $self->set_owner($attacker);
                 } #conquoring
@@ -124,48 +124,45 @@ sub _build {
 		    my $cost = $prototype->get_cost();
 		    if( $cost <= $player->get_resources() ) {
 			if( $prototype->get_type() eq 'SHIP' || $prototype->get_type() eq 'OIND' ) {
-                                my $new_ship = $prototype->clone();
-                                $new_ship->set_owner( $player );
+			    my $new_ship = $prototype->clone();
+			    $new_ship->set_owner( $player );
 
-                                $self->add_to_ships( $new_ship );
-                                $new_ship->set_location( $self );
+			    $self->add_to_ships( $new_ship );
+			    $new_ship->set_location( $self );
 
-                                $player->add_to_ships( $new_ship );
-                                $player->set_resources( $player->get_resources() - $cost );
+			    $player->add_to_ships( $new_ship );
+			    $player->set_resources( $player->get_resources() - $cost );
 
-				$self->_notify( "Built ".$new_ship->get_name()." in location ".$self->namestr()." for a cost of $cost", 1 );
+			    $self->_notify( "Built ".$new_ship->get_name()." in location ".$self->get_name()." for a cost of $cost" );
+			    $order->_resolve( "Built ".$new_ship->get_name()." in location ".$self->get_name()." for a cost of $cost", 1 );
 			}
 			elsif( $prototype->get_type() eq 'IND' ) {
 			    if( $self->get_currprod() < $self->get_maxprod() ) {
 				$self->set_currprod($self->get_currprod() + 1 );
-                                    $msg->{result} = 'success';
-                                    $msg->{msg} = "Built industry in location ".$loc->namestr()." for a cost of $cost";
-                                    $player->set_rus( $player->get_rus() - $cost );
-
-                                } else {
-                                    $msg->{err} = "Already at max production";
-                                }
-                            }
-                            elsif( $prototype->get_type() eq 'TECH' ) {
-                                $player->set_tech( $prototype->get_tech_level() + 1 );
-                                $player->set_rus( $player->get_rus() - $cost );
-                                $msg->{result} = 'success';
-                                $msg->{msg} = "Upgraded to tech ".$player->get_tech()." for a cost of $cost";
-                            }
-                            else {
-                                $msg->{err} = "Unknown prototype type ".$prototype->get_type();
-                            }
-                            #
-                            # calculate the maximum build size. It is 3 * the production + 
-                            # number of orbital industries here.
-                            #
-                            $loc->set_buildcap( 3 * $loc->get_currprod() );
-                            my $ships_here = $loc->get_ships([]);
-                            for my $here_ship (@$ships_here) {
-                                if( $here_ship->get_prototype('type') eq 'OIND' ) {
-                                    $loc->set_buildcap( 1 + $loc->get_buildcap() );
-                                }
-                            }
+				$order->_resolve( "Built industry in location ".$self->get_name()." for a cost of $cost", 1 );
+				$player->set_resources( $player->get_resources() - $cost );
+				
+			    } else {
+				$order->_resolve( "Already at max production" );
+			    }
+			}
+			elsif( $prototype->get_type() eq 'TECH' ) {
+			    $player->set_tech( $prototype->get_tech_level() + 1 );
+			    $player->set_resources( $player->get_resources() - $cost );
+			    $order->_resolve( "Upgraded to tech ".$player->get_tech()." for a cost of $cost", 1 );
+			}
+			else {
+			    $order->_resolve( "Unknown prototype type ".$prototype->get_type() );
+			}
+			#
+			# calculate the maximum build size. It is 3 * the production + 
+			# number of orbital industries here.
+			#
+			$self->set_buildcap( 3 * $self->get_currprod() );
+			my $ships_here = $self->get_ships([]);
+			for my $industry_ship (grep { $_->get_type() eq 'OIND' } @$ships_here) {
+			    $self->set_buildcap( 1 + $loc->get_buildcap() );
+			}
 		    } else {
 			$order->_resolve( "Not enough resources to build " . $prototype->get_name() );
 		    }

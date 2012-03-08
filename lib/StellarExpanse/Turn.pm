@@ -52,11 +52,11 @@ sub _take_turn {
     #    * death check
     #    * heal (ships damage control)
     #    * move
-    #    * check for changes in system ownership
+    #    * check for changes in sector ownership
     #    * check bombardment attack
     #    * build    
-    #    * repair (ship in system)
-    #    * give (players give to each other resources and systems)
+    #    * repair (ship in sector)
+    #    * give (players give to each other resources and sectors)
     # This is now a new turn in a state ready to play, so
     #    * player defeat check
     #    * unset all orders for ships,players and sectors

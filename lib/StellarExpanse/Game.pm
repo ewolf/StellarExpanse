@@ -141,7 +141,7 @@ sub _start {
         
 
         #
-        # Give the player a system group for the empires.
+        # Give the player a sector group for the empires.
         #
         my $map = $player->get_maps( {} );
         my $group = $self->_make_random_group( $master_config, 'empires', $player );
@@ -279,7 +279,7 @@ sub _end {
 } #_end
 
 #
-# Use the game full config to create a group of systems that belong together. Return the group.
+# Use the game full config to create a group of sectors that belong together. Return the group.
 #
 sub _make_random_group {
     my ( $self, $full_config, $basename, $owner) = @_;
@@ -290,7 +290,7 @@ sub _make_random_group {
     #
     # Looks up the configuration data structure for the basename.
     # Picks a random item in the configuration to use as a starting
-    #  group where group is a nodal configuration of systems.
+    #  group where group is a nodal configuration of sectors.
     #
 
     die "No $basename in configuration" if (!exists($full_config->{$basename}));
@@ -309,7 +309,7 @@ sub _make_random_group {
 
     my( %key2GSector );
 
-    my $words = $flav->get_system_names();
+    my $words = $flav->get_sector_names();
     my @words = @$words;
     unless( @words ) {
         # use random dictionary words
@@ -360,7 +360,7 @@ sub _make_random_group {
         }	
         if( $owner && $sectors->{$key}{owner} != -1 ) {
             $newsector->set_owner( $owner );
-            $owner->add_to_systems( $newsector );
+            $owner->add_to_sectors( $newsector );
             $maxprod = $sector_template->{maxprod};
             $curprod = $sector_template->{currprod};	    
         }
@@ -442,7 +442,7 @@ sub _buildRangeStringOptList {
 #         my $map = $player->get_maps({});
 #         my( %mapped_edges );
 #         for my $mnode (values %$map) {
-#             my $loc = $mnode->get_system();
+#             my $loc = $mnode->get_sector();
 #             my $owner = $loc->get_owner();
 
 #             my $label = $loc->get_name();
@@ -514,7 +514,7 @@ sub _buildRangeStringOptList {
 #             my( $x1, $y1, $x2, $y2 ) = split( /,/, $coords );
 #             my $w = $x2 - $x1;
 #             my $h = $y2 - $y1;
-#             print FH "c.add_control( make_click( c, function() { show_system($name) }, $x1, $y1, $w, $h ) );\n";
+#             print FH "c.add_control( make_click( c, function() { show_sector($name) }, $x1, $y1, $w, $h ) );\n";
 #         }
 #         print FH "}\n";
 #         close( FH );

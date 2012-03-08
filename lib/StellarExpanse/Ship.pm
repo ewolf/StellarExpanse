@@ -177,8 +177,8 @@ sub _move {
                         $self->set_location ( $to );
                         $to->add_to_ships( $self );
                         $from->remove_from_ships( $self );
-                        $from->_notify( $self->get_name() . " jumped out of system " . $loc->get_name() );
-                        $to->_notify( $self->get_name() . " jumped into system " . $to->get_name() );
+                        $from->_notify( $self->get_name() . " jumped out of sector " . $loc->get_name() );
+                        $to->_notify( $self->get_name() . " jumped into sector " . $to->get_name() );
                         $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
                     } else {
                         $ord->_resolve( "out of movement" );

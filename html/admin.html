@@ -65,9 +65,9 @@
                                           ' <button type=button id=reset>Reset</button> <BR><br>Name : ' );
             $.yote.util.stage_text_field( $('#flavor_edit_box'), flav, 'name' );
 
-	        $('#flavor_edit_box').append( '<br><table><tr id=arow><th>Configs</th><td><span id=ship_span>ship</span></td><td><span id=system_names_span>System Names</span></tr></table>' );
+	        $('#flavor_edit_box').append( '<br><table><tr id=arow><th>Configs</th><td><span id=ship_span>ship</span></td><td><span id=sector_names_span>Sector Names</span></tr></table>' );
 	        $( '#ship_span' ).css( 'cursor', 'pointer' );
-		    $( '#system_names_span' ).css( 'cursor', 'pointer' );
+		    $( '#sector_names_span' ).css( 'cursor', 'pointer' );
 	        if( typeof config === 'undefined' ) {
 		        config = 'ship';
 	        }
@@ -80,13 +80,13 @@
 		            config = 'ship';
 		        }
 	        );
-	        $( '#system_names_span' ).click(
+	        $( '#sector_names_span' ).click(
 		        function() {
 		            $( '#flavor_edit_switch div' ).hide();
 		            $( '#arow span' ).css( 'background-color', 'white' );
-		            $( '#system_names_box' ).show();
+		            $( '#sector_names_box' ).show();
 		            $( this ).css( 'background-color', 'yellow' );
-                    config = 'system_names';
+                    config = 'sector_names';
 		        }
 	        );
             
@@ -114,10 +114,10 @@
 
 	        $('#flavor_edit_box').append( '<div id=flavor_edit_switch></div>' );
 	        edit_ships( flav );
-		    $('#flavor_edit_switch').append( '<div id=system_names_box>' + val + '<BR>' );
+		    $('#flavor_edit_switch').append( '<div id=sector_names_box>' + val + '<BR>' );
 		    $.yote.util.stage_textarea( {
-                attachpoint:$( '#system_names_box' ), 
-                yoteobj:flav.get_system_names(), 
+                attachpoint:$( '#sector_names_box' ), 
+                yoteobj:flav.get_sector_names(), 
                 cols:40, 
                 rows:15, 
                 as_list:true } );
@@ -167,7 +167,7 @@
             $('#save').click( (function(ed) { 
                 return function() {
                     ed.send_update();
-                    ed.get_system_names().send_update();
+                    ed.get_sector_names().send_update();
                     for( var i=0; i<ships.length(); ++i ) {
                         ships.get(i).send_update();
                     }

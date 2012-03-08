@@ -573,7 +573,7 @@ sub init {
         $prototype->absorb( $def );
         $self->add_to_ships( $prototype );
     }
-    $self->set_system_names( [] );
+    $self->set_sector_names( [] );
 } #init
 
 1;
