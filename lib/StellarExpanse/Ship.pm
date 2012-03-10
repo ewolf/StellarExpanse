@@ -1,6 +1,8 @@
-package StellarExpanse;
+package StellarExpanse::Ship;
 
-use base 'Yote::Obj';
+use strict;
+
+use base 'StellarExpanse::TakesOrders';
 
 sub _notify {
     my( $self, $msg ) = @_;
@@ -12,7 +14,7 @@ sub _notify {
 #
 sub _unload {
     my $self = shift;
-    my $orders = $self->get_orders([]);
+    my $orders = $self->get_pending_orders();
     my $carrier = $self->get_carrier();
     if( $carrier ) {
         if( grep { $_->get_order() eq 'unload' } @$orders) {
@@ -36,7 +38,7 @@ sub _unload {
 #
 sub _load {
     my $self = shift;
-    my $orders = $self->get_orders([]);
+    my $orders = $self->get_pending_orders();
     my( $ord ) = grep { $_->get_order() eq 'load' } @$orders;
     if( $ord ) {
         my $loc = $self->get_location();
@@ -69,7 +71,7 @@ sub _death_check {
     if( $self->get_hitpoints() < 1 ) {
         my $loc = $self->get_location();
         if( $loc ) {
-            $loc->_notify( "Ship " . $self->get_name() " ( " . $self->get_owner()->get_name() . " ) was destroyed in sector " . $loc->get_name() );
+            $loc->_notify( "Ship " . $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) was destroyed in sector " . $loc->get_name() );
             $loc->remove_from_ships( $self );
             $self->get_owner()->get_turn()->remove_from_ships( $self );
             $self->get_owner()->remove_from_ships( $self );
@@ -96,7 +98,7 @@ sub _repair {
     my $self = shift;
     return if $self->{is_dead};
 
-    my $orders = $self->get_orders([]);
+    my $orders = $self->get_pending_orders();
     my $player = $self->get_owner();
     for my $ord (grep { $_->get_order() eq 'repair' } @$orders) {
         my $rus    = $player->get_resources();
@@ -117,7 +119,7 @@ sub _repair {
         }
         if( $amt > 0 ) {
             $amt = $amt < $needs ? $amt : $needs;
-            my $cost = $int(.6+$amt*2);
+            my $cost = int(.6+$amt*2);
             $player->set_resources( $rus - $cost );
             $self->set_hitpoints( $hp + $amt );
             $self->get_location()->_notify( $self->get_name() . " repaired some damage at " . $self->get_location()->get_name() );
@@ -133,7 +135,7 @@ sub _fire {
     my $self = shift;
     $self->{targets} = $self->get_targets();
     $self->{beams}   = $self->get_attack_beams();
-    my $orders = $self->get_orders([]);
+    my $orders = $self->get_pending_orders();
     my( @fire_orders ) = grep { $_->get_order() eq 'fire' } @$orders;
     for my $ord ( @fire_orders ) {
         my $targ = $ord->get_target();
@@ -165,7 +167,7 @@ sub _fire {
 sub _move {
     my $self = shift;
     $self->{move} = $self->get_jumps();
-    my $orders = $self->get_orders([]);
+    my $orders = $self->get_pending_orders();
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
     for my $ord (@move_orders) {
         my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
@@ -173,18 +175,49 @@ sub _move {
             if( $loc->is( $from ) ) {
                 if( $from->_valid_link( $to ) ) {
                     if( $self->{move} > 0 ) {
-                        $self->{move}--;
                         $self->set_location ( $to );
                         $to->add_to_ships( $self );
                         $from->remove_from_ships( $self );
                         $from->_notify( $self->get_name() . " jumped out of sector " . $loc->get_name() );
                         $to->_notify( $self->get_name() . " jumped into sector " . $to->get_name() );
+
+
+                        #
+                        # ships other than scouts lose all movement when entering an unexplored sector.
+                        #
+                        my $maps = $self->get_owner()->get_maps();
+                        if( $maps->{$to->{ID}} || $self->get_ship_class() eq 'Scout' ) {
+                            $self->{move}--;
+                        } else {
+                            $self->{move} = 0;
+                        }
+                        
+                        #
+                        # Ships must stop if there are enemy ships here.
+                        #
+                        if( grep { ! $_->get_owner()->is( $self->get_owner() ) } @{$to->get_ships()} ) {
+                            $self->{move} = 0;
+                        }
+
+                        #
+                        # Update player map
+                        #
+                        my $node = $maps->{$to->{ID}};
+                        unless( $node ) {
+                            $node = new Yote::Obj;
+                            $node->set_game( $self->get_game() );
+                            $maps->{$to->{ID}} = $node;
+                            $node->add_to_notes( "Discovered on turn ".$self->get_game()->get_turn_number() );
+                        }
+                        $node->set_seen_production( $to->get_currprod() );
+                        $node->set_seen_owner( $to->get_owner() );
+                        
                         $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
                     } else {
                         $ord->_resolve( "out of movement" );
                     }
                 } else {
-                    $ord->_resolve( $from->get_name() " does not link to " . $to_get_name() );
+                    $ord->_resolve( $from->get_name() . " does not link to " . $to->get_name() );
                 }
             } else {
                 $ord->_resolve( "Not in " . $loc->get_name() );

@@ -3,6 +3,9 @@ package StellarExpanse::Game;
 use strict;
 
 use Config::General;
+use StellarExpanse::Group;
+use StellarExpanse::GlomGroup;
+use StellarExpanse::StarChart;
 use StellarExpanse::Turn;
 
 use base 'Yote::Obj';
@@ -12,9 +15,10 @@ use base 'Yote::Obj';
 #
 sub init {
     my $self = shift;
-
-    $self->set_turn( 0 );
+    $self->SUPER::init();
+    $self->set_turn_number( 0 );
     my $first_turn = new StellarExpanse::Turn();
+    $first_turn->set_turn_number( 0 );
     $first_turn->set_game( $self );
     $self->add_to_turns( $first_turn );
 } #init
@@ -26,16 +30,17 @@ sub _on_load {
 
 sub current_turn {
     my $self = shift;
-    return $self->get_turns()->[$self->get_turn()];
+    return $self->get_turns()->[$self->get_turn_number()];
 }
 
 #
 # Returns the player object associated with the account, if any.
 #
-sub find_player {
-    my( $self, $data, $acct_root, $acct ) = @_;
+sub _find_player {
+    my( $self, $acct ) = @_;
+    return undef unless $acct;
     return $self->current_turn()->get_players()->{$acct->get_handle()};
-} #find_player
+} #_find_player
 
 #
 # Adds the account to this game, creating a player object for it.
@@ -51,9 +56,7 @@ sub add_player {
         $player->set_turn( $self->current_turn() );
         $player->set_game( $self );
         $player->set_account_root( $acct_root );
-        if( $data->{name} ) {
-            $player->set_name( $data->{name} );
-        }
+        $player->set_name( $acct->get_handle() );
         $players->{$acct->get_handle()} = $player;
         $acct_root->add_to_my_joined_games( $self );
 
@@ -84,14 +87,24 @@ sub remove_player {
     return { msg => "player removed from game" };
 }
 
+sub active_player_count {
+    my $self = shift;
+    return scalar( keys %{$self->current_turn()->get_players()} );
+} #active_players
+
 #
 # Returns number of players needed by game.
 #
 sub needs_players {
     my $self = shift;
     return ( 0 == $self->get_active() ) &&
-        $self->get_number_players() > keys %{$self->get_turn()->get_players()};
+        $self->get_number_players() > keys %{$self->current_turn()->get_players()};
 } #needs_players
+
+sub _players {
+    my $self = shift;
+    return [values %{$self->current_turn()->get_players()}];
+}
 
 #
 # Called automatically upon the last person joining
@@ -143,37 +156,35 @@ sub _start {
         #
         # Give the player a sector group for the empires.
         #
-        my $map = $player->get_maps( {} );
         my $group = $self->_make_random_group( $master_config, 'empires', $player );
-        my $gsecs = $g->{sectors};
+        my $gsecs = $group->{sectors};
+        my $chart = new StellarExpanse::StarChart();
+        $chart->set_player( $player );
+        $chart->set_game( $self );
 
-        for my $gsec (@$gsects) {
-            next unless $gsec->get_owner();
-            my $node = new Yote::Obj();
-            $node->set_game( $self );
-            $node->set_turn( $turn );
-            $map->{ $gsec->{ID} } = $node;
-            $node->add_to_notes( "Starting Sector" );
-        } #each sector created for players starting sector group
+        $player->set_starchart( $chart );
+        my( $capitol ) = grep { $_->get_owner() } @$gsecs;
+        $chart->_update( $capitol );
+
         $group->{is_empire} = 1;
         $sector_count += $group->sector_count();
-        push @$empire_groups, $g;
+        push @$empire_groups, $group;
     } #each player
 
     #
-    # Create a basegroups sector (if a configuration exists) or a vanilla groups sector.
+    # Create a basegroups sector (if a master_config exists) or a vanilla groups sector.
     #
-    my $base_group_name = $configuration{basegroups} ? 'basegroups' : 'groups';
-    my $g = $self->make_random_group( \%configuration, $base_group_name);
-    $sector_count += $g->get_sector_count();
+    my $base_group_name = $master_config->{basegroups} ? 'basegroups' : 'groups';
+    my $g = $self->_make_random_group( $master_config, $base_group_name);
+    $sector_count += $g->sector_count();
     push @$unclaimed_groups, $g;
 
     #
     # Continue to make sectors until the target number of sectors is reached.
     # 
-    while ($sector_count < $targetsect) {
-        my $g = $self->make_random_group(\%configuration, "groups");
-        $sector_count += $g->get_sector_count();
+    while( $sector_count < $master_config->{target_sector_count} ) {
+        my $g = $self->_make_random_group($master_config, "groups");
+        $sector_count += $g->sector_count();
         push @$unclaimed_groups, $g;
     }
 
@@ -193,7 +204,7 @@ sub _start {
     # 
     my $start_group = $selector[int(rand(scalar @selector))];
 
-    my $glom = StellarExpanse::GlomGroup();
+    my $glom = new StellarExpanse::GlomGroup();
     $glom->glom( $start_group );
 
     for my $g (@$unclaimed_groups) {
@@ -288,16 +299,15 @@ sub _make_random_group {
     my $turn = $self->current_turn();
 
     #
-    # Looks up the configuration data structure for the basename.
-    # Picks a random item in the configuration to use as a starting
-    #  group where group is a nodal configuration of sectors.
+    # Looks up the master_config data structure for the basename.
+    # Picks a random item in the master_config to use as a starting
+    #  group where group is a nodal master_config of sectors.
     #
-
-    die "No $basename in configuration" if (!exists($full_config->{$basename}));
+    die "No $basename in master_config" if (!exists($full_config->{$basename}));
     my $part_config = $full_config->{$basename}->{group};
 
     my @keys = keys %$part_config;
-    die "No groups in $basename configuration" if (scalar @keys == 0);
+    die "No groups in $basename master_config" if (scalar @keys == 0);
     my $choice = int(rand(scalar @keys));
     my $group_config = $part_config->{$keys[$choice]};
 
@@ -314,11 +324,15 @@ sub _make_random_group {
     unless( @words ) {
         # use random dictionary words
         open( IN, "</etc/dictionaries-common/words" );
+
+my $dcount = 0;        # < for testing only > #
         while( <IN> ) {
             chomp;
             next unless /^[a-z]+$/ && length( $_ ) > 2;
             push @words, $_;
+last if ++$dcount > 200;        # < for testing only > #
         }
+        close( IN );
     }
     my $word = splice @words, int(rand(@words)), 1;
 
@@ -379,7 +393,7 @@ sub _make_random_group {
     for my $link (@$internal_links) {
         $link =~ s/^\s*//; $link =~ s/\s*$//;
         my( $sectA, $sectB ) = map { $key2GSector{$_} } split ' ', $link, 2;
-        die "Bad configuration, $link" unless $sectA && $sectB;
+        die "Bad master_config, $link" unless $sectA && $sectB;
         $sectA->_link_sectors( $sectB );
     } #each internal to group link
 

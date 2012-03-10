@@ -12,7 +12,6 @@ sub init {
     my $self = shift;
     my $flav = $self->new_flavor();
     $flav->set_name( "primary flavor" );
-    $self->add_to_flavors( $flav );
 }
 
 sub create_game {
@@ -24,6 +23,8 @@ sub create_game {
     $game->set_app( $self );
     $game->set_name( $data->{name} );
     $game->set_number_players( $data->{number_players} );
+    $game->set_starting_resources( $data->{starting_resources} );
+    $game->set_starting_tech_level( $data->{starting_tech_level} );
     $game->set_created_by( $acct );
     $game->set_flavor( $data->{flavor} );
     my $id = Yote::ObjProvider::get_id( $game );
@@ -43,7 +44,7 @@ sub new_flavor {
 
 sub available_games {
     my( $self, $data, $acct_root, $acct ) = @_;
-    return [ grep { ! $_->find_player($data,$acct_root,$acct) } @{$self->get_pending_games([])}];
+    return [ grep { ! $_->_find_player($acct) } @{$self->get_pending_games([])}];
 } #available_games
 
 1;
@@ -65,8 +66,5 @@ Here is where we define the interface that the StellarExpanse UI uses
 
 
 * create_game( data, acct )
-* submit_orders( game, turn, orders, acct )
-* get_orders( game, turn, acct )
-* mark_as_ready( game, turn, acct )
-* join_game( data, acct )
-* get_games( data, acct )
+* new_flavor
+* available_games( data, acct )

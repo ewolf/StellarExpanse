@@ -10,6 +10,7 @@ use base 'Yote::Obj';
 
 sub init {
     my $self = shift;
+    $self->SUPER::init();
     $self->set_players({});
 }
 
@@ -26,19 +27,31 @@ sub _players {
 #
 sub _check_ready {
     my $self = shift;
-    return scalar( grep { ! $_->get_ready() } @{$self->{players}} ) == 0;
+    return scalar( grep { ! $_->get_ready() } @{$self->_players()} ) == 0;
 } #_check_ready
 
 sub _increment_turn {
     my $self = shift;
+
+    my $game = $self->get_game();
     
-    # orders have been given to this turn for next turn. They are copied with the clone, then used in _take_turn
+    # Back the previous turn up in a clone.
     my $clone = $self->_power_clone();
-    $clone->_take_turn();
-    my $game = $self->set_game();
-    $game->add_to_turns( $clone );
-    $game->set_turn( $game->get_turn() + 1 );
-    
+    my $turns = $game->get_turns();
+    $turns->[$clone->get_turn_number()] = $clone;
+
+    $self->set_turn_number( $clone->get_turn_number() + 1 );
+    $self->_take_turn();
+
+    $turns->[$self->get_turn_number()] = $self;
+    $game->set_turn( $self );
+    $game->set_turn_number( $self->get_turn_number() );
+
+    # unready
+    for my $player (@{$self->_players()}) {
+        $player->set_ready( 0 );
+    } 
+
 } #_increment_turn
 
 sub _take_turn {
@@ -86,28 +99,38 @@ sub _take_turn {
     my $sectors = $self->get_sectors([]);
     for my $sector (@$sectors) {
         $sector->_check_owner_and_bombardment();
-	$sector->_build();
+        $sector->_build();
     }
 
     for my $ship (@$ships) {
         $ship->_repair();
     }
 
-    my $players = $self->get_players([]);
+    my $players = $self->_players();
     for my $player (@$players) {
         $player->_give();
+    }
+
+    for my $sector (@$sectors) {
+        $sector->_produce();
+    }
+
+    #
+    # defeat check and refresh player maps
+    #
+    for my $player (@$players) {
         $player->_defeat_check();
+        my $ps = $player->get_sectors();
+        my $chart = $player->get_starchart();
+        for my $ps (@$ps) {
+            $chart->_update( $ps );
+        }
     }
 
     # victory check
     if( 2 > (grep { $_->get_concede() } @$players) ) {
         $self->get_game()->_end();
     }    
-
-    # unset orders :
-    for my $ship (@{$self->get_ships([])}) {
-        $ship->set_orders([]);
-    }
 
 } #_take_turn
 

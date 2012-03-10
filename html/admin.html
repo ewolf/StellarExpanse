@@ -90,7 +90,6 @@
 		        }
 	        );
             
-	        
 	        var configs = Array( 'empire', 'base', 'game', 'universe' );
 	        for( var i in configs ) {
 		        var val = configs[i];
@@ -144,6 +143,7 @@
             $('#flavor_edit_switch').append( '<div id=ship_box><h2>Ships</h2><table border=1 id=ship_tab><tr></tr></table></div>' );
             var fields = {
 	            name:'Name',
+                ship_class:'Ship Class',
 	            tech_level:'Tech Level',
 	            damage_control:'Damage Control',
 	            jumps:'Jumps',
@@ -153,7 +153,8 @@
 	            attack_beams:'Attack Beams',
 	            defense:'Defense',
 	            size:'Size',
-	            racksize:'Rack Size'
+	            racksize:'Rack Size',
+                type:'Type'
             };
             var field_keys = Array();
             for( var key in fields ) { 

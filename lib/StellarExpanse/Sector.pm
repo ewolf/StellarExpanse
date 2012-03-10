@@ -2,11 +2,13 @@ package StellarExpanse::Sector;
 
 use strict;
 
-use base 'Yote::Obj';
+use base 'StellarExpanse::TakesOrders';
 
 sub init {
     my $self = shift;
+    $self->SUPER::init();
     $self->set_ships([]);
+    $self->set_links({});
 }
 
 #
@@ -31,12 +33,17 @@ sub _notify {
 sub _link_sectors {
     my( $self, $other ) = @_;
     die "Can only link a sector to a sector" unless $other->isa( 'StellarExpanse::Sector' );
-    my $Alinks = $self->get_links({});
-    my $Blinks = $other->get_links({});
+    my $Alinks = $self->get_links();
+    my $Blinks = $other->get_links();
     $Alinks->{$other->{ID}} = $other;
     $Blinks->{$self->{ID}} = $self;
     return undef;
 }
+
+sub _links {
+    my $self = shift;
+    return [values %{$self->get_links()}];
+} #links
 
 # takes an id of a sectors and returns true if the two link together.
 sub _valid_link {
@@ -68,7 +75,7 @@ sub _check_owner_and_bombardment {
     $self->set_indict( 0 ); #reset indict flag
 
     # find the power affecting this sector
-    my $ships = $self->get_ships([]);
+    my $ships = $self->get_ships();
     my( %player2attack_power );
     for my $ship (@$ships) {
 	if( $ship->get_attack_beams() ) {
@@ -115,21 +122,23 @@ sub _check_owner_and_bombardment {
 sub _build {
     my $self = shift;
     my $player = $self->get_owner();
-    my $orders = $self->get_orders([]);    
+    my $orders = $self->get_pending_orders();    
     for my $order (grep { $_->get_order() eq 'build' } @$orders) {
 	my $prototype = $order->get_ship();
 	if( $prototype ) {
 	    if( $self->get_buildcap() >= $prototype->get_size() ) {
-		if( $prototype->get_tech_level() <= $player->get_tech() ) {
+		if( $prototype->get_tech_level() <= $player->get_tech_level() ) {
 		    my $cost = $prototype->get_cost();
 		    if( $cost <= $player->get_resources() ) {
 			if( $prototype->get_type() eq 'SHIP' || $prototype->get_type() eq 'OIND' ) {
 			    my $new_ship = $prototype->clone();
 			    $new_ship->set_owner( $player );
+                $new_ship->set_game( $self->get_game() );
 
-			    $self->add_to_ships( $new_ship );
 			    $new_ship->set_location( $self );
 
+			    $self->add_to_ships( $new_ship );
+                $self->get_game()->current_turn()->add_to_ships();
 			    $player->add_to_ships( $new_ship );
 			    $player->set_resources( $player->get_resources() - $cost );
 
@@ -147,9 +156,9 @@ sub _build {
 			    }
 			}
 			elsif( $prototype->get_type() eq 'TECH' ) {
-			    $player->set_tech( $prototype->get_tech_level() + 1 );
+			    $player->set_tech_level( $prototype->get_tech_level() );
 			    $player->set_resources( $player->get_resources() - $cost );
-			    $order->_resolve( "Upgraded to tech ".$player->get_tech()." for a cost of $cost", 1 );
+			    $order->_resolve( "Upgraded to tech ".$player->get_tech_level()." for a cost of $cost", 1 );
 			}
 			else {
 			    $order->_resolve( "Unknown prototype type ".$prototype->get_type() );
@@ -159,12 +168,12 @@ sub _build {
 			# number of orbital industries here.
 			#
 			$self->set_buildcap( 3 * $self->get_currprod() );
-			my $ships_here = $self->get_ships([]);
+			my $ships_here = $self->get_ships();
 			for my $industry_ship (grep { $_->get_type() eq 'OIND' } @$ships_here) {
-			    $self->set_buildcap( 1 + $loc->get_buildcap() );
+			    $self->set_buildcap( 1 + $self->get_buildcap() );
 			}
 		    } else {
-			$order->_resolve( "Not enough resources to build " . $prototype->get_name() );
+                $order->_resolve( "Not enough resources to build " . $prototype->get_name() );
 		    }
 		} else { #enough tech
 		    $order->_resolve( "Tech level not high enough to build " . $prototype->get_name() );
@@ -177,6 +186,15 @@ sub _build {
 	}
     } #each build order
 } #_build
+
+sub _produce {
+    my $self = shift;
+    my $owner = $self->get_owner();
+    if( $owner ) {
+        $owner->set_resources( $owner->get_resources() + $self->get_currprod() );
+    }
+    
+} #_produce
 
 1;
 
