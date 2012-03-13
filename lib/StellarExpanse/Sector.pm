@@ -47,7 +47,8 @@ sub _links {
 
 # takes an id of a sectors and returns true if the two link together.
 sub _valid_link {
-    my( $self, $id ) = @_;
+    my( $self, $link ) = @_;
+    my $id = $link->{ID};
     my $links = $self->get_links();
     if( $links->{$id} ) {
         my $olinks = $links->{$id}->get_links();
@@ -58,7 +59,7 @@ sub _valid_link {
 
 sub _valid_links {
     my $self = shift;
-    my $seen = shift;
+    my $seen = shift || {};
     my $links = $self->get_links();
 
     for my $key (keys %$links) {
