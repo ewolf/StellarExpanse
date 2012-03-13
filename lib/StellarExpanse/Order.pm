@@ -9,6 +9,9 @@ sub _resolve {
     my $subj = $self->get_subject();
     $subj->remove_from_pending_orders( $self );
     $subj->add_to_completed_orders( $self );
+
+    $subj->get_owner()->remove_from_all_pending_orders( $self );
+    $subj->get_owner()->add_to_all_completed_orders( $self );
 } #_resolve
 
 1;

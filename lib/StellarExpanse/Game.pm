@@ -25,6 +25,7 @@ sub init {
 
 sub _on_load {
     my $self = shift;
+    $self->SUPER::_on_load();
     $self->{NO_DEEP_CLONE} = 1;
 }
 

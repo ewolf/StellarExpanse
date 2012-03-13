@@ -8,6 +8,7 @@ sub init {
     my $self = shift;
     $self->SUPER::init();
     $self->set_ready( 0 );
+    $self->set_owner( $self );
 }
 
 sub mark_as_ready {

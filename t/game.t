@@ -311,9 +311,9 @@ sub test_suite {
           )->{msg}, qr/gave order/i, "scout second order" );
 
     # turn advance
+
     advance_turn( $turn );
 
-    print STDERR Data::Dumper->Dump( [$boat->get_completed_orders(),$boat->get_pending_orders()] );
 
     ok( $boat->get_location()->is( $links->[2] ), "boat moved to correct place" );
     ok( $scout->get_location()->is( $fred_acct ), "scout moved then moved back home" );
@@ -331,5 +331,8 @@ sub advance_turn {
     my $players = $turn->_players();
     for my $p (@$players) {
         $p->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() } );
+    }
+    for my $p (@$players) {
+	print STDERR Data::Dumper->Dump(["COMPLETED",$p->get_all_completed_orders()]);
     }
 } #advance_turn

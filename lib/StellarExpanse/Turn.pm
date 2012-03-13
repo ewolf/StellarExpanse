@@ -12,6 +12,13 @@ sub init {
     my $self = shift;
     $self->SUPER::init();
     $self->set_players({});
+    $self->set_sectors([]);
+}
+
+sub _on_load {
+    my $self = shift;
+    $self->SUPER::_on_load();
+    $self->{NO_DEEP_CLONE} = 1;
 }
 
 #
@@ -32,7 +39,6 @@ sub _check_ready {
 
 sub _increment_turn {
     my $self = shift;
-
     my $game = $self->get_game();
     
     # Back the previous turn up in a clone.
@@ -40,12 +46,12 @@ sub _increment_turn {
     my $turns = $game->get_turns();
     $turns->[$clone->get_turn_number()] = $clone;
 
-    $self->set_turn_number( $clone->get_turn_number() + 1 );
-    $self->_take_turn();
+    $self->set_turn_number( $self->get_turn_number() + 1 );
 
     $turns->[$self->get_turn_number()] = $self;
-    $game->set_turn( $self );
     $game->set_turn_number( $self->get_turn_number() );
+
+    $self->_take_turn();
 
     # unready
     for my $player (@{$self->_players()}) {
@@ -89,14 +95,16 @@ sub _take_turn {
 
     for my $ship (@$ships) {
         $ship->_death_check();
+    }
+    for my $ship (@$ships) {
+	$ship->{death_check_done} = 0;
         $ship->_damage_control();
     }
-
     for my $ship (@$ships) {
         $ship->_move();
     }
 
-    my $sectors = $self->get_sectors([]);
+    my $sectors = $self->get_sectors();
     for my $sector (@$sectors) {
         $sector->_check_owner_and_bombardment();
         $sector->_build();

@@ -133,12 +133,12 @@ sub _build {
 			if( $prototype->get_type() eq 'SHIP' || $prototype->get_type() eq 'OIND' ) {
 			    my $new_ship = $prototype->clone();
 			    $new_ship->set_owner( $player );
-                $new_ship->set_game( $self->get_game() );
-
+			    $new_ship->set_game( $self->get_game() );
+			    $new_ship->set_hitpoints( $new_ship->get_defense() );
 			    $new_ship->set_location( $self );
 
 			    $self->add_to_ships( $new_ship );
-                $self->get_game()->current_turn()->add_to_ships();
+			    $self->get_game()->current_turn()->add_to_ships( $new_ship );
 			    $player->add_to_ships( $new_ship );
 			    $player->set_resources( $player->get_resources() - $cost );
 
