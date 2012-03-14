@@ -2,6 +2,8 @@ package StellarExpanse::Flavor;
 
 use strict;
 
+use StellarExpanse::Ship;
+
 use base 'Yote::Obj';
 
 our @defaultships=(

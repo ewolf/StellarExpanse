@@ -10,150 +10,150 @@
     <script src="/js/yote/yote.util.js"></script>
     <script>
     $().ready(function(){
-	    $('div.info').hide();
+	$('div.info').hide();
         var se_app = $.yote.get_app( 'StellarExpanse::App' );
-	    
-	    $('#nav a').each( function(idx) {
-	        $( this ).click( function() { 
-		        $('div.info').hide();  
-		        $( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
-	        } );
+	
+	$('#nav a').each( function(idx) {
+	    $( this ).click( function() { 
+		$('div.info').hide();  
+		$( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
 	    } );
+	} );
 
         var flavors;
-	    var config;
+	var config;
 
         function edit_flavors() {
             var flavs = se_app.get_flavors();
             flavs.load_direct_descendents();
 
             $('#flavor_div').empty();
-	        $('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
+	    $('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
                                      '<select id=flavor_sel></select><br>' + 
                                      '<input type=submit id=flavor_new_sub value="New Flavor"></div>' +
                                      '<div id=flavor_edit_box></div>' );
-	        for( var i=0; i<flavs.length(); i++ ) {
-	            var flav = flavs.get(i);
-	            $('#flavor_sel').append( "<option value=" + i + " id=flavor_" + i + ">" + flav.get('name') + "</option>" );
-	        }
+	    for( var i=0; i<flavs.length(); i++ ) {
+	        var flav = flavs.get(i);
+	        $('#flavor_sel').append( "<option value=" + i + " id=flavor_" + i + ">" + flav.get('name') + "</option>" );
+	    }
             $('#flavor_sel').click(
                 function() {
                     var idx = 1 * $(this).val();
                     edit_flavor( flavs.get( idx ) );
                 }
             );
- 	        $('#flavor_new_sub').click(
-	            function() {
-		            var newflav = se_app.new_flavor();
+ 	    $('#flavor_new_sub').click(
+	        function() {
+		    var newflav = se_app.new_flavor();
                     var new_idx = flavs.length()-1;
-		            $('#flavor_sel').append( "<option value=" + new_idx + " id=flavor_" + idx + ">" + newflav.get('name') + "</option>" );
+		    $('#flavor_sel').append( "<option value=" + new_idx + " id=flavor_" + idx + ">" + newflav.get('name') + "</option>" );
                     edit_flavor( newflav );
-	            }
-	        );
+	        }
+	    );
 
             edit_flavor( flavs.get(0) );
             
         } //edit flavors
 
-	    /*
-	      set up flavors to be edited.
-	    */
-	    function edit_flavor( flav ) {
+	/*
+	  set up flavors to be edited.
+	*/
+	function edit_flavor( flav ) {
 
-	        $('#flavor_edit_box').empty();
-	        $('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
+	    $('#flavor_edit_box').empty();
+	    $('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
                                           ' <button type=button id=reset>Reset</button> <BR><br>Name : ' );
             $.yote.util.stage_text_field( $('#flavor_edit_box'), flav, 'name' );
 
-	        $('#flavor_edit_box').append( '<br><table><tr id=arow><th>Configs</th><td><span id=ship_span>ship</span></td><td><span id=sector_names_span>Sector Names</span></tr></table>' );
-	        $( '#ship_span' ).css( 'cursor', 'pointer' );
-		    $( '#sector_names_span' ).css( 'cursor', 'pointer' );
-	        if( typeof config === 'undefined' ) {
-		        config = 'ship';
-	        }
-	        $( '#ship_span' ).click(
-		        function() {
-		            $( '#flavor_edit_switch div' ).hide();
-		            $( '#arow span' ).css( 'background-color', 'white' );
-		            $( '#ship_box' ).show();
-		            $( this ).css( 'background-color', 'yellow' );
-		            config = 'ship';
-		        }
-	        );
-	        $( '#sector_names_span' ).click(
-		        function() {
-		            $( '#flavor_edit_switch div' ).hide();
-		            $( '#arow span' ).css( 'background-color', 'white' );
-		            $( '#sector_names_box' ).show();
-		            $( this ).css( 'background-color', 'yellow' );
+	    $('#flavor_edit_box').append( '<br><table><tr id=arow><th>Configs</th><td><span id=ship_span>ship</span></td><td><span id=sector_names_span>Sector Names</span></tr></table>' );
+	    $( '#ship_span' ).css( 'cursor', 'pointer' );
+	    $( '#sector_names_span' ).css( 'cursor', 'pointer' );
+	    if( typeof config === 'undefined' ) {
+		config = 'ship';
+	    }
+	    $( '#ship_span' ).click(
+		function() {
+		    $( '#flavor_edit_switch div' ).hide();
+		    $( '#arow span' ).css( 'background-color', 'white' );
+		    $( '#ship_box' ).show();
+		    $( this ).css( 'background-color', 'yellow' );
+		    config = 'ship';
+		}
+	    );
+	    $( '#sector_names_span' ).click(
+		function() {
+		    $( '#flavor_edit_switch div' ).hide();
+		    $( '#arow span' ).css( 'background-color', 'white' );
+		    $( '#sector_names_box' ).show();
+		    $( this ).css( 'background-color', 'yellow' );
                     config = 'sector_names';
-		        }
-	        );
+		}
+	    );
             
-	        var configs = Array( 'empire', 'base', 'game', 'universe' );
-	        for( var i in configs ) {
-		        var val = configs[i];
-		        $( '#arow' ).append( '<td><span id=' + val + '_span>' + val + '</span></td>' );
-		        $( '#' + val + '_span' ).css( 'cursor', 'pointer' );
-		        $( '#' + val + '_span' ).click(
-		            (function( v ) { 
-			            return function() {
-			                var boxname = '#' + v + '_box';
-			                $( '#flavor_edit_switch div' ).hide();
-			                $( '#arow span' ).css( 'background-color', 'white' );
-			                $( boxname ).show();
-			                $( this ).css( 'background-color', 'yellow' );
-			                config = v;
-			            }
-		            } )( val )
-		        );
-	        }
+	    var configs = Array( 'empire', 'base', 'game', 'universe' );
+	    for( var i in configs ) {
+		var val = configs[i];
+		$( '#arow' ).append( '<td><span id=' + val + '_span>' + val + '</span></td>' );
+		$( '#' + val + '_span' ).css( 'cursor', 'pointer' );
+		$( '#' + val + '_span' ).click(
+		    (function( v ) { 
+			return function() {
+			    var boxname = '#' + v + '_box';
+			    $( '#flavor_edit_switch div' ).hide();
+			    $( '#arow span' ).css( 'background-color', 'white' );
+			    $( boxname ).show();
+			    $( this ).css( 'background-color', 'yellow' );
+			    config = v;
+			}
+		    } )( val )
+		);
+	    }
             $( '#arow span' ).css( 'margin', '2px' );
             $( '#arow span' ).css( 'border', 'solid black 1px' );
 
-	        $('#flavor_edit_box').append( '<div id=flavor_edit_switch></div>' );
-	        edit_ships( flav );
-		    $('#flavor_edit_switch').append( '<div id=sector_names_box>' + val + '<BR>' );
-		    $.yote.util.stage_textarea( {
+	    $('#flavor_edit_box').append( '<div id=flavor_edit_switch></div>' );
+	    edit_ships( flav );
+	    $('#flavor_edit_switch').append( '<div id=sector_names_box>Sector Names. If blank, systems in new game will come from random dictionary words.<BR>' );
+	    $.yote.util.stage_textarea( {
                 attachpoint:$( '#sector_names_box' ), 
                 yoteobj:flav.get_sector_names(), 
                 cols:40, 
                 rows:15, 
                 as_list:true } );
 
-	        for( var i in configs ) {
-		        var val = configs[i];
-		        $('#flavor_edit_switch').append( '<div id=' + val + '_box>' + val + '<BR>' );
-		        $.yote.util.stage_textarea( {
+	    for( var i in configs ) {
+		var val = configs[i];
+		$('#flavor_edit_switch').append( '<div id=' + val + '_box>' + val + '<BR>' );
+		$.yote.util.stage_textarea( {
                     attachpoint:$( '#' + val + '_box' ), 
                     yoteobj:flav, 
                     fieldname:val + '_config', 
                     cols:40, 
                     rows:15 } );
-	        }	    
-	        $( '#flavor_edit_switch div' ).hide();
+	    }	    
+	    $( '#flavor_edit_switch div' ).hide();
 
             $('#flavor_edit_switch').append( '<div id=rand_names_box></div>' );
 
-	        $( '#' + config + '_box' ).show();
-	        $( '#' + config + '_span' ).css( 'background-color', 'yellow' );
-	    } //edit_flavor
+	    $( '#' + config + '_box' ).show();
+	    $( '#' + config + '_span' ).css( 'background-color', 'yellow' );
+	} //edit_flavor
 
-  	    function edit_ships( flav ) {
+  	function edit_ships( flav ) {
             $('#flavor_edit_switch').append( '<div id=ship_box><h2>Ships</h2><table border=1 id=ship_tab><tr></tr></table></div>' );
             var fields = {
-	            name:'Name',
+	        name:'Name',
                 ship_class:'Ship Class',
-	            tech_level:'Tech Level',
-	            damage_control:'Damage Control',
-	            jumps:'Jumps',
-	            cost:'Cost',
-	            targets:'Targets',
-	            self_destruct:'Self Destruct',
-	            attack_beams:'Attack Beams',
-	            defense:'Defense',
-	            size:'Size',
-	            racksize:'Rack Size',
+	        tech_level:'Tech Level',
+	        damage_control:'Damage Control',
+	        jumps:'Jumps',
+	        cost:'Cost',
+	        targets:'Targets',
+	        self_destruct:'Self Destruct',
+	        attack_beams:'Attack Beams',
+	        defense:'Defense',
+	        size:'Size',
+	        racksize:'Rack Size',
                 type:'Type'
             };
             var field_keys = Array();
@@ -162,7 +162,7 @@
             }
             $('#reset').click( (function(ed) { return function() { if( confirm("Really Revert?") ) { edit_flavor(ed) }} })(flav) );
 
-	        var ships = flav.get('ships');
+	    var ships = flav.get('ships');
             ships.load_direct_descendents();
 
             $('#save').click( (function(ed) { 
@@ -175,20 +175,20 @@
                     edit_flavor(ed);
                 } } )(flav) );
 
-	        for( var i=0; i<ships.length(); ++i ) {
+	    for( var i=0; i<ships.length(); ++i ) {
                 var ship = ships.get(i);
                 $( '#ship_tab' ).append( '<tr id=ship_'+i+'>' );
                 for( var key in fields ) {
                     var tr = $( 'tr#ship_' + i ).append('<td id=ship_' + i + '_' + key + ' >');
-		            $.yote.util.stage_text_field( $('#ship_' + i + '_' + key ), ship, key );
+		    $.yote.util.stage_text_field( $('#ship_' + i + '_' + key ), ship, key );
                 }
             }
 
-	    } //edit ships
+	} //edit ships
 
         edit_flavors();
         
-	    $( '#flavor_div' ).show();
+	$( '#flavor_div' ).show();
         
     } );
     </script>
