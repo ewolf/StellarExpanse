@@ -53,7 +53,7 @@ sub test_suite {
     is( scalar( @$flavrs ), 1, "default flavor" );
 
     my $flav = $flavrs->[0];
- 
+    
     my $res = $app->create_game( { name => "test game",
                                    number_players => 2,
                                    starting_tech_level => 1,
@@ -66,7 +66,7 @@ sub test_suite {
     is( $game->get_name(), "test game", "game name" );
     ok( $flav->is( $game->get_flavor() ), "game has right flavor" );
     is( $game->get_turn_number(), 0, "first turn is 0" );
-    my $turn = $game->current_turn();
+    my $turn = $game->_current_turn();
     is( $turn->get_turn_number(), 0, "turn number is 0" );
     is( $game->_find_player( $acct ), undef, "no players yet" );
 
@@ -103,6 +103,12 @@ sub test_suite {
     is( $game->active_player_count(), 2, "two players after failed to add one" );
     
     my( $amy, $fred ) = @{$game->_players()};
+    $amy->{root} = $amy_acct_root;
+    $amy->{acct} = $amy_acct;
+
+    $fred->{root} = $fred_acct_root;
+    $fred->{acct} = $fred_acct;
+
     is( $amy->get_resources(), 100, 'set up with correct starting resources');
     is( $amy->get_tech_level(), 1, 'set up with correct tech level');
     is( $fred->get_resources(), 100, 'set up with correct starting resources');
@@ -120,136 +126,133 @@ sub test_suite {
     ok( $turn->_check_ready() == 0, "Turn not ready" );
     is( $turn->get_turn_number(), 0, "turn number is 0" );
 
-#    {
+    my $res = $fred->mark_as_ready( { ready => 1, turn => 0 } );
+    like( $res->{msg}, qr/Set Ready/i, "marking ready" );
+    ok( $turn->_check_ready() == 0, "Turn not ready" );
+    is( $turn->get_turn_number(), 0, "turn number is 0" );
 
-        my $res = $fred->mark_as_ready( { ready => 1, turn => 0 } );
-        like( $res->{msg}, qr/Set Ready/i, "marking ready" );
-        ok( $turn->_check_ready() == 0, "Turn not ready" );
-        is( $turn->get_turn_number(), 0, "turn number is 0" );
+    # ---------- take turn by marking ready
 
-        # ---------- take turn by marking ready
+    my $res = $amy->mark_as_ready( { ready => 1, turn => 0 } );
+    like( $res->{msg}, qr/Set Ready/i, "marking ready" );
 
-        my $res = $amy->mark_as_ready( { ready => 1, turn => 0 } );
-        like( $res->{msg}, qr/Set Ready/i, "marking ready" );
+    is( scalar( @{$game->get_turns()} ), 2, "Number of stored turns" );
 
-        is( scalar( @{$game->get_turns()} ), 2, "Number of stored turns" );
+    is( $turn->get_turn_number(), 1, "turn number is 1" );
+    is( $game->get_turn_number(), 1, "game turn number is 1" );
 
-        is( $turn->get_turn_number(), 1, "turn number is 1" );
-        is( $game->get_turn_number(), 1, "game turn number is 1" );
+    is( $amy->get_resources(), 120, 'correct resources after first turn');
+    is( $amy->get_tech_level(), 1, 'correct tech level after first turn');
+    is( $fred->get_resources(), 120, 'correct resources after first turn');
+    is( $fred->get_tech_level(), 1, 'correct tech level after first turn');
 
-        is( $amy->get_resources(), 120, 'correct resources after first turn');
-        is( $amy->get_tech_level(), 1, 'correct tech level after first turn');
-        is( $fred->get_resources(), 120, 'correct resources after first turn');
-        is( $fred->get_tech_level(), 1, 'correct tech level after first turn');
+    my $sect = $amy->get_sectors();
+    my( $amy_sector ) = @$sect;
+    is( scalar(@$sect), 1, "Amy has one sector" );
+    ok( $amy->is( $sect->[0]->get_owner() ), "Sector is owned by amy" );
+    is( $sect->[0]->get_currprod(), 20, "Prod at 20" );
+    is( $sect->[0]->get_maxprod(), 25, "Max Prod at 25" );
 
-        my $sect = $amy->get_sectors();
-        my( $amy_sector ) = @$sect;
-        is( scalar(@$sect), 1, "Amy has one sector" );
-        ok( $amy->is( $sect->[0]->get_owner() ), "Sector is owned by amy" );
-        is( $sect->[0]->get_currprod(), 20, "Prod at 20" );
-        is( $sect->[0]->get_maxprod(), 25, "Max Prod at 25" );
+    my $sect = $fred->get_sectors();
+    my( $fred_sector ) = @$sect;
+    is( scalar(@$sect), 1, "Fred has one sector" );
+    is( $sect->[0]->get_currprod(), 20, "Prod at 20" );
+    is( $sect->[0]->get_maxprod(), 25, "Max Prod at 25" );
+    is( $sect->[0]->get_buildcap(), 3 * 20, "Buildcap at three times current prod" );
 
-        my $sect = $fred->get_sectors();
-        my( $fred_sector ) = @$sect;
-        is( scalar(@$sect), 1, "Fred has one sector" );
-        is( $sect->[0]->get_currprod(), 20, "Prod at 20" );
-        is( $sect->[0]->get_maxprod(), 25, "Max Prod at 25" );
-        is( $sect->[0]->get_buildcap(), 3 * 20, "Buildcap at three times current prod" );
-
-        is( $turn->get_turn_number(), 1, "turn number is 1" );
-        is( $game->get_turn_number(), 1, "game turn number is 1" );
-
-        #
-        # Check start chart for freds sector
-        #
-        my $fred_chart = $fred->get_starchart();
-        ok( $fred_chart->_has_entry( $fred_sector ), "fred knows own sector" );
-        ok( ! $fred_chart->_has_entry( $amy_sector ), "fred doesn't know amy's sector" );
-#    }
+    is( $turn->get_turn_number(), 1, "turn number is 1" );
+    is( $game->get_turn_number(), 1, "game turn number is 1" );
 
     #
-    # test give order give_resources
+    # Check start chart for freds sector
     #
-#    {
-        is( scalar( @{$amy->get_pending_orders()} ), 0, "No orders yet" );
-        like( $amy->new_order( { order => 'give_resources', amount => 1, recipient => $fred, turn => $turn->get_turn_number() }, $amy_acct_root, $amy_acct )->{msg}, qr/gave order/i, "Give resources" );
-        is( scalar( @{$amy->get_pending_orders()} ), 1, "first order" );
-        like( $amy->new_order( { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() }, $amy_acct_root, $amy_acct )->{msg}, qr/gave order/i, "Give resources" );
-        is( scalar( @{$amy->get_pending_orders()} ), 2, "second order" );
-        like( $amy->new_order( { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() + 3 }, $amy_acct_root, $amy_acct )->{err}, qr/wrong turn/i, "Give resources for wrong turn" );
-        like( $amy->new_order( { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() - 1 }, $amy_acct_root, $amy_acct )->{err}, qr/wrong turn/i, "Give resources for wrong turn" );
-        is( scalar( @{$amy->get_pending_orders()} ), 2, "no valid 3rd" );
-        my $res = $amy->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() + 1 } );
-        like( $res->{err}, qr/Not on turn/i, "error message for ready for wrong turn" );
+    my $fred_chart = $fred->get_starchart();
+    ok( $fred_chart->_has_entry( $fred_sector ), "fred knows own sector" );
+    ok( ! $fred_chart->_has_entry( $amy_sector ), "fred doesn't know amy's sector" );
 
-        is( $turn->get_turn_number(), 1, "turn number is 1" );
-        is( $game->get_turn_number(), 1, "game turn number is 1" );
+    is( scalar( @{$amy->get_pending_orders()} ), 0, "No orders yet" );
+    
+    my $o1 = pass_order( $amy, { order => 'give_resources', amount => 1, recipient => $fred, turn => $turn->get_turn_number() }, 'give 1 to fred' );
+    is( scalar( @{$amy->get_pending_orders()} ), 1, "first order" );
 
-        # turn advance
-        advance_turn( $turn );
+    my $o2 = pass_order( $amy, { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() }, 'give 3 to fred' );
 
-        is( $turn->get_turn_number(), 2, "turn number is 2" );
-        is( $game->get_turn_number(), 2, "game turn number is 2" );
-        is( scalar( @{$game->get_turns()} ), 3, "Number of stored turns" );
-        my $completed = $game->get_turns()->[2]->_players()->[0]->get_completed_orders();
-        is( scalar( @$completed ), 2, "orders completed on this turn" );
-        my $completed = $game->current_turn()->_players()->[0]->get_completed_orders();
-        is( scalar( @$completed ), 2, "orders completed on this turn" );
-        ok( $completed->[0]->get_resolution(), "first order ok" );
-        ok( $completed->[1]->get_resolution(), "2nd order ok" );
-        is( scalar( @{$game->get_turns()->[2]->_players()->[0]->get_pending_orders()} ), 0, "orders pending for this turn" );
-        is( scalar( @{$game->get_turns()->[1]->_players()->[0]->get_pending_orders()} ), 2, "last turn pending" );
+    is( scalar( @{$amy->get_pending_orders()} ), 2, "second order" );
 
-        is( scalar( @{$amy->get_completed_orders()} ), 2, "order reset with turn" );
-        is( scalar( @{$amy->get_pending_orders()} ), 0, "order reset with turn" );
+    fail_order( $amy, { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() + 3 }, qr/wrong turn/i, "Give resources for wrong turn" );
 
-        is( $amy->get_resources(), 136, 'correct  resources after turn and give');
-        is( $amy->get_tech_level(), 1, 'set up with correct tech level');
-        is( $fred->get_resources(), 144, 'correct resources after turn and give');
-        is( $fred->get_tech_level(), 1, 'set up with correct tech level');
-#    }
+    fail_order( $amy, { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() - 1 }, qr/wrong turn/i, "Give resources for wrong turn" );
+    is( scalar( @{$amy->get_pending_orders()} ), 2, "no valid 3rd" );
+    my $res = $amy->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() + 1 } );
+    like( $res->{err}, qr/Not on turn/i, "error message for ready for wrong turn" );
+
+    is( $turn->get_turn_number(), 1, "turn number is 1" );
+    is( $game->get_turn_number(), 1, "game turn number is 1" );
+
+    # turn advance
+    advance_turn( $turn );
+
+    is( $turn->get_turn_number(), 2, "turn number is 2" );
+    is( $game->get_turn_number(), 2, "game turn number is 2" );
+    is( scalar( @{$game->get_turns()} ), 3, "Number of stored turns" );
+    my $completed = $game->get_turns()->[2]->_players()->[0]->get_completed_orders();
+    is( scalar( @$completed ), 2, "orders completed on this turn" );
+    my $completed = $game->_current_turn()->_players()->[0]->get_completed_orders();
+    is( scalar( @$completed ), 2, "orders completed on this turn" );
+    is( $o1, $completed->[0], "first order ok" );
+    is( $o2, $completed->[1], "2nd order ok" );
+    ok( $o1->get_resolution(), "success giving 1" );
+    ok( $o1->get_resolution(), "success giving 3" );
+    like( $o1->get_resolution_message(), qr/^gave 1 /i, 'gave correct amount 1' );
+    like( $o2->get_resolution_message(), qr/^gave 3 /i, 'gave correct amount 3' );
+    is( scalar( @{$game->get_turns()->[2]->_players()->[0]->get_pending_orders()} ), 0, "orders pending for this turn" );
+    is( scalar( @{$game->get_turns()->[1]->_players()->[0]->get_pending_orders()} ), 2, "last turn pending" );
+
+    is( scalar( @{$amy->get_completed_orders()} ), 2, "order reset with turn" );
+    is( scalar( @{$amy->get_pending_orders()} ), 0, "order reset with turn" );
+
+    is( $amy->get_resources(), 136, 'correct  resources after turn and give');
+    is( $amy->get_tech_level(), 1, 'set up with correct tech level');
+    is( $fred->get_resources(), 144, 'correct resources after turn and give');
+    is( $fred->get_tech_level(), 1, 'set up with correct tech level');
 
     my $prototypes = $flav->get_ships();
     my( $scout_p, $boat_p, $dest_p, $cruis_p, $battleship_p ) = @$prototypes;
 
     # test build
-#    {
-        is( $scout_p->get_name(), 'Scout', "First ship is scout" );
+    is( $scout_p->get_name(), 'Scout', "First ship is scout" );
 
-        my $ord_req = $fred_sector->new_order( { turn => $turn->get_turn_number(),
-                                                 order => "build",
-                                                 ship  => $scout_p }, 
-                                               $fred_acct_root, $fred_acct );
-        my $ord = $ord_req->{r};
-        ok( $ord, "Order submitted" );
-        like( $ord_req->{msg}, qr/gave order/i, "scout ship order" );
-        like( $fred_sector->new_order( { order => "build",
-                                         turn  => 2,
-                                         ship  => $battleship_p }, $fred_acct_root, $fred_acct )->{msg},
-              qr/gave order/, " battleship build order" );
-        like( $fred_sector->new_order( { order => "build",
-                                         turn => $turn->get_turn_number(),
-                                         ship  => $boat_p }, $fred_acct_root, $fred_acct )->{msg},
-              qr/gave order/, " boat build order" );
+    my $b1_o = pass_order( $fred_sector, { turn => $turn->get_turn_number(),
+                                           order => "build",
+                                           ship  => $scout_p }, 
+                           "build scout order" );
+    my $b2_o = pass_order( $fred_sector, { order => "build",
+                                           turn  => 2,
+                                           ship  => $battleship_p }, 
+                           "build battleship order" );
+    my $b3_o = pass_order( $fred_sector, { order => "build",
+                                           turn => $turn->get_turn_number(),
+                                           ship  => $boat_p }, 
+                           " build boat order" );
     
-        # turn advance
-        advance_turn( $turn );
+    # turn advance
+    advance_turn( $turn );
 
-        is( $turn->get_turn_number(), 3, "turn number is 3" );
-        is( $game->get_turn_number(), 3, "game turn number is 3" );
-        my $completed = $game->current_turn()->_players()->[1]->get_sectors()->[0]->get_completed_orders();
-        my $pending = $game->current_turn()->_players()->[1]->get_sectors()->[0]->get_pending_orders();
-        is( scalar( @$completed ), 3, "build orders completed on this turn" );
-        is( scalar( @$pending ), 0, "no pending orders after turn advance" );
-        ok( $completed->[0]->get_resolution(), "build scout ok" );
-        ok( $completed->[1]->get_resolution(), "build battleship ok" );
-        ok( $completed->[2]->get_resolution(), "build boat ok" );
-        my $player_ships = $fred->get_ships();
-        my $sector_ships = $fred_sector->get_ships();
-        is( @$player_ships, 3, "Player now as 3 ships" );
-        is( @$sector_ships, 3, "Sector now as 3 ships" );
-        my( $scout, $battleship, $boat ) = @$sector_ships;
-#    }
+    is( $turn->get_turn_number(), 3, "turn number is 3" );
+    is( $game->get_turn_number(), 3, "game turn number is 3" );
+    my $completed = $game->_current_turn()->_players()->[1]->get_sectors()->[0]->get_completed_orders();
+    my $pending = $game->_current_turn()->_players()->[1]->get_sectors()->[0]->get_pending_orders();
+    is( scalar( @$completed ), 3, "build orders completed on this turn" );
+    is( scalar( @$pending ), 0, "no pending orders after turn advance" );
+    ok( $b1_o->get_resolution(), "build scout ok" );
+    ok( $b2_o->get_resolution(), "build battleship ok" );
+    ok( $b3_o->get_resolution(), "build boat ok" );
+
+    my $player_ships = $fred->get_ships();
+    my $sector_ships = $fred_sector->get_ships();
+    is( @$player_ships, 3, "Player now as 3 ships" );
+    is( @$sector_ships, 3, "Sector now as 3 ships" );
+    my( $scout, $battleship, $boat ) = @$sector_ships;
     
     my $player_ships = $fred->get_ships();
     my $sector_ships = $fred_sector->get_ships();
@@ -260,69 +263,90 @@ sub test_suite {
     my $links = $fred_sector->_links();
     is( @$links, 3, "three links from starting sector" );
 
-    like( $battleship->new_order(
-              {
-                  from  => $fred_sector,
-                  to    => $links->[0],
-                  turn  => $turn->get_turn_number(),
-                  order => 'move',
-              }, $amy_acct_root, $amy_acct 
-          )->{err}, qr/player may not order this/i, "Cannot order someone else's ship" );
+    like( $battleship->new_order( {
+        from  => $fred_sector,
+        to    => $links->[0],
+        turn  => $turn->get_turn_number(),
+        order => 'move',
+                           },
+                           $amy->{root}, $amy->{acct} )->{err}, 
+          qr/player may not order this/i,
+          "Cannot order someone else's ship" );
+
 
     #
     # try to move scout into an unexplored sector and move it back.
     #
-    my $ord_res = $scout->new_order(
-              {
-                  from  => $fred_sector,
-                  to    => $links->[0],
-                  turn  => $turn->get_turn_number(),
-                  order => 'move',
-              }, $fred_acct_root, $fred_acct 
+    my $s_m1 = pass_order( $scout,
+                           {
+                               from  => $fred_sector,
+                               to    => $links->[0],
+                               turn  => $turn->get_turn_number(),
+                               order => 'move',
+                           }, 
+                           "scout move from home order"
         );
-    like( $ord_res->{msg}, qr/gave order/i, "scout first order" );
-    like( $scout->new_order(
-              {
-                  from  => $links->[0],
-                  to    => $fred_sector,
-                  turn  => $turn->get_turn_number(),
-                  order => 'move',
-              }, $fred_acct_root, $fred_acct 
-          )->{msg}, qr/gave order/i, "scout second order" );
+
+    my $s_m2 = pass_order( $scout,
+                           {
+                               from  => $links->[0],
+                               to    => $fred_sector,
+                               turn  => $turn->get_turn_number(),
+                               order => 'move',
+                           }, 
+                           "scout move back home order" 
+        );
     
     #
     # try to move boat like a scout. it has more movement but should stop at the unexplored place.
     #
-    like( $boat->new_order(
-              {
-                  from  => $fred_sector,
-                  to    => $links->[2],
-                  turn  => $turn->get_turn_number(),
-                  order => 'move',
-              }, $fred_acct_root, $fred_acct 
-          )->{msg}, qr/gave order/i, "scout first order" );
-    like( $boat->new_order(
-              {
-                  from  => $links->[2],
-                  to    => $links->[0],
-                  turn  => $turn->get_turn_number(),
-                  order => 'move',
-              }, $fred_acct_root, $fred_acct 
-          )->{msg}, qr/gave order/i, "scout second order" );
+    my $b_m1 = pass_order( $boat,
+                           {
+                               from  => $fred_sector,
+                               to    => $links->[2],
+                               turn  => $turn->get_turn_number(),
+                               order => 'move',
+                           }, 
+                           "boat order to explore" );
+    my $b_m2 = pass_order( $boat,
+                           {
+                               from  => $links->[2],
+                               to    => $fred_sector,
+                               turn  => $turn->get_turn_number(),
+                               order => 'move',
+                           },
+                           "boat order to move back home" );
+
+    my $b_m3 = pass_order( $boat,
+                           {
+                               from  => $links->[2],
+                               to    => $links->[0],
+                               turn  => $turn->get_turn_number(),
+                               order => 'move',
+                           },
+                           "boat order to unconnected sector" );
 
     # turn advance
-
     advance_turn( $turn );
 
+    ok( $b_m1->get_resolution(), "Boat 1st order ok" );
+    ok( ! $b_m2->get_resolution(), "Boat 2nd order not ok" );
+    like( $b_m1->get_resolution_message(), qr/^moved from/i, "boat order message 1" );
+    like( $b_m2->get_resolution_message(), qr/^out of movement/i, "boat order message 2" );
+    like( $b_m3->get_resolution_message(), qr/does not link/i, "boat order message 3" );
 
     ok( $boat->get_location()->is( $links->[2] ), "boat moved to correct place" );
-    ok( $scout->get_location()->is( $fred_acct ), "scout moved then moved back home" );
+    ok( $scout->get_location()->is( $fred_sector ), "scout moved then moved back home" );
     
     ok( $fred_chart->_has_entry( $fred_sector ), "fred knows own sector" );
     ok( ! $fred_chart->_has_entry( $amy_sector ), "fred doesn't know amy's sector" );
     ok( $fred_chart->_has_entry( $links->[2] ), "fred knows boat explored sector" );
     ok( $fred_chart->_has_entry( $links->[0] ), "fred knows scout explored sector" );
     ok( ! $fred_chart->_has_entry( $links->[1] ), "fred doesn't know unexplored sector" );
+
+    # now link a fred system to amy's system so we can have a bit of combatishness.
+    $amy_sector->_link_sectors( $links->[0] );
+    
 
 } #test_suite
 
@@ -332,7 +356,24 @@ sub advance_turn {
     for my $p (@$players) {
         $p->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() } );
     }
-    for my $p (@$players) {
-	print STDERR Data::Dumper->Dump(["COMPLETED",$p->get_all_completed_orders()]);
-    }
+    my $turns = $turn->get_game()->get_turns();
+
 } #advance_turn
+
+sub pass_order {
+    my( $obj, $ord, $msg ) = @_;
+    my $res = $obj->new_order( $ord, $obj->get_owner()->{root}, $obj->get_owner()->{acct} );
+    if( $res->{err} ) {
+        ok( 0, ($msg || 'made order'). ' got error '.$res->{err} );
+    }
+    elsif( $res->{r} ) {
+        ok( 1, $msg || 'made order' );
+        return $res->{r};
+    }
+    ok( 0, $msg || 'made order' );
+}
+
+sub fail_order {
+    my( $obj, $ord, $fail_regex, $msg ) = @_;
+    like( $obj->new_order( $ord, $obj->get_owner()->{root}, $obj->get_owner()->{acct} )->{err}, $fail_regex, $msg );
+}

@@ -18,7 +18,6 @@ sub new_order {
     unless( $player->is( $self->get_owner() ) || $player->is( $self ) ) {
         return { err => "Player may not order this object" };
     }
-
     if( $data->{turn} != $self->get_game()->get_turn_number() ) {
         return { err => "order given for wrong turn" };
     }
@@ -27,7 +26,6 @@ sub new_order {
     $ord->absorb( $data );
     $ord->set_subject( $self );
     $self->add_to_pending_orders( $ord );
-    $self->get_owner()->add_to_all_pending_orders( $ord );
 
     return { msg => "gave order", r => $ord };
 } #new_order

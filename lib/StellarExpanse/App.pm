@@ -20,7 +20,6 @@ sub create_game {
     my $games = $self->get_games({});
     my $game = new StellarExpanse::Game();
 
-    $game->set_app( $self );
     $game->set_name( $data->{name} );
     $game->set_number_players( $data->{number_players} );
     $game->set_starting_resources( $data->{starting_resources} );

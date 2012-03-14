@@ -1,1 +1,151 @@
 StellarExpanse is a good test of the cpan module Yote
+
+@TODO - combat tests, manager messages received (maybe have a list to push into per turn)
+
+Here is a document describing the different objects in StellarExpanse :
+
+Legend :
+  =>> client method. the parameters described are sent from the client side. The parameters automatically
+                     filled in by Yote are not described.
+  -> perl method. used with the proper perl arguments
+  * field
+
+App - the singleton app. Describing the parameters for the client side
+  =>> create_game( name:"name of game", 
+                   number_players:n,
+                   starting_resources:n,
+                   starting_tech_level:n
+                   flavor:flavor_object );
+  =>> new_flavor()
+  =>> available_games()
+
+Flavor - a game configuration object
+  * ships - list of Ship objects
+  * empire_config - text of empire configuration file. configures empire starting sectors
+  * base_config  
+  * universe_config
+  * sector_names - list of names to randomly give sectors. if omitted, will use dictionary words
+
+Game - a game to play
+  =>> add_player()    - adds player object for the account calling it
+  =>> remove_player() - removes the player object of the account calling it
+  =>> active_player_count()
+  =>> needs_players() - returns true if needs players
+  -> _current_turn() - returns a Turn object
+  -> _find_player( $account ) - returns player associated with the account for this game
+  -> _players() - returns the list of player objects
+  * active - boolean if this is an active game
+  * created_by - account object
+  * flavor - flavor object
+  * game_state 
+  * starting_resources
+  * starting_sectors
+  * starting_tech_level
+  * turn_number
+  * turns  - list of Turn objects
+  
+Order - an order to give a player, ship or sector object
+  * resolution_message
+  * resolution - true if the order succeeded
+  * subject - item that was target of order
+
+Player - 'avatar' of account. An account may only have one player in a game
+  =>> new_order( order:command-name, turn:turn-for-orer, ..other fields depending on the order... )
+  =>> make_as_ready( turn:ready-for-which-turn,
+                     ready:boolean )
+  =>> new_order( order:command-name, turn:turn-for-orer, ..other fields depending on the order... )
+
+  -> _give() : invoke any give order attached to this
+  -> _defeat_check() : checks if this still has systems or ships. removes player from active players if it doesn't
+  -> _notify( msg ) : add message to notification list
+  * account_root - account root of account owning player
+  * completed_orders - Orders completed this turn 
+  * game - game player belongs to
+  * name - same as account hanle
+  * notifications - list of notification messages (like something happening in their system)
+                    note : no implementation for managing this list yet exists. Should dump on new turn
+  * ready - true if the player is ready for the current turn. reset after turn
+  * resources - count of resource units
+  * pending_orders - orders not yet executed this turn
+  * sectors - list of sector objects owned by player
+  * ships - list of Ship objects owned by player
+  * starchart - StarChart object that manages what the player knows of systems
+  * tech_level
+  * turn - current Turn object
+
+Sector - 
+  =>> new_order( order:command-name, turn:turn-for-orer, ..other fields depending on the order... )
+  -> _build() - checks build orders given to this
+  -> _check_owner_and_bombardment() - checks if this system is colonized, conquored or bombarded by enemy ships
+  -> _link_sectors( Sector ) - connects the two sectors togeher
+  -> _links() - returns list of Sector objects connected to this one
+  -> _notify( msg ) : add message to notification list of anyone with a ship here or control of this system
+  -> _produce() : adds the production of this sector to its owner
+  -> _valid_link( Sector ) - returns true if the sector given links to this one.
+  * buildcap - max size of ships this can produce
+    * completed_orders - Orders completed this turn
+  * currprod
+  * game 
+  * links - hash of ID -> sector linked from this one
+  * maxprod
+  * name
+  * owner - Player object or undef
+  * pending_orders - orders not yet executed this turn
+  * ships - list of Ship objects here
+
+Ship - 
+    =>> new_order( order:command-name, turn:turn-for-orer, ..other fields depending on the order... )
+    -> _damage_control() : self repair ships if they can
+    -> _death_check() : check if ship is destroyed. if so, remove from lists it is in
+    -> _fire() : check for fire orders { target=>Ship, beams=>n }
+    -> _notify( msg ) : add message to notification list of owner
+    -> _load() : check for load order { carrier=>Ship }
+    -> _move() : check for move order { from=>Sector, to=>Sector }
+    -> _repair() : check for repair orders { repair_amount=>n } at a cost of .6 + 2*repair_amount
+    -> _unload() : check for unload order {}
+    * attack_beams - attack power
+    * carried - list of Ship objects loaded onto this one
+    * carrier - Ship object if loaded onto ship
+    * completed_orders - Orders completed this turn
+    * cost
+    * damage_control - how much this can heal a turn
+    * defense - max hit points
+    * game
+    * hitpoints - current hitpoints
+    * home_sector
+    * jumps - how far this can travel
+    * location - Sector object
+    * name
+    * origin_sector
+    * owner -Player object
+    * pending_orders - orders not yet executed this turn
+    * racksize - what size of ships this can carry
+    * self_destruct - boolean
+    * ship_class - Scout, or other designation
+    * targets - how many ships this can attack in one turn
+    * tech_level -required to build
+    * type - SHIP, IND, TECH
+
+StarChart - owned by a player to map out the galaxy
+    -> _update( Sector ) : causes this sector to write data to the starchart, updating if necessary
+    * notes - a list of hashes containing
+            msg:message (Updated or Discovered
+            turn:turn the update happened
+            owner:last seen owner of sector
+            production:last seen production of sector
+            ships:last seen list of ships
+
+Turn - the current turn.
+    -> _players : list of player objects in this turn
+    -> _check_ready : returns true if all players report ready
+    -> _increment_turn : clones the turn. the calls _take_turn on the original.
+                         the original's turn_number is incremented, then placed at the end of 
+                         the game's turns list. The clone replaces the current turn for the second to
+                         last item in the turns list.
+    -> _take_turn : runs orders, combat, updates system resources and checks for victory
+     * game
+     * players - hash of name -> Player object
+     * sectors - list of Sector objects
+     * ships   - list of Ship objects
+     * turn_number
+         

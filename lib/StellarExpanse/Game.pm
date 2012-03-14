@@ -25,11 +25,10 @@ sub init {
 
 sub _on_load {
     my $self = shift;
-    $self->SUPER::_on_load();
     $self->{NO_DEEP_CLONE} = 1;
 }
 
-sub current_turn {
+sub _current_turn {
     my $self = shift;
     return $self->get_turns()->[$self->get_turn_number()];
 }
@@ -40,7 +39,7 @@ sub current_turn {
 sub _find_player {
     my( $self, $acct ) = @_;
     return undef unless $acct;
-    return $self->current_turn()->get_players()->{$acct->get_handle()};
+    return $self->_current_turn()->get_players()->{$acct->get_handle()};
 } #_find_player
 
 #
@@ -48,13 +47,13 @@ sub _find_player {
 #
 sub add_player {
     my( $self, $data, $acct_root, $acct ) = @_;
-    my $players = $self->current_turn()->get_players();
+    my $players = $self->_current_turn()->get_players();
     if( $players->{$acct->get_handle()} ) {
         return { err => "account already added to this game" };
     }
     if( $self->needs_players() ) {
         my $player = new StellarExpanse::Player();
-        $player->set_turn( $self->current_turn() );
+        $player->set_turn( $self->_current_turn() );
         $player->set_game( $self );
         $player->set_account_root( $acct_root );
         $player->set_name( $acct->get_handle() );
@@ -76,7 +75,7 @@ sub add_player {
 #
 sub remove_player {
     my( $self, $data, $acct_root, $acct ) = @_;
-    my $players = $self->current_turn()->get_players();
+    my $players = $self->_current_turn()->get_players();
     if( !$players->{$acct->get_handle()} ) {
         return { err => "account not a member of this game" };
     }
@@ -90,7 +89,7 @@ sub remove_player {
 
 sub active_player_count {
     my $self = shift;
-    return scalar( keys %{$self->current_turn()->get_players()} );
+    return scalar( keys %{$self->_current_turn()->get_players()} );
 } #active_players
 
 #
@@ -99,12 +98,12 @@ sub active_player_count {
 sub needs_players {
     my $self = shift;
     return ( 0 == $self->get_active() ) &&
-        $self->get_number_players() > keys %{$self->current_turn()->get_players()};
+        $self->get_number_players() > keys %{$self->_current_turn()->get_players()};
 } #needs_players
 
 sub _players {
     my $self = shift;
-    return [values %{$self->current_turn()->get_players()}];
+    return [values %{$self->_current_turn()->get_players()}];
 }
 
 #
@@ -114,7 +113,7 @@ sub _start {
     my $self = shift;
 
     my $flav = $self->get_flavor();
-    my $turn = $self->current_turn();
+    my $turn = $self->_current_turn();
 
     #
     # Load/use configs and merge into a master config
@@ -297,7 +296,7 @@ sub _make_random_group {
     my ( $self, $full_config, $basename, $owner) = @_;
 
     my $flav = $self->get_flavor();
-    my $turn = $self->current_turn();
+    my $turn = $self->_current_turn();
 
     #
     # Looks up the master_config data structure for the basename.

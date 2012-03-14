@@ -185,12 +185,17 @@ sub _move {
                         #
                         # ships other than scouts lose all movement when entering an unexplored sector.
                         #
-                        my $maps = $self->get_owner()->get_maps();
-                        if( $maps->{$to->{ID}} || $self->get_ship_class() eq 'Scout' ) {
+                        my $chart = $self->get_owner()->get_starchart();
+                        if( $chart->_has_entry( $to ) || $self->get_ship_class() eq 'Scout' ) {
                             $self->{move}--;
                         } else {
                             $self->{move} = 0;
                         }
+                        
+                        #
+                        # Update star chart
+                        #
+                        $chart->_update( $to );
                         
                         #
                         # Ships must stop if there are enemy ships here.
@@ -198,19 +203,6 @@ sub _move {
                         if( grep { ! $_->get_owner()->is( $self->get_owner() ) } @{$to->get_ships()} ) {
                             $self->{move} = 0;
                         }
-
-                        #
-                        # Update player map
-                        #
-                        my $node = $maps->{$to->{ID}};
-                        unless( $node ) {
-                            $node = new Yote::Obj;
-                            $node->set_game( $self->get_game() );
-                            $maps->{$to->{ID}} = $node;
-                            $node->add_to_notes( "Discovered on turn ".$self->get_game()->get_turn_number() );
-                        }
-                        $node->set_seen_production( $to->get_currprod() );
-                        $node->set_seen_owner( $to->get_owner() );
                         
                         $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
                     } else {
