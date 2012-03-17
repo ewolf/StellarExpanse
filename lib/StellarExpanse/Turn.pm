@@ -34,7 +34,7 @@ sub _increment_turn {
     my $self = shift;
 
     # Back the previous turn up in a clone.
-    my $clone = $self->_power_clone();
+    my $clone = Yote::ObjProvider::power_clone( $self );
 
     $self->_take_turn();
 

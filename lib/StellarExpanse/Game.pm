@@ -159,7 +159,7 @@ sub _start {
         my $group = $self->_make_random_group( $master_config, 'empires', $player );
         my $gsecs = $group->{sectors};
         my $chart = new StellarExpanse::StarChart();
-        $chart->set_player( $player );
+        $chart->set_owner( $player );
         $chart->set_game( $self );
 
         $player->set_starchart( $chart );

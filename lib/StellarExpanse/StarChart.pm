@@ -5,6 +5,7 @@ use base 'Yote::Obj';
 sub init {
     my $self = shift;
     $self->set_map({});
+    $self->set_seen_ships([]);
 }
 
 sub _update {
@@ -12,7 +13,7 @@ sub _update {
 
     my $map = $self->get_map();
 
-    my $ships_here = $sector->get_ships([]);
+    my $ships_here = [grep { ! $self->get_owner()->is( $_->get_owner() ) } @{$sector->get_ships([])}];
 
     my $node = $map->{$sector->{ID}};
     if( $node ) {
@@ -52,9 +53,15 @@ sub _update {
 
     $node->set_seen_production( $sector->get_currprod() );
     $node->set_seen_owner( $sector->get_owner() );
-    $node->set_ships( $ships_here );
+    $node->set_seen_ships( $ships_here );
 
 } #_update
+
+sub _get_entry {
+    my( $self, $sector ) = @_;
+
+    return $self->get_map()->{$sector->{ID}};
+} #_get_entry
 
 #
 # Checks if the sector has an entry in the chart.

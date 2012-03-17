@@ -66,13 +66,13 @@ sub _load {
 sub _death_check {
     my $self = shift;
 
-    return if $self->{death_check_done};
-    $self->{death_check_done} = 1;
+    return if $self->{is_dead};
     if( $self->get_hitpoints() < 1 ) {
         my $loc = $self->get_location();
         if( $loc ) {
             $loc->_notify( "Ship " . $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) was destroyed in sector " . $loc->get_name() );
             $loc->remove_from_ships( $self );
+            $self->set_location( undef );
             $self->get_owner()->get_turn()->remove_from_ships( $self );
             $self->get_owner()->remove_from_ships( $self );
             $self->{is_dead} = 1;
@@ -87,8 +87,8 @@ sub _death_check {
 
 sub _damage_control {
     my $self = shift;
-    my( $def, $dc, $hp ) = ( $self->get_defense(), $self->get_damage_control(), $self->get_hitpoitns() );
-    return if $self->{is_dead} || $hp >= $def;
+    my( $def, $dc, $hp ) = ( $self->get_defense(), $self->get_damage_control(), $self->get_hitpoints() );
+    return if $self->{is_dead} || $hp >= $def || $dc == 0;
     my $needs = $def - $hp;
     my $heal = $dc > $needs ? $needs : $dc;
     $self->set_hitpoints( $hp + $heal );
@@ -142,19 +142,23 @@ sub _fire {
         if( $targ ) {
             my $loc = $self->get_location();
             if( $loc->is( $targ->get_location() ) ) {
-                if( $self->{targets} > 0 ) {
-                    if( $self->{beams} > 0 ) {
-                        my $beam_req = $ord->get_beams();
-                        my $beams = $self->{beams} < $beam_req ? $self->{beams} : $beam_req;
-                        $targ->set_hitpoints( $targ->get_hitpoints() - $beams );
-                        $ord->_resolve( "Attacked " . $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams", 1 );
-                        $loc->_notify( $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) attacked ". $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams" );
+                if( $self->get_owner()->is( $targ->get-owner() ) ) {
+                    if( $self->{targets} > 0 ) {
+                        if( $self->{beams} > 0 ) {
+                            my $beam_req = $ord->get_beams();
+                            my $beams = $self->{beams} < $beam_req ? $self->{beams} : $beam_req;
+                            $targ->set_hitpoints( $targ->get_hitpoints() - $beams );
+                            $ord->_resolve( "Attacked " . $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams.".( $targ->get_hitpoints() < 1 ? " Target was destroyed" : ''), 1 );
+                            $loc->_notify( $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) attacked ". $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams" );
+                        } else {
+                            $ord->_resolve( "Out of Attack Power" );
+                        }
                     } else {
-                        $ord->_resolve( "Out of Attack Power" );
+                        $ord->_resolve( "Out of Attacks" );
                     }
                 } else {
-                    $ord->_resolve( "Out of Attacks" );
-                }
+                    $ord->_resolve( "Target cannot be owned by attacker." );
+                }                    
             } else {
                 $ord->_resolve( "Target not found in this sector." );
             }

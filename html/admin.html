@@ -113,7 +113,7 @@
 
 	        $('#flavor_edit_box').append( '<div id=flavor_edit_switch></div>' );
 	        edit_ships( flav );
-		    $('#flavor_edit_switch').append( '<div id=sector_names_box>' + val + '<BR>' );
+		    $('#flavor_edit_switch').append( '<div id=sector_names_box>Sector Names. If blank, then sectors will be assigned random names from the dictionary.<BR>' );
 		    $.yote.util.stage_textarea( {
                 attachpoint:$( '#sector_names_box' ), 
                 yoteobj:flav.get_sector_names(), 
