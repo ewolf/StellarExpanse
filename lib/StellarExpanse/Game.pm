@@ -33,6 +33,17 @@ sub _current_turn {
     return $self->get_turns()->[$self->get_turn_number()];
 }
 
+sub rewind_to {
+    my( $self, $data, $acct_root, $acct ) = @_;
+    #rewinds this game to a point (data->{t})
+    my $old_turn = $data->{t};
+    if( $old_turn >= $self->get_turn_number() || $old_turn < 1 ) {
+        return { err => "Cannot move to future turns" };
+    }
+    $self->set_turn_number( $old_turn );
+    return { msg => "rewound to turn $old_turn" };
+} #rewind_to
+
 #
 # Returns the player object associated with the account, if any.
 #
@@ -137,6 +148,23 @@ sub _start {
     my $empire_groups = [];
     my $sector_count = 0;
 
+
+    my $words = $flav->get_sector_names();
+    my @words = @$words;
+    unless( @words ) {
+        # use random dictionary words
+        open( IN, "</etc/dictionaries-common/words" );
+
+my $dcount = 0;        # < for testing only > #
+        while( <IN> ) {
+            chomp;
+            next unless /^[a-z]+$/ && length( $_ ) > 2;
+            push @words, $_;
+last if ++$dcount > 200;        # < for testing only > #
+        }
+        close( IN );
+    }
+
     #
     # Configure each player and their starting group.
     #
@@ -156,7 +184,7 @@ sub _start {
         #
         # Give the player a sector group for the empires.
         #
-        my $group = $self->_make_random_group( $master_config, 'empires', $player );
+        my $group = $self->_make_random_group( $master_config, 'empires', $player, \@words );
         my $gsecs = $group->{sectors};
         my $chart = new StellarExpanse::StarChart();
         $chart->set_owner( $player );
@@ -175,7 +203,7 @@ sub _start {
     # Create a basegroups sector (if a master_config exists) or a vanilla groups sector.
     #
     my $base_group_name = $master_config->{basegroups} ? 'basegroups' : 'groups';
-    my $g = $self->_make_random_group( $master_config, $base_group_name);
+    my $g = $self->_make_random_group( $master_config, $base_group_name, undef, \@words );
     $sector_count += $g->sector_count();
     push @$unclaimed_groups, $g;
 
@@ -183,7 +211,7 @@ sub _start {
     # Continue to make sectors until the target number of sectors is reached.
     # 
     while( $sector_count < $master_config->{target_sector_count} ) {
-        my $g = $self->_make_random_group($master_config, "groups");
+        my $g = $self->_make_random_group($master_config, "groups", undef, \@words );
         $sector_count += $g->sector_count();
         push @$unclaimed_groups, $g;
     }
@@ -293,7 +321,7 @@ sub _end {
 # Use the game full config to create a group of sectors that belong together. Return the group.
 #
 sub _make_random_group {
-    my ( $self, $full_config, $basename, $owner) = @_;
+    my ( $self, $full_config, $basename, $owner, $words ) = @_;
 
     my $flav = $self->get_flavor();
     my $turn = $self->_current_turn();
@@ -319,22 +347,7 @@ sub _make_random_group {
 
     my( %key2GSector );
 
-    my $words = $flav->get_sector_names();
-    my @words = @$words;
-    unless( @words ) {
-        # use random dictionary words
-        open( IN, "</etc/dictionaries-common/words" );
-
-my $dcount = 0;        # < for testing only > #
-        while( <IN> ) {
-            chomp;
-            next unless /^[a-z]+$/ && length( $_ ) > 2;
-            push @words, $_;
-last if ++$dcount > 200;        # < for testing only > #
-        }
-        close( IN );
-    }
-    my $word = splice @words, int(rand(@words)), 1;
+    my $word = splice @$words, int(rand(@$words)), 1;
 
     for my $key (sort keys %$sectors) {
         my $sector_template = $sectors->{$key};
@@ -356,31 +369,26 @@ last if ++$dcount > 200;        # < for testing only > #
         my $prod_type = $sector_template->{prod_type} || 'default';
 
         # ---- set max and current production values ----
-        my $rangeString = _getProdValue($full_config, $sector_template, $prod_type, 'sectormaxprodrange');
+        my $rangeString = _getProdValue($full_config, $sector_template, $prod_type, 'SectorMaxProdRange');
         my ($min, $max) = split ' ',$rangeString;
         $min = $min || 0;   $max = $max || 0;
         
         my $maxprod = $max < $min ? $min : int(rand($max-$min+1) + $min);
-        $newsector->set_maxprod( $max < $min ? $min : int(rand($max-$min+1) + $min) );
+        $newsector->set_maxprod( $maxprod );
 
-        my $rangeString = _getProdValue($full_config, $sector_template, $prod_type, 'sectorprodrange');
-
-        my ($min, $max) = split ' ',$rangeString;
-        $min = $min || 0;   $max = $max || 0;
-        my $curprod = $max < $min ? $min : int(rand($max-$min+1) + $min);
-
-        if ($curprod > $maxprod) {
-            $curprod = $maxprod;
-        }	
         if( $owner && $sectors->{$key}{owner} != -1 ) {
             $newsector->set_owner( $owner );
             $owner->add_to_sectors( $newsector );
             $maxprod = $sector_template->{maxprod};
-            $curprod = $sector_template->{currprod};	    
+            my $curprod = $sector_template->{currprod};
+            if ($curprod > $maxprod) {
+                $curprod = $maxprod;
+            }
+            $newsector->set_maxprod( $maxprod );
+            $newsector->set_currprod( $curprod );
+            $newsector->set_buildcap( 3 * $curprod );
         }
-        $newsector->set_currprod( $curprod );
-        $newsector->set_maxprod( $maxprod );
-        $newsector->set_buildcap( 3 * $curprod );
+
         $key2GSector{$key}->set_outbound_links( $sectors->{$key}->{outbound_links} );	
 
     } #each sector group key
@@ -414,6 +422,7 @@ sub _getProdValue {
         _buildRangeStringOptList($sector_template->{prod_type_group}{$prod_type}, $prod_key) ||
         _buildRangeStringOptList($full_config->{prod_type_group}{$prod_type}, $prod_key)     ||
         ["0"];
+
     my $opt = 0;
     if( scalar( @$rangeStringOpts ) ) {
         $opt = $rangeStringOpts->[int(rand(scalar @{$rangeStringOpts}))];

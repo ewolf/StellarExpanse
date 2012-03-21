@@ -90,7 +90,6 @@ sub _take_turn {
     for my $ship (@$ships) {
         $ship->_death_check();
     }
-
     for my $ship (@$ships) {
         $ship->_damage_control();
     }

@@ -22,6 +22,7 @@ sub _unload {
             $self->set_location( $loc );
             $loc->add_to_ships( $self );
             $carrier->remove_from_carried( $self );
+            $carrier->set_free_rack( $carrier->get_free_rack() + $self->get_size() );
             # TODO : find a good method to report back status of orders, attached to ship and player
             for my $order (grep { $_->get_order() eq 'unload' } @$orders) {
                 $order->_resolve("Unloaded from " . $carrier->get_name(), 1);
@@ -44,20 +45,28 @@ sub _load {
         my $loc = $self->get_location();
         my $carrier = $ord->get_carrier();
         if( $carrier && $carrier->get_owner()->is( $self->get_owner() ) ) {
-            #check for room
-            if( $self->get_carrier() ) {
-                $ord->_resolve( "Already on a carrier. Must unload before moving to an other" );
+            if( ! $carrier->is( $self ) ) {
+                #check for room
+                if( $self->get_carrier() ) {
+                    $ord->_resolve( "Already on a carrier. Must unload before moving to an other" );
+                }
+                elsif( $carrier->get_free_rack() >= $self->get_size() ) {
+                    $carrier->set_free_rack( $carrier->get_free_rack() - $self->get_size() );
+                    $carrier->add_to_carried( $self );
+                    $self->set_carrier( $carrier );
+                    $self->set_location( undef );
+                    $loc->remove_from_ships( $self );
+                    $ord->_resolve( "Loaded onto " . $carrier->get_name(), 1 );
+                } 
+                else {
+                    $ord->_resolve( "Not enough room on carrier" );
+                }
+            } 
+            else {
+                $ord->_resolve( "Cannot load self" );
             }
-            elsif( $carrier->get_free_rack() >= $self->get_size() ) {
-                $carrier->add_to_carried( $self );
-                $self->set_carrier( $carrier );
-                $self->set_location( undef );
-                $loc->remove_from_ships( $self );
-                $ord->_resolve( "Loaded onto " . $carrier->get_name(), 1 );
-            } else {
-                $ord->_resolve( "Not enough room on carrier" );
-            }
-        } else {
+        } 
+        else {
             $ord->_resolve( "Unable to load onto carrier. Carrier not owned by you" );
         }
     }
@@ -124,7 +133,8 @@ sub _repair {
             $self->set_hitpoints( $hp + $amt );
             $self->get_location()->_notify( $self->get_name() . " repaired some damage at " . $self->get_location()->get_name() );
             $ord->_resolve( "Repaired $amt damage", 1 );
-        } else {
+        } 
+        else {
             $ord->_resolve( "Not enough resources" );
         }
     } #each repair order
@@ -142,27 +152,33 @@ sub _fire {
         if( $targ ) {
             my $loc = $self->get_location();
             if( $loc->is( $targ->get_location() ) ) {
-                if( $self->get_owner()->is( $targ->get-owner() ) ) {
+                if( ! $self->get_owner()->is( $targ->get_owner() ) ) {
                     if( $self->{targets} > 0 ) {
                         if( $self->{beams} > 0 ) {
                             my $beam_req = $ord->get_beams();
                             my $beams = $self->{beams} < $beam_req ? $self->{beams} : $beam_req;
+                            $self->{beams} -= $beams;
                             $targ->set_hitpoints( $targ->get_hitpoints() - $beams );
                             $ord->_resolve( "Attacked " . $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams.".( $targ->get_hitpoints() < 1 ? " Target was destroyed" : ''), 1 );
                             $loc->_notify( $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) attacked ". $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams" );
-                        } else {
+                        }
+                        else {
                             $ord->_resolve( "Out of Attack Power" );
                         }
-                    } else {
+                    } 
+                    else {
                         $ord->_resolve( "Out of Attacks" );
                     }
-                } else {
+                } 
+                else {
                     $ord->_resolve( "Target cannot be owned by attacker." );
                 }                    
-            } else {
+            } 
+            else {
                 $ord->_resolve( "Target not found in this sector." );
             }
-        } else {
+        } 
+        else {
             $ord->_resolve( "No target specified" );
         }
     }
@@ -192,7 +208,8 @@ sub _move {
                         my $chart = $self->get_owner()->get_starchart();
                         if( $chart->_has_entry( $to ) || $self->get_ship_class() eq 'Scout' ) {
                             $self->{move}--;
-                        } else {
+                        } 
+                        else {
                             $self->{move} = 0;
                         }
                         
@@ -209,17 +226,21 @@ sub _move {
                         }
                         
                         $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
-                    } else {
+                    } 
+                    else {
                         $ord->_resolve( "out of movement" );
                     }
-                } else {
+                } 
+                else {
                     $ord->_resolve( $from->get_name() . " does not link to " . $to->get_name() );
                 }
-            } else {
+            } 
+            else {
                 $ord->_resolve( "Not in " . $loc->get_name() );
             }
-        } else {
-            $ord->_resolve( "Must specify from which sector" );
+        } 
+        else {
+            $ord->_resolve( "Not in any location" );
         }
     }
     

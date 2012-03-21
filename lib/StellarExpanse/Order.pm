@@ -8,7 +8,7 @@ sub _resolve {
     $self->set_resolution( $success );
     my $subj = $self->get_subject();
     $subj->remove_from_pending_orders( $self );
-    $subj->add_to_completed_orders( $self );
+    push( @{$subj->get_completed_orders()->[$self->get_turn()+1]}, $self );
 } #_resolve
 
 1;
