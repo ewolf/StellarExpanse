@@ -9,7 +9,6 @@ sub init {
     $self->SUPER::init();
     $self->set_pending_orders([]);
     $self->set_completed_orders([]);
-    $self->set_ships([]);
 }
 
 sub new_order {

@@ -70,7 +70,6 @@ sub add_player {
         $player->set_name( $acct->get_handle() );
         $players->{$acct->get_handle()} = $player;
         $acct_root->add_to_my_joined_games( $self );
-
         if( $self->needs_players() ) { #see if the game is now full
             return { msg => "added to game" };
         } else {

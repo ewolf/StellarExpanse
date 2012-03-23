@@ -161,6 +161,9 @@ sub _fire {
                             $targ->set_hitpoints( $targ->get_hitpoints() - $beams );
                             $ord->_resolve( "Attacked " . $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams.".( $targ->get_hitpoints() < 1 ? " Target was destroyed" : ''), 1 );
                             $loc->_notify( $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) attacked ". $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams" );
+			    if( $self->get_self_destruct() ) {
+				$self->set_hitpoints( 0 );
+			    }
                         }
                         else {
                             $ord->_resolve( "Out of Attack Power" );

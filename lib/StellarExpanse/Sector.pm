@@ -136,7 +136,7 @@ sub _build {
                                     $self->get_game()->_current_turn()->add_to_ships( $new_ship );
                                     $player->add_to_ships( $new_ship );
                                     $player->set_resources( $player->get_resources() - $cost );
-                                    
+                                    $order->add_to_built( $new_ship );
                                     $actually_built++;
                                 }
                                 elsif( $prototype->get_type() eq 'IND' ) {
@@ -149,15 +149,21 @@ sub _build {
                                     else {
                                         unless( $actually_built ) {
                                             $order->_resolve( "Already at max production" );
-                                            last;
+                                            return;
                                         }
                                     }
                                 }
                                 elsif( $prototype->get_type() eq 'TECH' ) {
-                                    $player->set_tech_level( $prototype->get_tech_level() );
-                                    $player->set_resources( $player->get_resources() - $cost );
-                                    $order->_resolve( "Upgraded to tech ".$player->get_tech_level()." for a cost of $cost", 1 );
-                                    last;
+                                    my $current = $player->get_tech_level();
+                                    my $provided = $prototype->get_provides_tech();
+                                    if( $provided > $current ) {
+                                        $player->set_tech_level( $provided );
+                                        $player->set_resources( $player->get_resources() - $cost );
+                                        $order->_resolve( "Upgraded to tech ".$player->get_tech_level()." from $current for a cost of $cost", 1 );
+                                    } else {
+                                        $order->_resolve( "Upgrading to tech $provided has no effect" );
+                                    }
+                                    return;
                                 }
                                 #
                                 # calculate the maximum build size. It is 3 * the production + 
@@ -176,7 +182,7 @@ sub _build {
                                 else {   
                                     $order->_resolve( "Not enough resources to build " . $prototype->get_name() );
                                 }
-                                last;
+                                return;
                             }
                         }
                         else {
@@ -186,7 +192,7 @@ sub _build {
                             else {   
                                 $order->_resolve("Can't build " . $prototype->get_name() . "Not enough build capacity.");
                             }
-                            last;
+                            return;
                         }
                     } #each times build
                     $self->_notify( "Built $quantity ".$prototype->get_name()." in location ".$self->get_name()." for a cost of $cost" );

@@ -34,15 +34,15 @@ sub test_suite {
     my $root = Yote::AppRoot::fetch_root();
     like( $root->_process_command( { c => 'create_account', d => {h => 'vroot', p => 'vtoor', e => 'vfoo@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
     my $acct = Yote::ObjProvider::xpath("/handles/root");
-    my $acct_root = $root->_get_account_root( $acct );
+    my $acct_root = $root->account_root( $acct );
 
     like( $root->_process_command( { c => 'create_account', d => {h => 'vfred', p => 'vtoor', e => 'vfoofred@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
     my $fred_acct = Yote::ObjProvider::xpath("/handles/fred");
-    my $fred_acct_root = $root->_get_account_root( $acct );
+    my $fred_acct_root = $root->account_root( $acct );
 
     like( $root->_process_command( { c => 'create_account', d => {h => 'vbarny', p => 'vtoor', e => 'vfoobarny@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
     my $barny_acct = Yote::ObjProvider::xpath("/handles/barny");
-    my $barny_acct_root = $root->_get_account_root( $acct );
+    my $barny_acct_root = $root->account_root( $acct );
 
     #
     # Pick a flavor and set up a game.
@@ -103,11 +103,11 @@ sub test_suite {
     is( $game->active_player_count(), 2, "two players after failed to add one" );
     
     my( $amy, $fred ) = @{$game->_players()};
-    $amy->{root} = $amy_acct_root;
-    $amy->{acct} = $amy_acct;
+    $amy->set_root( $amy_acct_root );
+    $amy->set_acct( $amy_acct );
 
-    $fred->{root} = $fred_acct_root;
-    $fred->{acct} = $fred_acct;
+    $fred->set_root( $fred_acct_root );
+    $fred->set_acct( $fred_acct );
 
     is( $amy->get_resources(), 100, 'set up with correct starting resources');
     is( $amy->get_tech_level(), 1, 'set up with correct tech level');
@@ -219,7 +219,7 @@ sub test_suite {
     is( $fred->get_tech_level(), 1, 'set up with correct tech level');
 
     my $prototypes = $flav->get_ships();
-    my( $scout_p, $boat_p, $dest_p, $cruis_p, $battleship_p, $carrier_p, $fw_p, $owp_p, $ind_p ) = @$prototypes;
+    my( $scout_p, $boat_p, $dest_p, $cruis_p, $battleship_p, $carrier_p, $fw_p, $owp_p, $ind_p, $tech_p ) = @$prototypes;
 
     # test build
     is( $scout_p->get_name(), 'Scout', "First ship is scout" );
@@ -260,7 +260,7 @@ sub test_suite {
         turn  => $turn->get_turn_number(),
         order => 'move',
                            },
-                           $amy->{root}, $amy->{acct} )->{err}, 
+                           $amy_acct_root, $amy_acct )->{err}, 
           qr/player may not order this/i,
           "Cannot order someone else's ship" );
 
@@ -499,15 +499,54 @@ sub test_suite {
     # check for bombardment and ownership
     ok( $fred->is( $links->[0]->get_owner() ), "fred still owns links 0" );
     is( $links->[0]->get_currprod(), 2, "links 0 bombarded down to 2" );
+    my $bt = build_order( $fred_sector, $tech_p, "building tech" );
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
-    is( $links->[0]->get_currprod(), 0, "links 0 bombarded down to nothing" );
 
+    ok( $bt->get_resolution(), "tech build ok" );
+    is( $links->[0]->get_currprod(), 0, "links 0 bombarded down to nothing" );
+    is( $fred->get_tech_level(), 2, "Fred now at tech level 2" );
+
+    # OOOOOOOOOOOOOOOOOOOOOO
+    my( $missle_p ) = grep { $_->get_tech_level() == 2 && $_->get_self_destruct() } @$prototypes;
+    my $bo = build_order( $fred_sector, $missle_p, "Building missile" );
+    my $bo2 = build_order( $amy_sector, $missle_p, "Building missile" );
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
+
     is( $links->[0]->get_currprod(), 0, "links 0 bombarded down to nothing" );
     ok( !$fred->is( $links->[0]->get_owner() ), "fred no longer owns links 0" );
     ok( $amy->is( $links->[0]->get_owner() ), "amy now owns links 0" );
+    ok( $bo->get_resolution(), "Fred Built Missile" );
+    ok( ! $bo2->get_resolution(), "Amy could not build missile due to tech level" );
+    my( $missile ) = @{$bo->get_built()};
+
+    # OOOOOOOOOOOOOOOOOOOOOO
+    my $mo = move_order( $carrier, $links->[0], $fred_sector, "move carrier to fred sector to be missled" );
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    advance_turn( $turn );
+
+    ok( $mo->get_resolution(), "moved carrier to fred sector" );
+    
+    # OOOOOOOOOOOOOOOOOOOOOO
+    my $fo = fire_order( $missile, $carrier, 15, "missle the carrier" );
+    my $shipcount = scalar @{$fred_sector->get_ships()};
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    advance_turn( $turn );
+
+    ok( $fo->get_resolution(), "missiled the carrier" );
+    
+    my( $still_missile ) = @{$bo->get_built()};
+    ok( $still_missile->{is_dead}, "Missile exploaded. no longer in sector" );
+    my $shipcount2 = scalar @{$fred_sector->get_ships()};
+    is( $shipcount2, $shipcount - 1, "count of ships decreased by missile" );
+
+    #carrier 15 - 12 + 2 = 5
+    is( $carrier->get_hitpoints(), 5, "carrier damaged but healed some" );
 
 } #test_suite
 
@@ -560,7 +599,7 @@ sub advance_turn {
 
 sub pass_order {
     my( $obj, $ord, $msg ) = @_;
-    my $res = $obj->new_order( $ord, $obj->get_owner()->{root}, $obj->get_owner()->{acct} );
+    my $res = $obj->new_order( $ord, $obj->get_owner()->get_root(), $obj->get_owner()->get_acct() );
     if( $res->{err} ) {
         ok( 0, ($msg || 'made order'). ' got error '.$res->{err} );
     }
@@ -573,5 +612,5 @@ sub pass_order {
 
 sub fail_order {
     my( $obj, $ord, $fail_regex, $msg ) = @_;
-    like( $obj->new_order( $ord, $obj->get_owner()->{root}, $obj->get_owner()->{acct} )->{err}, $fail_regex, $msg );
+    like( $obj->new_order( $ord, $obj->get_owner()->get_root(), $obj->get_owner()->get_acct() )->{err}, $fail_regex, $msg );
 }

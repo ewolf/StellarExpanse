@@ -163,6 +163,7 @@ our @defaultships=(
 	name => 'Tech_Level_2',
 	ship_class => 'Tech_Level_2',
 	tech_level => '1',
+	provides_tech => '2',
 	damage_control => '-',
 	jumps => '-',
 	design_id => '10',
@@ -298,6 +299,7 @@ our @defaultships=(
     {
 	name => 'Tech_Level_3',
 	ship_class => 'Tech_Level_3',
+	provides_tech => '3',
 	tech_level => '2',
 	damage_control => '-',
 	jumps => '-',
@@ -434,6 +436,7 @@ our @defaultships=(
     {
 	name => 'Tech_Level_4',
 	ship_class => 'Tech_Level_4',
+	provides_tech => '4',
 	tech_level => '3',
 	damage_control => '-',
 	jumps => '-',
