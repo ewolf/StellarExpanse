@@ -825,7 +825,7 @@ sub init {
     $self->SUPER::init();
     for my $def (@defaultships) {
         my $prototype = new StellarExpanse::Ship;
-        $prototype->absorb( $def );
+        $prototype->_absorb( $def );
         $self->add_to_ships( $prototype );
     }
     $self->set_empire_config( $empire_sector_config );

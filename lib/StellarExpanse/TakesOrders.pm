@@ -22,7 +22,7 @@ sub new_order {
     }
     
     my $ord = new StellarExpanse::Order();
-    $ord->absorb( $data );
+    $ord->_absorb( $data );
     $ord->set_subject( $self );
     $self->add_to_pending_orders( $ord );
 

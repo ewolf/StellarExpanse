@@ -23,7 +23,7 @@ Yote::ObjProvider::init(
     datastore      => 'Yote::SQLiteIO',
     sqlitefile     => $name,
     );
-$Yote::ObjProvider::DATASTORE->init_datastore();
+$Yote::ObjProvider::DATASTORE->ensure_datastore();
 test_suite();
 
 done_testing();
@@ -31,18 +31,18 @@ done_testing();
 sub test_suite {
 
     # create login account to use for app commands
-    my $root = Yote::AppRoot::fetch_root();
-    like( $root->_process_command( { c => 'create_account', d => {h => 'vroot', p => 'vtoor', e => 'vfoo@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
+    my $root = Yote::AppRoot::_fetch_root();
+    like( $root->_process_command( { c => 'create_account', data => {h => 'vroot', p => 'vtoor', e => 'vfoo@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
     my $acct = Yote::ObjProvider::xpath("/handles/root");
-    my $acct_root = $root->account_root( $acct );
+    my $acct_root = $root->_account_root( $acct );
 
-    like( $root->_process_command( { c => 'create_account', d => {h => 'vfred', p => 'vtoor', e => 'vfoofred@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
+    like( $root->_process_command( { c => 'create_account', data => {h => 'vfred', p => 'vtoor', e => 'vfoofred@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
     my $fred_acct = Yote::ObjProvider::xpath("/handles/fred");
-    my $fred_acct_root = $root->account_root( $acct );
+    my $fred_acct_root = $root->_account_root( $acct );
 
-    like( $root->_process_command( { c => 'create_account', d => {h => 'vbarny', p => 'vtoor', e => 'vfoobarny@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
+    like( $root->_process_command( { c => 'create_account', data => {h => 'vbarny', p => 'vtoor', e => 'vfoobarny@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
     my $barny_acct = Yote::ObjProvider::xpath("/handles/barny");
-    my $barny_acct_root = $root->account_root( $acct );
+    my $barny_acct_root = $root->_account_root( $acct );
 
     #
     # Pick a flavor and set up a game.
