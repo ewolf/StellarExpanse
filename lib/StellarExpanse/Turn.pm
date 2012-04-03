@@ -33,14 +33,16 @@ sub _check_ready {
 sub _increment_turn {
     my $self = shift;
 
+    my $game = $self->get_game();    
+
     # Back the previous turn up in a clone.
-    my $clone = Yote::ObjProvider::power_clone( $self );
+    my $g_id = Yote::ObjProvider::get_id($game);
+    my $clone = Yote::ObjProvider::power_clone( $self, { $g_id => $g_id } );
 
     $self->_take_turn();
 
     $self->set_turn_number( $self->get_turn_number() + 1 );
 
-    my $game = $self->get_game();    
     my $turns = $game->get_turns();
     $turns->[$clone->get_turn_number()] = $clone;
 

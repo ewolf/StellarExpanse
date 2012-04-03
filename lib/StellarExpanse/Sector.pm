@@ -79,7 +79,7 @@ sub _check_owner_and_bombardment {
         #
         # Can change hands if there is only one force in the sector and there is no industry.
         #
-        if( ! $attacker->is( $self->get_owner() ) ) {
+        if( ! $attacker->_is( $self->get_owner() ) ) {
             if( $self->get_currprod() < 1 ) {
                 my $old_owner = $self->get_owner();
                 if( $old_owner ) {

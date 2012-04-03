@@ -13,7 +13,7 @@ sub _update {
 
     my $map = $self->get_map();
 
-    my $ships_here = [grep { ! $self->get_owner()->is( $_->get_owner() ) } @{$sector->get_ships([])}];
+    my $ships_here = [grep { ! $self->get_owner()->_is( $_->get_owner() ) } @{$sector->get_ships([])}];
 
     my $node = $map->{$sector->{ID}};
     if( $node ) {
@@ -29,7 +29,7 @@ sub _update {
             }
         }
 
-        if( $different_ships || $node->get_seen_production() != $sector->get_currprod() || ( $node->get_seen_owner() && ( ! $node->get_seen_owner()->is( $node->get_seen_owner() ) ) ) || $node->get_seen_owner() ) {
+        if( $different_ships || $node->get_seen_production() != $sector->get_currprod() || ( $node->get_seen_owner() && ( ! $node->get_seen_owner()->_is( $node->get_seen_owner() ) ) ) || $node->get_seen_owner() ) {
             $node->add_to_notes( { msg        => "Updated",
                                    turn       => $self->get_game()->get_turn_number(),
                                    owner      => $sector->get_owner(),

@@ -44,8 +44,8 @@ sub _load {
     if( $ord ) {
         my $loc = $self->get_location();
         my $carrier = $ord->get_carrier();
-        if( $carrier && $carrier->get_owner()->is( $self->get_owner() ) ) {
-            if( ! $carrier->is( $self ) ) {
+        if( $carrier && $carrier->get_owner()->_is( $self->get_owner() ) ) {
+            if( ! $carrier->_is( $self ) ) {
                 #check for room
                 if( $self->get_carrier() ) {
                     $ord->_resolve( "Already on a carrier. Must unload before moving to an other" );
@@ -151,8 +151,8 @@ sub _fire {
         my $targ = $ord->get_target();
         if( $targ ) {
             my $loc = $self->get_location();
-            if( $loc->is( $targ->get_location() ) ) {
-                if( ! $self->get_owner()->is( $targ->get_owner() ) ) {
+            if( $loc->_is( $targ->get_location() ) ) {
+                if( ! $self->get_owner()->_is( $targ->get_owner() ) ) {
                     if( $self->{targets} > 0 ) {
                         if( $self->{beams} > 0 ) {
                             my $beam_req = $ord->get_beams();
@@ -195,7 +195,7 @@ sub _move {
     for my $ord (@move_orders) {
         my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
         if( $loc ) {
-            if( $loc->is( $from ) ) {
+            if( $loc->_is( $from ) ) {
                 if( $from->_valid_link( $to ) ) {
                     if( $self->{move} > 0 ) {
                         $self->set_location ( $to );
@@ -224,7 +224,7 @@ sub _move {
                         #
                         # Ships must stop if there are enemy ships here.
                         #
-                        if( grep { ! $_->get_owner()->is( $self->get_owner() ) } @{$to->get_ships()} ) {
+                        if( grep { ! $_->get_owner()->_is( $self->get_owner() ) } @{$to->get_ships()} ) {
                             $self->{move} = 0;
                         }
                         

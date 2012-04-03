@@ -14,7 +14,7 @@ sub init {
 sub new_order {
     my( $self, $data, $acct_root, $acct ) = @_;
     my $player = $self->get_game()->_find_player( $acct );
-    unless( $player->is( $self->get_owner() ) || $player->is( $self ) ) {
+    unless( $player->_is( $self->get_owner() ) || $player->_is( $self ) ) {
         return { err => "Player may not order this object" };
     }
     if( $data->{turn} != $self->get_game()->get_turn_number() ) {

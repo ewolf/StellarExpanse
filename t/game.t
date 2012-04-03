@@ -30,25 +30,42 @@ done_testing();
 
 sub test_suite {
 
-    # create login account to use for app commands
-    my $root = Yote::AppRoot::_fetch_root();
-    like( $root->_process_command( { c => 'create_account', data => {h => 'vroot', p => 'vtoor', e => 'vfoo@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
-    my $acct = Yote::ObjProvider::xpath("/handles/root");
-    my $acct_root = $root->_account_root( $acct );
-
-    like( $root->_process_command( { c => 'create_account', data => {h => 'vfred', p => 'vtoor', e => 'vfoofred@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
-    my $fred_acct = Yote::ObjProvider::xpath("/handles/fred");
-    my $fred_acct_root = $root->_account_root( $acct );
-
-    like( $root->_process_command( { c => 'create_account', data => {h => 'vbarny', p => 'vtoor', e => 'vfoobarny@bar.com' }  } )->{r}, qr/created/i, "create account for root account" );
-    my $barny_acct = Yote::ObjProvider::xpath("/handles/barny");
-    my $barny_acct_root = $root->_account_root( $acct );
-
     #
     # Pick a flavor and set up a game.
     #
     my $app = new StellarExpanse::App();
     my $flavrs = $app->get_flavors();
+
+
+    # create login account to use for app commands
+    my $root = Yote::YoteRoot::fetch_root();
+    ok( $root->create_login( { h => 'root', 
+                               p => 'toor', 
+                               e => 'foo@bar.com' } )->{l},
+        "create account for root account" );
+    Yote::ObjProvider::stow_all();
+    my $acct = Yote::ObjProvider::xpath("/_handles/root");
+
+    my $acct_root = $app->_get_account( $acct );
+    
+    ok( $root->create_login( { h => 'fred', 
+                               p => 'toor', 
+                               e => 'foofred@bar.com' } )->{l},
+        "create account for root account" );
+    Yote::ObjProvider::stow_all();
+
+    my $fred_login = Yote::ObjProvider::xpath("/_handles/fred");
+    my $fred_acct = $app->_get_account( $fred_login );
+
+    ok( $root->create_login( { h => 'barny', 
+                               p => 'toor', 
+                               e => 'foobarny@bar.com' }  ), 
+        "create account for root account" );
+    Yote::ObjProvider::stow_all();
+
+    my $barny_login = Yote::ObjProvider::xpath("/_handles/barny");
+    my $barny_acct = $root->_get_account( $acct );
+
     
     is( scalar( @$flavrs ), 1, "default flavor" );
 
@@ -64,7 +81,7 @@ sub test_suite {
     is( scalar( @{$game->get_turns()} ), 1, "Number of turns stored for initialized game" );
 
     is( $game->get_name(), "test game", "game name" );
-    ok( $flav->is( $game->get_flavor() ), "game has right flavor" );
+    ok( $flav->_is( $game->get_flavor() ), "game has right flavor" );
     is( $game->get_turn_number(), 0, "first turn is 0" );
     my $turn = $game->_current_turn();
     is( $turn->get_turn_number(), 0, "turn number is 0" );
@@ -92,13 +109,13 @@ sub test_suite {
 
     my( $amy_acct_root, $amy_acct ) = ( $acct_root, $acct );
 
-    my $res = $game->add_player( {}, $fred_acct_root, $fred_acct );
+    my $res = $game->add_player( {}, $fred_acct, $fred_login );
     is( $game->active_player_count(), 2, "number players" );
 
     ok( $game->get_active(), "Active after adding second player" );
     ok( ! $game->needs_players(), "Game no longer needs players" );
     
-    my $res = $game->add_player( {}, $barny_acct_root, $barny_acct );
+    my $res = $game->add_player( {}, $barny_acct, $barny_login );
     like( $res->{err}, qr/is full/, "added a player when game is full" );
     is( $game->active_player_count(), 2, "two players after failed to add one" );
     
@@ -106,8 +123,8 @@ sub test_suite {
     $amy->set_root( $amy_acct_root );
     $amy->set_acct( $amy_acct );
 
-    $fred->set_root( $fred_acct_root );
-    $fred->set_acct( $fred_acct );
+    $fred->set_root( $fred_acct );
+    $fred->set_acct( $fred_login );
 
     is( $amy->get_resources(), 100, 'set up with correct starting resources');
     is( $amy->get_tech_level(), 1, 'set up with correct tech level');
@@ -149,7 +166,7 @@ sub test_suite {
     my $amy_sect = $amy->get_sectors();
     my( $amy_sector ) = @$amy_sect;
     is( scalar(@$amy_sect), 1, "Amy has one sector" );
-    ok( $amy->is( $amy_sect->[0]->get_owner() ), "Sector is owned by amy" );
+    ok( $amy->_is( $amy_sect->[0]->get_owner() ), "Sector is owned by amy" );
     is( $amy_sect->[0]->get_currprod(), 20, "Prod at 20" );
     is( $amy_sect->[0]->get_maxprod(), 25, "Max Prod at 25" );
 
@@ -291,9 +308,9 @@ sub test_suite {
     like( $b_m2->get_resolution_message(), qr/does not link/i, "boat order message for does not link" );
     like( $b_m3->get_resolution_message(), qr/^out of movement/i, "boat order message for out of movement" );
 
-    ok( $fred->is( $links->[2]->get_owner() ), 'fred now owns sector' );
-    ok( $boat->get_location()->is( $links->[2] ), "boat moved to correct place" );
-    ok( $scout->get_location()->is( $fred_sector ), "scout moved then moved back home" );
+    ok( $fred->_is( $links->[2]->get_owner() ), 'fred now owns sector' );
+    ok( $boat->get_location()->_is( $links->[2] ), "boat moved to correct place" );
+    ok( $scout->get_location()->_is( $fred_sector ), "scout moved then moved back home" );
     
     ok( $fred_chart->_has_entry( $fred_sector ), "fred knows own sector" );
     ok( ! $fred_chart->_has_entry( $amy_sector ), "fred doesn't know amy's sector" );
@@ -377,7 +394,7 @@ sub test_suite {
 
     is( scalar( @{$fred->get_sectors()} ), 3, "fred now has 3 sectors" );
     is( scalar( @{$links->[0]->get_ships()}), 2, '2 ships now in link 0' );
-    ok( $fred->is( $links->[0]->get_owner() ), "fred now owns link 0 " );
+    ok( $fred->_is( $links->[0]->get_owner() ), "fred now owns link 0 " );
     is( scalar( @{$amy_sector->get_ships()}), 5, '5 ships now in amy sector' );
     my( $cruizer, $carrier, $scout2,$cruiser2, $scout3 ) = @{$amy_sector->get_ships()};
     $cruiser2->set_name("CRUIZER TWOZER");
@@ -497,7 +514,7 @@ sub test_suite {
     advance_turn( $turn );
 
     # check for bombardment and ownership
-    ok( $fred->is( $links->[0]->get_owner() ), "fred still owns links 0" );
+    ok( $fred->_is( $links->[0]->get_owner() ), "fred still owns links 0" );
     is( $links->[0]->get_currprod(), 2, "links 0 bombarded down to 2" );
     my $bt = build_order( $fred_sector, $tech_p, "building tech" );
 
@@ -517,8 +534,8 @@ sub test_suite {
     advance_turn( $turn );
 
     is( $links->[0]->get_currprod(), 0, "links 0 bombarded down to nothing" );
-    ok( !$fred->is( $links->[0]->get_owner() ), "fred no longer owns links 0" );
-    ok( $amy->is( $links->[0]->get_owner() ), "amy now owns links 0" );
+    ok( !$fred->_is( $links->[0]->get_owner() ), "fred no longer owns links 0" );
+    ok( $amy->_is( $links->[0]->get_owner() ), "amy now owns links 0" );
     ok( $bo->get_resolution(), "Fred Built Missile" );
     ok( ! $bo2->get_resolution(), "Amy could not build missile due to tech level" );
     my( $missile ) = @{$bo->get_built()};
