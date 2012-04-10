@@ -1,16 +1,19 @@
 <html>
   <head>
     <title>Stellar Expanse</title>
-    <script src="/js/jquery-latest.js"></script>
-    <script src="/js/jquery.dumper.js"></script>
-    <script src="/js/jquery.base64.min.js"></script>
-    <script src="/js/json2.js"></script>
-    <script src="/js/yote/yote.js"></script>
-    <script src="/js/yote/yote.util.js"></script>
+    <script src="/yote/js/jquery-latest.js"></script>
+    <script src="/yote/js/jquery.cookie.js"></script>
+    <script src="/yote/js/jquery.dumper.js"></script>
+    <script src="/yote/js/jquery.base64.min.js"></script>
+    <script src="/yote/js/json2.js"></script>
+    <script src="/yote/js/yote.js"></script>
+    <script src="/yote/js/yote.util.js"></script>
     <script>
     $().ready(function(){
 
-        var se_app = $.yote.get_app( 'StellarExpanse::App' );
+	$.yote.init();
+        var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
+	var acct = se_app.account();
 
         function message( msg ) {
             $('#msg').empty();
@@ -20,13 +23,15 @@
         } //message
 
         function show_game(game, already_member) {
+	    	    console.dir( 'show game' );
+
             $('#games').hide();
             var eg = $('#examine_game');
             eg.empty();
             eg.
-                append($("<p/>").append(game.get('name'))).
-                append($("<p/>").append(game.get('number_players'))).
-                append($("<p/>").append(game.get('created_by').get('handle'))).
+                append($("<p/>").append(game.get_name())).
+                append($("<p/>").append(game.get_number_players())).
+                append($("<p/>").append(game.get_created_by().get_login().get_handle())).
                 append($("<button type='button'/>").attr({
                     name: 'action',
                     value: 'do'
@@ -51,10 +56,11 @@
         }
 
 	function game_line(game, type) {
+	    console.dir( 'game line' );console.dir( game ); console.dir( game.get_created_by() );
             var gameLine = $("<tr/>").
-                append($("<td/>").append(game.get('name'))).
-                append($("<td/>").append(game.get('number_players'))).
-                append($("<td/>").append(game.get('created_by').get('handle')));
+                append($("<td/>").append(game.get_name())).
+                append($("<td/>").append(game.get_number_players())).
+                append($("<td/>").append(game.get_created_by().get_login().get_handle()));
 
             var action = $("<td/>");
             var label;
@@ -102,8 +108,8 @@
 
         function to_game_login(msg) {
             message(msg);
-            var active_games  = se_app.fetch_account_root().get('active_games');
-            var pending_games = se_app.fetch_account_root().get('pending_games');            
+            var active_games  = se_app.account().get_active_games();
+            var pending_games = se_app.account().get_pending_games();
             var avail_games   = se_app.available_games();            
             $('#active_games').empty();
             if( active_games.length() === 0 ) {
@@ -135,22 +141,31 @@
         function to_create_game(msg) {
             message(msg);
             $('#gamefield').empty();
-            var flavors = se_app.get( 'flavors' );
+            var flavors = se_app.get_flavors();
             $('#gamefield').append(
                 '<h2>Create New Game</h2>' + 
-                    '<table><tr><th>Name</th><td><input type=text id=game_name></td></tr>' +
-                    '<tr><th>Number of Players</th><td><input type=text id=number_players></td></tr>' +
-                    '<tr><th>Flavor</th><td id=flavor_td></td></tr>' +
-                    '<button type=button id=Create>Create</button>'
+                    '<table><tr><th>Name</th><td><input type=text id=game_name_fld></td></tr>' +
+                    '<tr><th>Flavor</th><td><select id=flavor_td></select></td></tr>' +
+                    '<tr><th>Number of Players</th><td><input type=text id=number_players_fld></td></tr>' +
+                    '<tr><th>Starting Tech Level</th><td><input type=text id=tech_level_fld></td></tr>' +
+                    '<tr><th>Starting Resources</th><td><input type=text id=resources_fld></td></tr>' +
+		    '</table><BR>' + 
+                    '<button type=button id=create_game>Create</button>'
             );
-	    $.yote.util.stage_select( $('#flavor_td'),
-				      flavors,
-				      'name' );
-            $('#Create').click( function() {
+	    console.dir( flavors );
+	    for( var i=0; i<flavors.length(); ++i ) {
+		var flav = flavors.get(i);
+		$('#flavor_td').append( '<option value=' + i + '>' + flav.get_name() + '</option>' );
+	    }
+
+	    $('#create_game').click( function() {
                 se_app.create_game( 
                     { //data
-                        name:$('#game_name').val(),
-                        number_players:$('#number_players').val()
+                        name:$('#game_name_fld').val(),
+                        number_players:$('#number_players_fld').val(),
+			starting_resources:$('#resources_fld').val(),
+			starting_tech_level:$('#tech_level_fld').val(),
+			flavor:flavors.get($('#flavor_td').val()),
                     },
                     function(d) { //passhandler
                         to_game_login( d.msg );
@@ -161,13 +176,12 @@
                 );
             } );
         } //to_create_game
-
-	    $.yote.util.make_login_box( { 
-	        target:'#login_div',
+	$.yote.util.make_login_box( { 
+	    target:'#login_div',
             on_login:to_game_login,
             on_register:to_game_login,
             on_logout:function(){$('#games').hide();}
-	    });
+	});
 	    
 	});
     </script>

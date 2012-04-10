@@ -34,7 +34,7 @@ sub _current_turn {
 }
 
 sub rewind_to {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
     #rewinds this game to a point (data->{t})
     my $old_turn = $data->{t};
     if( $old_turn >= $self->get_turn_number() || $old_turn < 1 ) {
@@ -57,7 +57,7 @@ sub _find_player {
 # Adds the account to this game, creating a player object for it.
 #
 sub add_player {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
     my $players = $self->_current_turn()->get_players();
     if( $players->{$acct->get_handle()} ) {
         return { err => "account already added to this game" };
@@ -66,10 +66,10 @@ sub add_player {
         my $player = new StellarExpanse::Player();
         $player->set_turn( $self->_current_turn() );
         $player->set_game( $self );
-        $player->set_account_root( $acct_root );
+        $player->set_account( $acct );
         $player->set_name( $acct->get_handle() );
         $players->{$acct->get_handle()} = $player;
-        $acct_root->add_to_my_joined_games( $self );
+        $acct->add_to_my_joined_games( $self );
         if( $self->needs_players() ) { #see if the game is now full
             return { msg => "added to game" };
         } else {
@@ -84,7 +84,7 @@ sub add_player {
 # Removes the account from this game
 #
 sub remove_player {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
     my $players = $self->_current_turn()->get_players();
     if( !$players->{$acct->get_handle()} ) {
         return { err => "account not a member of this game" };
@@ -92,7 +92,7 @@ sub remove_player {
     if ($self->get_active()) {
         return { err => "cannot leave an active game" };
     }
-    $acct_root->remove_from_my_joined_games( $self );
+    $acct->remove_from_my_joined_games( $self );
     delete $players->{$acct->get_handle()};
     return { msg => "player removed from game" };
 }
@@ -169,9 +169,9 @@ last if ++$dcount > 200;        # < for testing only > #
     #
     my $players = $turn->_players();
     for my $player (@$players) {
-        my $acct_root = $player->get_account_root();
-        $acct_root->remove_from_pending_games( $self );
-        $acct_root->add_to_active_games( $self );
+        my $acct = $player->get_account();
+        $acct->remove_from_pending_games( $self );
+        $acct->add_to_active_games( $self );
 
         #
         # Set up starting stats

@@ -12,7 +12,7 @@ sub init {
 }
 
 sub new_order {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
     my $player = $self->get_game()->_find_player( $acct );
     unless( $player->_is( $self->get_owner() ) || $player->_is( $self ) ) {
         return { err => "Player may not order this object" };

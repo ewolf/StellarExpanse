@@ -14,8 +14,15 @@ sub init {
     $flav->set_name( "primary flavor" );
 }
 
+sub _init_account {
+    my( $self, $acct ) = @_;
+    $acct->set_active_games([]);
+    $acct->set_pending_games([]);
+    $acct->set_handle( $acct->get_login()->get_handle() );
+}
+
 sub create_game {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
 
     my $games = $self->get_games({});
     my $game = new StellarExpanse::Game();
@@ -35,14 +42,14 @@ sub create_game {
 } #create_game
 
 sub new_flavor {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
     my $flav = new StellarExpanse::Flavor();
     $self->add_to_flavors( $flav );
     return $flav;
 }
 
 sub available_games {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
     return [ grep { ! $_->_find_player($acct) } @{$self->get_pending_games([])}];
 } #available_games
 

@@ -12,7 +12,7 @@ sub init {
 }
 
 sub mark_as_ready {
-    my( $self, $data, $acct_root, $acct ) = @_;
+    my( $self, $data, $acct ) = @_;
     my $turn = $self->get_turn();
     my $game = $self->get_game();
     if( $game->get_turn_number() != $data->{turn} ) {

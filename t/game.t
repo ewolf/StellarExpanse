@@ -44,9 +44,8 @@ sub test_suite {
                                e => 'foo@bar.com' } )->{l},
         "create account for root account" );
     Yote::ObjProvider::stow_all();
-    my $acct = Yote::ObjProvider::xpath("/_handles/root");
-
-    my $acct_root = $app->_get_account( $acct );
+    my $login = Yote::ObjProvider::xpath("/_handles/root");
+    my $acct = $app->_get_account( $login );
     
     ok( $root->create_login( { h => 'fred', 
                                p => 'toor', 
@@ -64,7 +63,7 @@ sub test_suite {
     Yote::ObjProvider::stow_all();
 
     my $barny_login = Yote::ObjProvider::xpath("/_handles/barny");
-    my $barny_acct = $root->_get_account( $acct );
+    my $barny_acct = $app->_get_account( $barny_login );
 
     
     is( scalar( @$flavrs ), 1, "default flavor" );
@@ -76,7 +75,7 @@ sub test_suite {
                                    starting_tech_level => 1,
                                    starting_resources => 100,
                                    flavor => $flav,
-                                 }, $acct_root, $acct );
+                                 }, $acct );
     my $game = $res->{g};
     is( scalar( @{$game->get_turns()} ), 1, "Number of turns stored for initialized game" );
 
@@ -90,41 +89,38 @@ sub test_suite {
     is( $game->active_player_count(), 0, "starts with no players" );
     ok( $game->get_active() == 0, "Not yet active" );
 
-    my $res = $game->add_player( {}, $acct_root, $acct );
+    my $res = $game->add_player( {}, $acct );
     is( $res->{msg}, "added to game", "added one player to game" );
     is( $game->active_player_count(), 1, "player count after add" );
     ok( $game->get_active() == 0, "Not yet active after adding one player" );
 
-    my $res = $game->remove_player( {}, $acct_root, $acct );
+    my $res = $game->remove_player( {}, $acct );
     is( $res->{msg}, "player removed from game", "removed one player to game" );
     is( $game->active_player_count(), 0, "no players after remove" );
 
-    my $res = $game->add_player( {}, $acct_root, $acct );
+    my $res = $game->add_player( {}, $acct ); 
     is( $res->{msg}, "added to game", "added back one player to game" );
     is( $game->active_player_count(), 1, "one player after add back one" );
 
-    my $res = $game->add_player( {}, $acct_root, $acct );
+    my $res = $game->add_player( {}, $acct );
     like( $res->{err}, qr/already added/, "added a player already there" );
     is( $game->active_player_count(), 1, "one player after add back one" );
 
-    my( $amy_acct_root, $amy_acct ) = ( $acct_root, $acct );
+    my( $amy_acct ) = ( $acct );
 
-    my $res = $game->add_player( {}, $fred_acct, $fred_login );
+    my $res = $game->add_player( {}, $fred_acct );
     is( $game->active_player_count(), 2, "number players" );
 
     ok( $game->get_active(), "Active after adding second player" );
     ok( ! $game->needs_players(), "Game no longer needs players" );
     
-    my $res = $game->add_player( {}, $barny_acct, $barny_login );
+    my $res = $game->add_player( {}, $barny_acct );
     like( $res->{err}, qr/is full/, "added a player when game is full" );
     is( $game->active_player_count(), 2, "two players after failed to add one" );
     
     my( $amy, $fred ) = @{$game->_players()};
-    $amy->set_root( $amy_acct_root );
     $amy->set_acct( $amy_acct );
-
-    $fred->set_root( $fred_acct );
-    $fred->set_acct( $fred_login );
+    $fred->set_acct( $fred_acct );
 
     is( $amy->get_resources(), 100, 'set up with correct starting resources');
     is( $amy->get_tech_level(), 1, 'set up with correct tech level');
@@ -277,7 +273,7 @@ sub test_suite {
         turn  => $turn->get_turn_number(),
         order => 'move',
                            },
-                           $amy_acct_root, $amy_acct )->{err}, 
+                           $amy_acct )->{err}, 
           qr/player may not order this/i,
           "Cannot order someone else's ship" );
 
@@ -616,7 +612,7 @@ sub advance_turn {
 
 sub pass_order {
     my( $obj, $ord, $msg ) = @_;
-    my $res = $obj->new_order( $ord, $obj->get_owner()->get_root(), $obj->get_owner()->get_acct() );
+    my $res = $obj->new_order( $ord, $obj->get_owner()->get_acct() );
     if( $res->{err} ) {
         ok( 0, ($msg || 'made order'). ' got error '.$res->{err} );
     }
@@ -629,5 +625,5 @@ sub pass_order {
 
 sub fail_order {
     my( $obj, $ord, $fail_regex, $msg ) = @_;
-    like( $obj->new_order( $ord, $obj->get_owner()->get_root(), $obj->get_owner()->get_acct() )->{err}, $fail_regex, $msg );
+    like( $obj->new_order( $ord, $obj->get_owner()->get_acct() )->{err}, $fail_regex, $msg );
 }
