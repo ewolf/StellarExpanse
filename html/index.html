@@ -31,7 +31,7 @@
             eg.
                 append($("<p/>").append(game.get_name())).
                 append($("<p/>").append(game.get_number_players())).
-                append($("<p/>").append(game.get_created_by().get_login().get_handle())).
+                append($("<p/>").append(game.get_created_by().get_handle())).
                 append($("<button type='button'/>").attr({
                     name: 'action',
                     value: 'do'
@@ -56,11 +56,11 @@
         }
 
 	function game_line(game, type) {
-	    console.dir( 'game line' );console.dir( game ); console.dir( game.get_created_by() );
+	    console.dir( game.get_created_by ); console.dir( "GL" );
             var gameLine = $("<tr/>").
                 append($("<td/>").append(game.get_name())).
                 append($("<td/>").append(game.get_number_players())).
-                append($("<td/>").append(game.get_created_by().get_login().get_handle()));
+                append($("<td/>").append(game.get_created_by().get_handle()));
 
             var action = $("<td/>");
             var label;

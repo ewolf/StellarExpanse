@@ -2,16 +2,16 @@
   <head>
 <title>Stellar Exapnse Admin</title>
 
-    <script src="/js/jquery-latest.js"></script>
-    <script src="/js/jquery.dumper.js"></script>
-    <script src="/js/jquery.base64.min.js"></script>
-    <script src="/js/json2.js"></script>
-    <script src="/js/yote/yote.js"></script>
-    <script src="/js/yote/yote.util.js"></script>
+    <script src="/yote/js/jquery-latest.js"></script>
+    <script src="/yote/js/jquery.dumper.js"></script>
+    <script src="/yote/js/jquery.base64.min.js"></script>
+    <script src="/yote/js/json2.js"></script>
+    <script src="/yote/js/yote.js"></script>
+    <script src="/yote/js/yote.util.js"></script>
     <script>
     $().ready(function(){
 	$('div.info').hide();
-        var se_app = $.yote.get_app( 'StellarExpanse::App' );
+        var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
 	
 	$('#nav a').each( function(idx) {
 	    $( this ).click( function() { 
@@ -25,7 +25,7 @@
 
         function edit_flavors() {
             var flavs = se_app.get_flavors();
-            flavs.load_direct_descendents();
+            $.yote.load_direct_descendents( se_app, flavs );
 
             $('#flavor_div').empty();
 	    $('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
@@ -154,7 +154,7 @@
 	        defense:'Defense',
 	        size:'Size',
 	        racksize:'Rack Size',
-                type:'Type'
+                type:'Type',
 	        provides_tech_level:'Tech Level Provided',
             };
             var field_keys = Array();
@@ -164,7 +164,8 @@
             $('#reset').click( (function(ed) { return function() { if( confirm("Really Revert?") ) { edit_flavor(ed) }} })(flav) );
 
 	    var ships = flav.get('ships');
-            ships.load_direct_descendents();
+            $.yote.load_direct_descendents( se_app, ships );            
+
 
             $('#save').click( (function(ed) { 
                 return function() {
