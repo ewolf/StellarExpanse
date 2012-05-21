@@ -77,7 +77,11 @@ sub add_player {
             return { msg => "added to game" };
         } else {
             $self->_start();
-	    $acct->add_to_active_games( $self );
+ 	    my $all_players = $self->_players();
+	    for my $p (@$all_players) {
+		$p->get_account()->add_to_active_games( $self );
+		$p->get_account()->remove_from_pending_games( $self );
+	    }
             return { msg => "added to game, which is now starting" };
         }
     }
