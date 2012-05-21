@@ -8,9 +8,13 @@
     <script src="/yote/js/json2.js"></script>
     <script src="/yote/js/yote.js"></script>
     <script src="/yote/js/yote.util.js"></script>
+
+    <link type="text/css" href="jqueryui/css/ui-darkness/jquery-ui-1.8.20.custom.css" rel="stylesheet" />
+    <script type="text/javascript" src="jqueryui/js/jquery-ui-1.8.20.custom.min.js"></script>
+
     <script>
     $().ready(function(){
-
+        $.yote.debug = true;
 	$.yote.init();
         var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
 	var acct = se_app.account();
@@ -55,6 +59,54 @@
             eg.show();
         }
 
+        function play_game(game) {
+            $('#games').hide();
+
+            var ig = $('#inGame');
+            ig.empty();
+
+            var header = $("<div/>").addClass("bordered");
+
+            var newsLink = $("<button>").attr({ 
+                name: 'action', 
+                value: 'news' 
+            }).append("News").click( function() {
+                alert("not ready yet");
+            }).button();
+            header.append(newsLink);
+            var mapLink = $("<button>").attr({ 
+                name: 'action', 
+                value: 'map' 
+            }).append("Map").click( function() {
+                alert("not ready yet");
+            }).button();
+            header.append(mapLink);
+            var sectorLink = $("<button>").attr({
+                name: 'action', 
+                value: 'sect'
+            }).append("Sectors").click( function() {
+                alert("not ready yet");
+            }).button();
+            header.append(sectorLink);
+            var shipLink = $("<button>").attr({name: 'action', value: 'ship'}).
+                append("Ships").click( function() {
+                alert("not ready yet");
+            }).button();
+            header.append(shipLink);
+
+            var retLink =  $("<button type='button'/>").attr({
+                name: 'action',
+                value: 'ret'
+            }).append("Return to game list").click( function() {
+                ig.hide();
+                to_game_login('');
+            }).button();
+            header.append(retLink);
+
+            ig.append(header);
+            ig.show();
+        }
+
 	function game_line(game, type) {
 	    console.dir( game.get_created_by ); console.dir( "GL" );
             var gameLine = $("<tr/>").
@@ -78,7 +130,7 @@
             } else if (type === 'active') {
                 label = "Play";
                 clickEv = function() {
-                    alert("Not yet ready.");
+                    play_game(game);
                 };
             }
             var button = $("<button type='button'/>").attr({
@@ -110,7 +162,8 @@
             message(msg);
             var active_games  = se_app.account().get_active_games();
             var pending_games = se_app.account().get_pending_games();
-            var avail_games   = se_app.available_games();            
+            var avail_games   = se_app.available_games();           
+ 
             $('#active_games').empty();
             if( active_games.length() === 0 ) {
                 $('#active_games').append( "Not playing any games currently" );
@@ -187,12 +240,12 @@
     </script>
     <style>
       .emp   { font-family:"Lucida Console",monospace;  }
-#login_div { border: 1px solid black;padding:5px; margin: 5px;}
+      .bordered { border: 1px solid black;padding:5px; margin: 5px;}
     </style>
   </head>
   <body>
     <h1>Stellar Expanse</h1>
-    <div id=login_div></div>
+    <div id=login_div class="bordered"></div>
     <hr>
     <div id=msg></div>
     <div id=games style=display:none>
@@ -202,5 +255,7 @@
       <div id=gamefield></div>
     </div>
     <div id=examine_game style=display:none></div>
+    <div id=inGame style=display:none>
+    </div>
   </body>
 </html>
