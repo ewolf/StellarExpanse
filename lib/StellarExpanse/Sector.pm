@@ -1,6 +1,7 @@
 package StellarExpanse::Sector;
 
 use strict;
+use StellarExpanse::TakesOrders;
 
 use base 'StellarExpanse::TakesOrders';
 
