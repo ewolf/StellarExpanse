@@ -9,6 +9,7 @@ use StellarExpanse::Sector;
 use StellarExpanse::StarChart;
 use StellarExpanse::Turn;
 use StellarExpanse::Player;
+use Yote::Util::MessageBoard;
 
 use base 'Yote::Obj';
 
@@ -23,6 +24,7 @@ sub init {
     $first_turn->set_turn_number( 0 );
     $first_turn->set_game( $self );
     $self->add_to_turns( $first_turn );
+    $self->set_messageboard( new Yote::Util::MessageBoard() );
 } #init
 
 sub _on_load {

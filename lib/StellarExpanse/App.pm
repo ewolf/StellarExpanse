@@ -5,6 +5,7 @@ use strict;
 use StellarExpanse::Flavor;
 use StellarExpanse::Game;
 use Yote::ObjProvider;
+use Yote::Util::MessageBoard;
 
 use base 'Yote::AppRoot';
 
@@ -12,6 +13,7 @@ sub init {
     my $self = shift;
     my $flav = $self->new_flavor();
     $flav->set_name( "primary flavor" );
+    $self->set_messageboard( new Yote::Util::MessageBoard() );
 }
 
 sub _init_account {
