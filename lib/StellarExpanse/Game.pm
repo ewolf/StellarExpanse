@@ -5,8 +5,10 @@ use strict;
 use Config::General;
 use StellarExpanse::Group;
 use StellarExpanse::GlomGroup;
+use StellarExpanse::Sector;
 use StellarExpanse::StarChart;
 use StellarExpanse::Turn;
+use StellarExpanse::Player;
 
 use base 'Yote::Obj';
 
@@ -50,7 +52,7 @@ sub rewind_to {
 sub _find_player {
     my( $self, $acct ) = @_;
     return undef unless $acct;
-    return $self->_current_turn()->get_players()->{$acct->get_handle()};
+    return $self->_current_turn()->get_players()->{$acct->get_login()->get_handle()};
 } #_find_player
 
 #
@@ -58,22 +60,24 @@ sub _find_player {
 #
 sub add_player {
     my( $self, $data, $acct ) = @_;
+    my $login = $acct->get_login();
     my $players = $self->_current_turn()->get_players();
-    if( $players->{$acct->get_handle()} ) {
-        return { err => "account already added to this game" };
+    if( $players->{$login->get_handle()} ) {
+        return { err => "account '" . $login->get_handle() . "' already added to this game" };
     }
     if( $self->needs_players() ) {
         my $player = new StellarExpanse::Player();
         $player->set_turn( $self->_current_turn() );
         $player->set_game( $self );
         $player->set_account( $acct );
-        $player->set_name( $acct->get_handle() );
-        $players->{$acct->get_handle()} = $player;
-        $acct->add_to_my_joined_games( $self );
+        $player->set_name( $login->get_handle() );
+        $players->{$login->get_handle()} = $player;
         if( $self->needs_players() ) { #see if the game is now full
+	    $acct->add_to_pending_games( $self );
             return { msg => "added to game" };
         } else {
             $self->_start();
+	    $acct->add_to_active_games( $self );
             return { msg => "added to game, which is now starting" };
         }
     }
@@ -85,15 +89,16 @@ sub add_player {
 #
 sub remove_player {
     my( $self, $data, $acct ) = @_;
+    my $login = $acct->get_login();
     my $players = $self->_current_turn()->get_players();
-    if( !$players->{$acct->get_handle()} ) {
+    if( !$players->{$login->get_handle()} ) {
         return { err => "account not a member of this game" };
     }
     if ($self->get_active()) {
         return { err => "cannot leave an active game" };
     }
-    $acct->remove_from_my_joined_games( $self );
-    delete $players->{$acct->get_handle()};
+    $acct->remove_from_pending_games( $self );
+    delete $players->{$login->get_handle()};
     return { msg => "player removed from game" };
 }
 
@@ -130,7 +135,7 @@ sub _start {
     #
     my $master_config = {};
 
-    for my $conf qw( game empire base universe ) {
+    for my $conf (qw/ game empire base universe/ ) {
         my $get_cfg = "get_${conf}_config";
         my $conf_obj = new Config::General( -String => $flav->$get_cfg() );
         my( %conf ) = $conf_obj->getall;
