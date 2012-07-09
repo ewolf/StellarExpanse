@@ -1,0 +1,104 @@
+<html>
+  <head>
+<title>Stellar Expanse</title>
+<link rel="stylesheet" href="/yote/css/jquery.mobile.css">
+<script type="text/javascript" src="/yote/js/jquery-latest.js"></script>
+<script type="text/javascript" src="/yote/js/jquery-mobile-latest.js"></script>
+<script src="/yote/js/jquery.dumper.js"></script>
+<script src="/yote/js/jquery.cookie.js"></script>
+<script src="/yote/js/jquery.base64.min.js"></script>
+<script src="/yote/js/json2.js"></script>
+<script src="/yote/js/yote.js"></script>
+<script src="/yote/js/yote.util.js"></script>
+<script src="/yote/js/yote-mobile.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+ <script>
+   $().ready( function() { 
+       $.yote.init();
+       var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
+       var acct = se_app.account();
+
+       function message(m) {
+	   
+       }
+       function welcome() {
+	   show_games()
+       }
+       function show_games(msg) {
+	   var active_games, i, pending_games, avail_games;
+           message(msg);
+	   $( '#game_select_ul' ).empty();
+           active_games  = acct.get_active_games();
+	   if( active_games.size() > 0 ) {
+	       html = '<li>Active Games <ul data-role="listview">';
+	       for( i=0; i<active_games.size(); ++i ) {
+		   game = active_games.get(i);
+		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
+		       '<li><b>Number Players</b> ' + game.get_number_players() + '</li>' +
+		       '<li><b>Created By</b> ' + game.get_created_by().get_handle() + '</li>' + 
+		       '<li><b>Enter Game</b></li>' + 
+		       '</ul></li>';
+	       }
+	       html += '</ul></li>';
+	       $( '#game_select_ul' ).append( 'html' );
+	   } else {
+	       $( '#game_select_ul' ).append( '<li>No Active Games</li>' );
+	   }
+           pending_games = acct.get_pending_games();
+	   if( pending_games.size() > 0 ) {
+	       html = '<li>Pending Games <ul data-role="listview">';
+	       for( i=0; i<pending_games.size(); ++i ) {
+		   game = pending_games.get(i);
+		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
+		       '<li><b>Joined Players</b> ' + game.joined_playercount() + ' of ' + game.get_number_players() + '</li>' +
+		       '<li><b>Created By</b> ' + game.get_created_by().get_handle() + '</li>' + 
+		       '</ul></li>';
+	       }
+	       html += '</ul></li>';
+	       $( '#game_select_ul' ).append( 'html' );
+	   }
+
+           avail_games   = se_app.available_games();           
+	   if( avail_games.size() > 0 ) {
+	       html = '<li>Avail Games <ul data-role="listview">';
+	       for( i=0; i<avail_games.size(); ++i ) {
+		   game = avail_games.get(i);
+		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
+		       '<li><b>Number Players</b> ' + game.get_number_players() + '</li>' +
+		       '<li><b>Created By</b> ' + game.get_created_by().get_handle() + '</li>' + 
+		       '<li><b>Join Game</b></li>' + 
+		       '</ul></li>';
+	       }
+	       html += '</ul></li>';
+	       $( '#game_select_ul' ).append( 'html' );
+	   } else {
+	       $( '#game_select_ul' ).append( '<li>No Available Games</li>' );
+	   }
+       }
+       $.yote.util.make_login_box( {
+	   target:'#login_div',
+	   on_login:welcome,
+	   on_register:welcome,
+       } );
+   } );
+ </script>
+</head>
+<body>
+
+<div data-role="page">
+  <div data-role="header">
+    Stellar Expanse <div id='login_div'></div>
+  </div>
+  <div data-role="content">
+      <ul data-role="listview" id=game_select_ul>
+      </ul>
+    </ul>
+  </div>
+  <div data-role="footer">
+    footer
+  </div>
+</div>
+
+</body>
+</html>

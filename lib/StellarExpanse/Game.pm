@@ -122,6 +122,14 @@ sub needs_players {
         $self->get_number_players() > keys %{$self->_current_turn()->get_players()};
 } #needs_players
 
+#
+# How many have joined for pending games.
+#
+sub joined_playercount {
+    my $self = shift;
+    return scalar( keys %{$self->_current_turn()->get_players()} );
+}
+
 sub _players {
     my $self = shift;
     return [values %{$self->_current_turn()->get_players()}];
