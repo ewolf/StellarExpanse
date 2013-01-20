@@ -2,7 +2,7 @@ package StellarExpanse::StarChart;
 
 use base 'Yote::Obj';
 
-sub init {
+sub _init {
     my $self = shift;
     $self->set_map({});
     $self->set_seen_ships([]);

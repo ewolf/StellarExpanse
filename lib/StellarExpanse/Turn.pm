@@ -8,9 +8,9 @@ use strict;
 
 use base 'Yote::Obj';
 
-sub init {
+sub _init {
     my $self = shift;
-    $self->SUPER::init();
+    $self->SUPER::_init();
     $self->set_players({});
 }
 

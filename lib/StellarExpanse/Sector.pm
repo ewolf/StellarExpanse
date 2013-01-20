@@ -5,9 +5,9 @@ use StellarExpanse::TakesOrders;
 
 use base 'StellarExpanse::TakesOrders';
 
-sub init {
+sub _init {
     my $self = shift;
-    $self->SUPER::init();
+    $self->SUPER::_init();
     $self->set_ships([]);
     $self->set_links({});
 }

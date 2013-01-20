@@ -562,7 +562,7 @@ sub test_suite {
     is( $carrier->get_hitpoints(), 5, "carrier damaged but healed some" );
 
     # check rewind
-    $game()->rewind_to( $turn->get_turn_number() - 1 );
+    $game->rewind_to( $turn->get_turn_number() - 1 );
     
 
 

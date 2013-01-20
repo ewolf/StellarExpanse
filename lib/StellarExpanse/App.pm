@@ -9,7 +9,7 @@ use Yote::Util::MessageBoard;
 
 use base 'Yote::AppRoot';
 
-sub init {
+sub _init {
     my $self = shift;
     my $flav = $self->new_flavor();
     $flav->set_name( "primary flavor" );
@@ -35,12 +35,13 @@ sub create_game {
     $game->set_starting_tech_level( $data->{starting_tech_level} );
     $game->set_created_by( $acct );
     $game->set_flavor( $data->{flavor} );
+    $game->set_app( $self );
     my $id = Yote::ObjProvider::get_id( $game );
     $games->{$id} = $game;
 
-    $self->add_to_pending_games( $game );
+    $self->add_once_to_pending_games( $game );
 
-    return { msg => 'created game', g => $game };
+    return $game;
 } #create_game
 
 sub new_flavor {

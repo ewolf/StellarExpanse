@@ -16,9 +16,9 @@ use base 'Yote::Obj';
 #
 # Starts the game on turn 0.
 #
-sub init {
+sub _init {
     my $self = shift;
-    $self->SUPER::init();
+    $self->SUPER::_init();
     $self->set_turn_number( 0 );
     my $first_turn = new StellarExpanse::Turn();
     $first_turn->set_turn_number( 0 );
@@ -42,10 +42,10 @@ sub rewind_to {
     #rewinds this game to a point (data->{t})
     my $old_turn = $data->{t};
     if( $old_turn >= $self->get_turn_number() || $old_turn < 1 ) {
-        return { err => "Cannot move to future turns" };
+        die "Cannot move to future turns";
     }
     $self->set_turn_number( $old_turn );
-    return { msg => "rewound to turn $old_turn" };
+    return "rewound to turn $old_turn";
 } #rewind_to
 
 #
@@ -65,7 +65,7 @@ sub add_player {
     my $login = $acct->get_login();
     my $players = $self->_current_turn()->get_players();
     if( $players->{$login->get_handle()} ) {
-        return { err => "account '" . $login->get_handle() . "' already added to this game" };
+        die "account '" . $login->get_handle() . "' already added to this game";
     }
     if( $self->needs_players() ) {
         my $player = new StellarExpanse::Player();
@@ -75,19 +75,25 @@ sub add_player {
         $player->set_name( $login->get_handle() );
         $players->{$login->get_handle()} = $player;
         if( $self->needs_players() ) { #see if the game is now full
-	    $acct->add_to_pending_games( $self );
-            return { msg => "added to game" };
+	    
+	    # debug with a path to root
+
+	    print STDERR Data::Dumper->Dump([$self,Yote::ObjProvider::info( $acct ),Yote::ObjProvider::info($acct->get_pending_games()),"_______________________B4_______________"]);
+	    $acct->add_once_to_pending_games( $self );
+	    print STDERR Data::Dumper->Dump([$self,Yote::ObjProvider::info($acct->get_pending_games()),"_______________________AR_______________"]);
+	    print STDERR Data::Dumper->Dump([ $Yote::ObjProvider::DIRTY, $Yote::ObjProvider::CHANGED, $Yote::ObjManager::LOGIN_OBJS]);
+            return "added to game";
         } else {
             $self->_start();
  	    my $all_players = $self->_players();
 	    for my $p (@$all_players) {
-		$p->get_account()->add_to_active_games( $self );
-		$p->get_account()->remove_from_pending_games( $self );
+		$p->get_account()->add_once_to_active_games( $self );
+		$p->get_account()->remove_all_from_pending_games( $self );
 	    }
-            return { msg => "added to game, which is now starting" };
+            return "added to game, which is now starting";
         }
     }
-    return { err => "game is full" };
+    die "game is full";
 } #add_player
 
 #
@@ -98,15 +104,18 @@ sub remove_player {
     my $login = $acct->get_login();
     my $players = $self->_current_turn()->get_players();
     if( !$players->{$login->get_handle()} ) {
-        return { err => "account not a member of this game" };
+        die "account not a member of this game";
     }
     if ($self->get_active()) {
-        return { err => "cannot leave an active game" };
+        die "cannot leave an active game";
     }
-    $acct->remove_from_pending_games( $self );
-    delete $players->{$login->get_handle()};
-    return { msg => "player removed from game" };
-}
+    print STDERR Data::Dumper->Dump(["BEFORE--------------",$acct->get_pending_games(),Yote::ObjProvider::get_id($acct->get_pending_games()),$Yote::ObjProvider::DIRTY,$Yote::ObjManager::LOGIN_OBJS,$acct]);
+    $acct->remove_all_from_pending_games( $self );
+    print STDERR Data::Dumper->Dump(["AFTER--------------",$acct->get_pending_games(),Yote::ObjProvider::get_id($acct->get_pending_games()),$Yote::ObjProvider::DIRTY,$Yote::ObjManager::LOGIN_OBJS]);
+    my $handle = $login->get_handle();
+    delete $players->{$handle};
+    return "player '$handle' removed from game";
+} #remove_player
 
 sub active_player_count {
     my $self = shift;
@@ -189,8 +198,8 @@ last if ++$dcount > 200;        # < for testing only > #
     my $players = $turn->_players();
     for my $player (@$players) {
         my $acct = $player->get_account();
-        $acct->remove_from_pending_games( $self );
-        $acct->add_to_active_games( $self );
+        $acct->remove_all_from_pending_games( $self );
+        $acct->add_once_to_active_games( $self );
 
         #
         # Set up starting stats

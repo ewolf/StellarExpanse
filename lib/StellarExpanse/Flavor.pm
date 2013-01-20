@@ -819,10 +819,10 @@ our $base_sector_config = q~
  </group>
 </basegroups>
 ~;
-sub init {
+sub _init {
     my $self = shift;
 
-    $self->SUPER::init();
+    $self->SUPER::_init();
     for my $def (@defaultships) {
         my $prototype = new StellarExpanse::Ship;
         $prototype->_absorb( $def );

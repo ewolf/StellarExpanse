@@ -4,9 +4,9 @@ use strict;
 
 use base 'StellarExpanse::TakesOrders';
 
-sub init {
+sub _init {
     my $self = shift;
-    $self->SUPER::init();
+    $self->SUPER::_init();
     $self->set_ready( 0 );
     $self->set_owner( $self );
 }
@@ -16,13 +16,13 @@ sub mark_as_ready {
     my $turn = $self->get_turn();
     my $game = $self->get_game();
     if( $game->get_turn_number() != $data->{turn} ) {
-        return { err => "Not on turn $data->{turn}" };
+        die "Not on turn $data->{turn}";
     }
     $self->set_ready( $data->{ready} );
     if( $turn->_check_ready() ) {
         $turn->_increment_turn();
     }
-    return { msg => "Set Ready to " . $data->{ready} };    
+    return "Set Ready to " . $data->{ready};    
 } #mark_as_ready
 
 sub _notify {

@@ -1,0 +1,25 @@
+<html>
+  <head>
+<title>Stellar Exapnse Admin</title>
+    <script src="/yote/js/jquery-latest.js"></script>
+    <script src="/yote/js/jquery.cookie.js"></script>
+    <script src="/yote/js/jquery.dumper.js"></script>
+    <script src="/yote/js/jquery.base64.min.js"></script>
+    <script src="/yote/js/json2.js"></script>
+    <script src="/yote/js/yote.js"></script>
+    <script src="/yote/js/yote.util.js"></script>
+    <script>
+    $().ready(function(){
+	$.yote.init();
+	var hello = $.yote.fetch_app( 'Yote::Test::Hello' );
+	$.yote.util.stage_text_field( $('#eb'), hello, 'testfield' );
+	$( '#b' ).click( function() {
+	    hello._send_update();
+	} );
+    });
+    </script>
+  </head>
+  <body>
+    Rand <div id=eb></div> <button type=button id=b>Click</button>
+  </body>
+</html>
