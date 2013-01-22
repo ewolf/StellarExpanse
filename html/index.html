@@ -27,6 +27,44 @@
 	    $( '#msg_div' ).empty().append( '<div class="' + cls + '">' + m + '</div>' );
 	}
 
+	function play_game( game, acct ) {
+	    /* sections :
+	          news
+		  game information/turn information
+		  systems panel
+		     detail of a system in systems panel ( indicate presence of  foe or our ships  )
+		        'subway map' of systems within reach of this one
+			'build controls'
+		  exploration panel
+		      list of sectors not controlled but with our ships there
+		  ships panel
+		     table of ours ships, showing sector, orders, etc
+		  order summary
+	     */
+	    var game_name  = game.get_name();
+	    var on_turn    = game.get_turn_number();
+	    var players    = game.current_players();
+	    var player     = game.my_player();    // player -> handle
+	    var starchart  = player.get_starchart();
+	    var map        = starchart.get_map(); //hash of sector id -> star chart node
+	    
+	    $( '#main_div' ).empty().append( '<div><dl><dt>' + game_name + '</dt><tt>' +
+					     'Turn : ' + on_turn  + 
+					     '<BR><div id="playersdiv">Players Remaining : <ul id="playerslist"></ul></div>' + 
+					     '</tt></dl></div>' );
+	    
+	    var pkeys = players.keys();
+	    for( var i=0; i < pkeys.length; i++ ) {
+		var handle = pkeys[ i ];
+		$( '#playerslist' ).append( '<li>' + handle + '</li>' );
+	    }
+	    var sectorids = map.keys();
+	    console.log( ['stuff',map,starchart] );
+	    for( var i=0; i < sectorids.length; i++ ) {
+		var node = map.get( sectorids[i] );
+	    }
+	} // play game
+
         function to_game_login( login, acct, message ) {
             var active_games  = acct.get_active_games();
             var pending_games = acct.get_pending_games();

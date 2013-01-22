@@ -43,7 +43,7 @@ sub _increment_turn {
 
     $self->set_turn_number( $self->get_turn_number() + 1 );
 
-    my $turns = $game->get_turns();
+    my $turns = $game->get__turns();
     $turns->[$clone->get_turn_number()] = $clone;
 
     $turns->[$self->get_turn_number()] = $self;

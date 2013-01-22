@@ -19,14 +19,29 @@ BEGIN {
 }
 
 my( $fh, $name ) = mkstemp( "/tmp/SQLiteTest.XXXX" );
+$fh->close();
 Yote::ObjProvider::init(
     datastore      => 'Yote::SQLiteIO',
     sqlitefile     => $name,
     );
 $Yote::ObjProvider::DATASTORE->ensure_datastore();
+
+new Yote::YoteRoot();
+Yote::ObjProvider::stow_all();
+
 test_suite();
 
 done_testing();
+
+sub test_error {
+    my( $fun, $val, $msg ) = @_;
+    undef $@;
+    eval {
+	&$fun();
+    };
+    like( "$@", $val, $msg );
+    return;
+} #test_error
 
 sub test_suite {
 
@@ -45,7 +60,7 @@ sub test_suite {
         "create account for root account" );
     Yote::ObjProvider::stow_all();
     my $login = Yote::ObjProvider::xpath("/_handles/root");
-    my $acct = $app->_get_account( $login );
+    my $acct = $app->__get_account( $login );
     
     ok( $root->create_login( { h => 'fred', 
                                p => 'toor', 
@@ -54,7 +69,7 @@ sub test_suite {
     Yote::ObjProvider::stow_all();
 
     my $fred_login = Yote::ObjProvider::xpath("/_handles/fred");
-    my $fred_acct = $app->_get_account( $fred_login );
+    my $fred_acct = $app->__get_account( $fred_login );
 
     ok( $root->create_login( { h => 'barny', 
                                p => 'toor', 
@@ -63,21 +78,19 @@ sub test_suite {
     Yote::ObjProvider::stow_all();
 
     my $barny_login = Yote::ObjProvider::xpath("/_handles/barny");
-    my $barny_acct = $app->_get_account( $barny_login );
+    my $barny_acct = $app->__get_account( $barny_login );
 
-    
     is( scalar( @$flavrs ), 1, "default flavor" );
 
     my $flav = $flavrs->[0];
     
-    my $res = $app->create_game( { name => "test game",
+    my $game = $app->create_game( { name => "test game",
                                    number_players => 2,
                                    starting_tech_level => 1,
                                    starting_resources => 100,
                                    flavor => $flav,
                                  }, $acct );
-    my $game = $res->{g};
-    is( scalar( @{$game->get_turns()} ), 1, "Number of turns stored for initialized game" );
+    is( scalar( @{$game->get__turns()} ), 1, "Number of turns stored for initialized game" );
 
     is( $game->get_name(), "test game", "game name" );
     ok( $flav->_is( $game->get_flavor() ), "game has right flavor" );
@@ -90,32 +103,31 @@ sub test_suite {
     ok( $game->get_active() == 0, "Not yet active" );
 
     my $res = $game->add_player( {}, $acct );
-    is( $res->{msg}, "added to game", "added one player to game" );
+    is( $res, "added to game", "added one player to game" );
     is( $game->active_player_count(), 1, "player count after add" );
     ok( $game->get_active() == 0, "Not yet active after adding one player" );
 
     my $res = $game->remove_player( {}, $acct );
-    is( $res->{msg}, "player removed from game", "removed one player to game" );
+    is( $res, "player 'root' removed from game", "removed one player to game" );
     is( $game->active_player_count(), 0, "no players after remove" );
 
     my $res = $game->add_player( {}, $acct ); 
-    is( $res->{msg}, "added to game", "added back one player to game" );
+    is( $res, "added to game", "added back one player to game" );
     is( $game->active_player_count(), 1, "one player after add back one" );
 
-    my $res = $game->add_player( {}, $acct );
-    like( $res->{err}, qr/already added/, "added a player already there" );
+    test_error( sub { $game->add_player( {}, $acct ) }, qr/already added/, "added a player already there" );
     is( $game->active_player_count(), 1, "one player after add back one" );
 
     my( $amy_acct ) = ( $acct );
 
     my $res = $game->add_player( {}, $fred_acct );
+    is( $res, 'added to game, which is now starting', 'added final player that can start game' );
     is( $game->active_player_count(), 2, "number players" );
 
     ok( $game->get_active(), "Active after adding second player" );
     ok( ! $game->needs_players(), "Game no longer needs players" );
     
-    my $res = $game->add_player( {}, $barny_acct );
-    like( $res->{err}, qr/is full/, "added a player when game is full" );
+    test_error( sub { $game->add_player( {}, $barny_acct ); }, qr/is full/, "added a player when game is full" );
     is( $game->active_player_count(), 2, "two players after failed to add one" );
     
     my( $amy, $fred ) = @{$game->_players()};
@@ -130,26 +142,26 @@ sub test_suite {
     ok( $turn->_check_ready() == 0, "Turn not ready" );
 
     my $res = $amy->mark_as_ready( { ready => 1, turn => 0 } );
-    like( $res->{msg}, qr/Set Ready/i, "marking ready" );
+    like( $res, qr/Set Ready/i, "marking ready" );
     ok( $turn->_check_ready() == 0, "Turn not ready" );
     is( $turn->get_turn_number(), 0, "turn number is 0" );
 
     my $res = $amy->mark_as_ready( { ready => 0, turn => 0 } );
-    like( $res->{msg}, qr/Set Ready/i, "marking ready" );
+    like( $res, qr/Set Ready/i, "marking ready" );
     ok( $turn->_check_ready() == 0, "Turn not ready" );
     is( $turn->get_turn_number(), 0, "turn number is 0" );
 
     my $res = $fred->mark_as_ready( { ready => 1, turn => 0 } );
-    like( $res->{msg}, qr/Set Ready/i, "marking ready" );
+    like( $res, qr/Set Ready/i, "marking ready" );
     ok( $turn->_check_ready() == 0, "Turn not ready" );
     is( $turn->get_turn_number(), 0, "turn number is 0" );
 
     # ---------- take turn by marking ready
 
     my $res = $amy->mark_as_ready( { ready => 1, turn => 0 } );
-    like( $res->{msg}, qr/Set Ready/i, "marking ready" );
+    like( $res, qr/Set Ready/i, "marking ready" );
 
-    is( scalar( @{$game->get_turns()} ), 2, "Number of stored turns" );
+    is( scalar( @{$game->get__turns()} ), 2, "Number of stored turns" );
 
     is( $turn->get_turn_number(), 1, "turn number is 1" );
     is( $game->get_turn_number(), 1, "game turn number is 1" );
@@ -196,8 +208,7 @@ sub test_suite {
 
     fail_order( $amy, { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() - 1 }, qr/wrong turn/i, "Give resources for wrong turn" );
     is( scalar( @{$amy->get_pending_orders()} ), 2, "no valid 3rd" );
-    my $res = $amy->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() + 1 } );
-    like( $res->{err}, qr/Not on turn/i, "error message for ready for wrong turn" );
+    test_error( sub { $amy->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() + 1 } ); }, qr/Not on turn/i, "error message for ready for wrong turn" );
 
     is( $turn->get_turn_number(), 1, "turn number still 1 after marking on wrong turn" );
     is( $game->get_turn_number(), 1, "game turn number is 1 after marking on wrong turn" );
@@ -209,8 +220,8 @@ sub test_suite {
     is( $fred->get_resources(), 144, "resources fred turn 2 after being given some" );
     is( $turn->get_turn_number(), 2, "turn number is 2" );
     is( $game->get_turn_number(), 2, "game turn number is 2" );
-    is( scalar( @{$game->get_turns()} ), 3, "Number of stored turns" );
-    my $completed = $game->get_turns()->[2]->_players()->[0]->get_completed_orders()->[2];
+    is( scalar( @{$game->get__turns()} ), 3, "Number of stored turns" );
+    my $completed = $game->get__turns()->[2]->_players()->[0]->get_completed_orders()->[2];
     is( scalar( @$completed ), 2, "orders completed on this turn" );
     my $completed = $game->_current_turn()->_players()->[0]->get_completed_orders()->[2];
     is( scalar( @$completed ), 2, "orders completed on this turn" );
@@ -220,8 +231,8 @@ sub test_suite {
     ok( $o1->get_resolution(), "success giving 3" );
     like( $o1->get_resolution_message(), qr/^gave 1 /i, 'gave correct amount 1' );
     like( $o2->get_resolution_message(), qr/^gave 3 /i, 'gave correct amount 3' );
-    is( scalar( @{$game->get_turns()->[2]->_players()->[0]->get_pending_orders()} ), 0, "orders pending for this turn" );
-    is( scalar( @{$game->get_turns()->[1]->_players()->[0]->get_pending_orders()} ), 2, "last turn pending" );
+    is( scalar( @{$game->get__turns()->[2]->_players()->[0]->get_pending_orders()} ), 0, "orders pending for this turn" );
+    is( scalar( @{$game->get__turns()->[1]->_players()->[0]->get_pending_orders()} ), 2, "last turn pending" );
 
     is( scalar( @{$amy->get_completed_orders()->[2]} ), 2, "order reset with turn" );
     is( scalar( @{$amy->get_pending_orders()} ), 0, "order reset with turn" );
@@ -267,16 +278,19 @@ sub test_suite {
 
     # this test can't use 'fail_order' because it sets up the wrong
     # root and acct
-    like( $battleship->new_order( {
-        from  => $fred_sector,
-        to    => $links->[0],
-        turn  => $turn->get_turn_number(),
-        order => 'move',
-                           },
-                           $amy_acct )->{err}, 
-          qr/player may not order this/i,
-          "Cannot order someone else's ship" );
-
+    test_error(
+	sub {
+	    $battleship->new_order( {
+		from  => $fred_sector,
+		to    => $links->[0],
+		turn  => $turn->get_turn_number(),
+		order => 'move',
+				    },
+				    $amy_acct ), 
+	},
+	qr/player may not order this/i,
+	"Cannot order someone else's ship" );
+	
 
     #
     # try to move scout into an unexplored sector and move it back.
@@ -345,7 +359,7 @@ sub test_suite {
     my $chart_entry = $fred_chart->_get_entry( $amy_sector );
     is( $chart_entry->get_seen_production(),  21, 'fred sees production' );
     is( $chart_entry->get_seen_owner(),  $amy, 'fred sees owner' );
-    my $seen_ships = $chart_entry->get_seen_ships();
+    my $seen_ships = $chart_entry->get__seen_ships();
 
     is( scalar( @$seen_ships ), 1, 'fred sees 1 ship' );
     is( $seen_ships->[0], $cruizer, 'fred sees cruizer' );
@@ -611,7 +625,7 @@ sub advance_turn {
     for my $p (@$players) {
         $p->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() } );
     }
-    my $turns = $turn->get_game()->get_turns();
+    my $turns = $turn->get_game()->get__turns();
 
 } #advance_turn
 
@@ -621,14 +635,15 @@ sub pass_order {
     if( $res->{err} ) {
         ok( 0, ($msg || 'made order'). ' got error '.$res->{err} );
     }
-    elsif( $res->{r} ) {
+    elsif( $res ) {
         ok( 1, $msg || 'made order' );
-        return $res->{r};
+        return $res;
     }
     ok( 0, $msg || 'made order' );
 }
 
 sub fail_order {
     my( $obj, $ord, $fail_regex, $msg ) = @_;
-    like( $obj->new_order( $ord, $obj->get_owner()->get_acct() )->{err}, $fail_regex, $msg );
+    
+    test_error( sub { $obj->new_order( $ord, $obj->get_owner()->get_acct() ) }, $fail_regex, $msg );
 }

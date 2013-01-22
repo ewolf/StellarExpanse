@@ -23,7 +23,7 @@ sub _init {
     my $first_turn = new StellarExpanse::Turn();
     $first_turn->set_turn_number( 0 );
     $first_turn->set_game( $self );
-    $self->add_to_turns( $first_turn );
+    $self->add_to__turns( $first_turn );
     $self->set_messageboard( new Yote::Util::MessageBoard() );
 } #init
 
@@ -34,19 +34,24 @@ sub _on_load {
 
 sub _current_turn {
     my $self = shift;
-    return $self->get_turns()->[$self->get_turn_number()];
+    return $self->get__turns()->[$self->get_turn_number()];
 }
 
 sub rewind_to {
     my( $self, $data, $acct ) = @_;
-    #rewinds this game to a point (data->{t})
-    my $old_turn = $data->{t};
+    #rewinds this game to a point (data)
+    my $old_turn = $data;
     if( $old_turn >= $self->get_turn_number() || $old_turn < 1 ) {
         die "Cannot move to future turns";
     }
     $self->set_turn_number( $old_turn );
     return "rewound to turn $old_turn";
 } #rewind_to
+
+sub my_player {
+    my( $self, $data, $acct ) = @_;
+    return $self->_find_player( $acct );
+}
 
 #
 # Returns the player object associated with the account, if any.
@@ -56,6 +61,15 @@ sub _find_player {
     return undef unless $acct;
     return $self->_current_turn()->get_players()->{$acct->get_login()->get_handle()};
 } #_find_player
+
+#
+# Returns a list data on the current players. ( @TODO - secure once we have things working. don't want
+#  sensitive player info to leak from this )
+#
+sub current_players {
+    my $self = shift;
+    return $self->_current_turn()->get_players();
+}
 
 #
 # Adds the account to this game, creating a player object for it.
@@ -78,10 +92,7 @@ sub add_player {
 	    
 	    # debug with a path to root
 
-	    print STDERR Data::Dumper->Dump([$self,Yote::ObjProvider::info( $acct ),Yote::ObjProvider::info($acct->get_pending_games()),"_______________________B4_______________"]);
 	    $acct->add_once_to_pending_games( $self );
-	    print STDERR Data::Dumper->Dump([$self,Yote::ObjProvider::info($acct->get_pending_games()),"_______________________AR_______________"]);
-	    print STDERR Data::Dumper->Dump([ $Yote::ObjProvider::DIRTY, $Yote::ObjProvider::CHANGED, $Yote::ObjManager::LOGIN_OBJS]);
             return "added to game";
         } else {
             $self->_start();
@@ -109,9 +120,7 @@ sub remove_player {
     if ($self->get_active()) {
         die "cannot leave an active game";
     }
-    print STDERR Data::Dumper->Dump(["BEFORE--------------",$acct->get_pending_games(),Yote::ObjProvider::get_id($acct->get_pending_games()),$Yote::ObjProvider::DIRTY,$Yote::ObjManager::LOGIN_OBJS,$acct]);
     $acct->remove_all_from_pending_games( $self );
-    print STDERR Data::Dumper->Dump(["AFTER--------------",$acct->get_pending_games(),Yote::ObjProvider::get_id($acct->get_pending_games()),$Yote::ObjProvider::DIRTY,$Yote::ObjManager::LOGIN_OBJS]);
     my $handle = $login->get_handle();
     delete $players->{$handle};
     return "player '$handle' removed from game";
