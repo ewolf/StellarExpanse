@@ -189,15 +189,16 @@ sub _fire {
 
 sub _move {
     my $self = shift;
-    $self->{move} = $self->get_jumps();
+    my $move = $self->get_jumps();
     my $orders = $self->get_pending_orders();
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
     for my $ord (@move_orders) {
         my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
+	print STDERR Data::Dumper->Dump([$ord,$self,$move]) if $self->get_name() eq 'Patrol_Boat';
         if( $loc ) {
             if( $loc->_is( $from ) ) {
                 if( $from->_valid_link( $to ) ) {
-                    if( $self->{move} > 0 ) {
+                    if( $move > 0 ) {
                         $self->set_location ( $to );
                         $to->add_to_ships( $self );
                         $from->remove_from_ships( $self );
@@ -210,10 +211,10 @@ sub _move {
                         #
                         my $chart = $self->get_owner()->get_starchart();
                         if( $chart->_has_entry( $to ) || $self->get_ship_class() eq 'Scout' ) {
-                            $self->{move}--;
+                            $move--;
                         } 
                         else {
-                            $self->{move} = 0;
+                            $move = 0;
                         }
                         
                         #
@@ -225,7 +226,7 @@ sub _move {
                         # Ships must stop if there are enemy ships here.
                         #
                         if( grep { ! $_->get_owner()->_is( $self->get_owner() ) } @{$to->get_ships()} ) {
-                            $self->{move} = 0;
+                            $move = 0;
                         }
                         
                         $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );

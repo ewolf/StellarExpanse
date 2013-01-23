@@ -4,15 +4,14 @@ use base 'Yote::Obj';
 
 sub _init {
     my $self = shift;
-    $self->set__map({});
-    $self->set__sectors_known({});
+    $self->set_map({});
     $self->set__seen_ships([]);
 }
 
 sub _update {
     my( $self, $sector ) = @_;
 
-    my $map = $self->get__map();
+    my $map = $self->get_map();
 
     my $ships_here = [grep { ! $self->get_owner()->_is( $_->get_owner() ) } @{$sector->get_ships([])}];
 
@@ -48,15 +47,15 @@ sub _update {
 	# add connecting nodes maybe?
 	$node->set_name( $sector->get_name() );
 	my $sector_links = $sector->get_links();
-	my $known_sectors = $self->get__sectors_known();
 	my $node_links = $node->get__links( {} );
 	for my $other_sector_id (keys %$sector_links) {
 	    my $other_sector = Yote::ObjProvider::fetch( $other_sector_id );
-
-	    my $other_node   = $known_sectors->{ $other_sector_id };
+	    my $other_node   = $map->{ $other_sector_id };
 	    unless( $other_node ) {
 		$other_node = new Yote::Obj();
 		$other_node->set_name( $other_sector->get_name() );
+		$other_node->set_discovered( 0 );
+		$map->{ $other_sector_id } = $other_node;
 	    }
 	    $node_links->{ $other_sector->{ID} } = $other_node;
 	}
@@ -79,7 +78,7 @@ sub _update {
 sub _get_entry {
     my( $self, $sector ) = @_;
 
-    return $self->get__map()->{$sector->{ID}};
+    return $self->get_map()->{$sector->{ID}};
 } #_get_entry
 
 #
@@ -88,7 +87,7 @@ sub _get_entry {
 sub _has_entry {
     my( $self, $sector ) = @_;
 
-    return defined $self->get__map()->{$sector->{ID}};
+    return defined $self->get_map()->{$sector->{ID}} && $self->get_map()->{$sector->{ID}}->get_discovered();
 } #_has_entry
 
 

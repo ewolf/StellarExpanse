@@ -21,7 +21,11 @@
         $.yote.debug = true;
 	$.yote.init();
 
+$("body").bind("DOMSubtreeModified", function() {
+    //yes this works
+});
         var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
+	//se_app.RESET();
 
 	function msg( m, cls ) {
 	    $( '#msg_div' ).empty().append( '<div class="' + cls + '">' + m + '</div>' );
@@ -41,6 +45,9 @@
 		     table of ours ships, showing sector, orders, etc
 		  order summary
 	     */
+	    if( acct.get_Last_played() != game ) {
+		acct._send_update( { Last_played : game } );
+	    }
 	    var game_name  = game.get_name();
 	    var on_turn    = game.get_turn_number();
 	    var players    = game.current_players();
@@ -48,28 +55,60 @@
 	    var starchart  = player.get_starchart();
 	    var map        = starchart.get_map(); //hash of sector id -> star chart node
 	    
-	    $( '#main_div' ).empty().append( '<div><dl><dt>' + game_name + '</dt><tt>' +
-					     'Turn : ' + on_turn  + 
-					     '<BR><div id="playersdiv">Players Remaining : <ul id="playerslist"></ul></div>' + 
-					     '</tt></dl></div>' );
-	    
+	    var update_text = '<button class="btn btn-link" type="button" id="back_to_lobby">Back to the Lobby </button><div><dl><dt><h2>' + game_name + '</h2></dt><tt>' +
+		'Turn : ' + on_turn  + 
+		'<BR><div id="playersdiv">Players : <ul id="playerslist">';
+
 	    var pkeys = players.keys();
 	    for( var i=0; i < pkeys.length; i++ ) {
-		var handle = pkeys[ i ];
-		$( '#playerslist' ).append( '<li>' + handle + '</li>' );
+		update_text += '<li>' + pkeys[ i ] + '</li>';
 	    }
+
+
+	    update_text += '</tt></dl></div>';
+	    
+
+	    //make a subway map of explored sectors. note if there are unexplored ends, and the connections this sector has.
+	    var tab = $.yote.util.make_table( 'border=1' );
+	    tab.add_header_row( [ 'Sector' ] );
+
 	    var sectorids = map.keys();
 	    console.log( ['stuff',map,starchart] );
 	    for( var i=0; i < sectorids.length; i++ ) {
 		var node = map.get( sectorids[i] );
+		if( node.get_discovered() == '1' ) {
+		    tab.add_row( [ node.get_name() ] );
+		}
 	    }
+
+	    $( '#main_div' ).empty().append( update_text + '<div>' + tab.get_html() + '</div>' );
+
+	    $( '#back_to_lobby' ).click( function() {
+		acct._send_update( { Last_played : '' } );
+		to_game_login( acct.get_login(), acct, '' );
+	    } );
+
+	    // subway map?
+	    /*
+                   gamma --\
+		            \
+	           alpha -- beta -- omega -- iota
+		              \
+			       \-- zeta
+	     */
+
 	} // play game
 
         function to_game_login( login, acct, message ) {
+	    if( acct.get( 'Last_played' ) ) {
+		play_game( acct.get_Last_played(), acct );
+		return;
+	    }
             var active_games  = acct.get_active_games();
             var pending_games = acct.get_pending_games();
             var avail_games   = se_app.available_games();
-	    $( '#outer_div' ).empty().append( '<div id="msg_div">' + message + '</div><div id="main_div"><dl id="main_dl"></dl></div>' );
+	    msg( message );
+	    var update_text = '<dl id="main_dl">'; 
 
 	    if( active_games.length() > 0 ) {
 		var tab = $.yote.util.make_table('border=1');
@@ -78,13 +117,7 @@
 		    var game = active_games.get( i );
 		    tab.add_row( [ game.get_name(), game.get_number_players(), game.get_created_by().get_handle(), game.get_turn_number(), '<button type="button" id="play_' + game.id + '" class="btn btn-link">Play</button>' ] );
 		}
-		$( '#main_dl' ).append( "<dt>Active Games</dt><tt>" + tab.get_html() + "</tt>" );
-		for( var i=0 ; i < active_games.length() ; i ++ ) {
-		    var g = active_games.get( i );
-		    $( '#play_' + g.id ).click( (function( game, acct ) { return function() {
-			play_game( game, acct );
-		    } } )( g, acct ) );
-		}
+		update_text += "<dt>Active Games</dt><tt>" + tab.get_html() + "</tt>";
 	    } //active games
 
 	    if( pending_games.length() > 0 ) {
@@ -94,7 +127,7 @@
 		    var game = pending_games.get( i );
 		    tab.add_row( [ game.get_name(), game.active_player_count() + " of " + game.get_number_players(), game.get_created_by().get_handle(), '<button type="button" id="leave_' + game.id + '" class="btn btn-link">Leave Game</button>' ] );
 		}
-		$( '#main_dl' ).append( "<dt>Games waiting to start</dt><tt>" + tab.get_html() + "</tt>" );
+		update_text += "<dt>Games waiting to start</dt><tt>" + tab.get_html() + "</tt>";
 		for( var i=0 ; i < pending_games.length() ; i ++ ) {
 		    var g = pending_games.get( i );
 		    $( '#leave_' + g.id ).click( (function( game, login, acct ) { return function() {
@@ -116,45 +149,67 @@
 				   '<button type="button" id="join_' + game.id + '" class="btn btn-link">Join Game</button>'
 				 ] );
 		}
-		$( '#main_dl' ).append( "<dt>Available Games</dt><tt>" + tab.get_html() + "</tt>" );
-		for( var i=0 ; i < avail_games.length() ; i ++ ) {
-		    var g = avail_games.get( i );
-		    $( '#join_' + g.id ).click( (function( game, login, acct ) { return function() {
-			game.add_player( '', function(m) { to_game_login( login, acct, m ) },function(e){msg( e ) } );
-		    } } )( g, login, acct ) );
-		}
+		update_text += "<dt>Available Games</dt><tt>" + tab.get_html() + "</tt>";
 	    } //available games
 
-	    $( '#main_div' ).append( '<button id="newgame" type="button">New Game</button>' );
+	    update_text += '</dl></div>';
+
+	    $( '#main_div' ).empty().append( update_text + '<button id="newgame" type="button">New Game</button>' );
+
+	    for( var i=0 ; i < avail_games.length() ; i ++ ) {
+		var g = avail_games.get( i );
+		$( '#join_' + g.id ).click( (function( game, login, acct ) { return function() {
+		    game.add_player( '', function(m) { to_game_login( login, acct, m ) },function(e){msg( e ) } );
+		} } )( g, login, acct ) );
+	    }
+
+	    for( var i=0 ; i < active_games.length() ; i ++ ) {
+		var g = active_games.get( i );
+		$( '#play_' + g.id ).click( (function( game, acct ) { return function() {
+		    play_game( game, acct );
+		} } )( g, acct ) );
+	    }
+
 	    $( '#newgame' ).click(function() {
-		$( '#main_div' ).empty().append( "<h2>Create New Game</h2>" );
+		update_text = '<button class="btn btn-link" type="button" id="back_to_lobby">Back to the Lobby </button><h2>Create New Game</h2>';
 		var tab = $.yote.util.make_table();
 		var flavors = se_app.get_flavors();
 		tab.add_param_row( [ 'Name', '<input type="text" id="game_name_fld">' ] );
 		if( flavors.length() > 1 ) {
-		    tab.add_param_row( [ 'Flavor', '<select id="flavor_sel"></select>' ] );
+		    var sel_text = '<select id="flavor_sel">';
+		    if( flavors.length() > 1 ) {
+			for( var i=0; i<flavors.length(); ++i ) {
+			    var flav = flavors.get(i);
+			    sel_text += '<option value="' + i + '">' + flav.get_name() + '</option>';
+			}
+		    }
+		    tab.add_param_row( [ 'Flavor', sel_text + '</select>' ] );
 		} else {
 		    var fl = flavors.get(0);
 		    tab.add_param_row( [ 'Flavor', '<span>' + fl.get_name() +
 					 '</span><input type="hidden" id="flavor_sel" value="0">' ] );
 
 		}
-		tab.add_param_row( [ 'Number of Players', '<select id="player_sel"></select>' ] );
-		tab.add_param_row( [ 'Starting Tech Level', '<select id="tech_sel"></select>' ] );
-		tab.add_param_row( [ 'Starting Resources', '<input type="text" id="resource_fld">' ] );
-		$( '#main_div' ).append( tab.get_html() + '<BR><button type="button" id="create_game" class="btn disabled btn-link">Create</button>' );
-		if( flavors.length() > 1 ) {
-		    for( var i=0; i<flavors.length(); ++i ) {
-			var flav = flavors.get(i);
-			$('#flavor_sel').append( '<option value="' + i + '">' + flav.get_name() + '</option>' );
-		    }
-		}
-		for( var i=1; i < 5; i++ ) {
-		    $('#tech_sel').append( '<option value="' + i + '">' + i + '</option>' );
-		}
+		var player_sel = '<select id="player_sel">';
 		for( var i=1; i < 9; i++ ) {
-		    $('#player_sel').append( '<option value="' + i + '">' + i + '</option>' );
+		    player_sel += '<option value="' + i + '">' + i + '</option>';
 		}
+		tab.add_param_row( [ 'Number of Players', player_sel + '</select>' ] );
+		var tect_sel = '<select id="tech_sel">';
+		for( var i=1; i < 5; i++ ) {
+		    tech_sel = '<option value="' + i + '">' + i + '</option>';
+		}
+		tab.add_param_row( [ 'Starting Tech Level', tech_sel + '</select>' ] );
+		tab.add_param_row( [ 'Starting Resources', '<input type="text" id="resource_fld">' ] );
+		update_text += tab.get_html() + '<BR><button type="button" id="create_game" class="btn disabled btn-link">Create</button>';
+
+		$( '#main_div' ).empty().append( update_text );
+
+		$( '#back_to_lobby' ).click( function() {
+		    acct._send_update( { Last_played : '' } );
+		    to_game_login( acct.get_login(), acct, '' );
+		} );
+
 		$( '#game_name_fld,#resource_fld' ).keyup(function() {
 		    if( $( '#game_name_fld' ).val() && $( '#resource_fld' ).val() > 0 ) {
 			$( '#create_game' ).removeClass( 'disabled' );
@@ -209,6 +264,8 @@
     </HEADER>
 
     <DIV id="outer_div" style="margin:10px">
+      <DIV id="msg_div"></div>
+      <DIV id="main_div"></div>
     </DIV>
     <script src="/js/bootstrap.js"></script>
   </body>

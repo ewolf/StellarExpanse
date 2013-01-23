@@ -83,13 +83,12 @@ sub test_suite {
     is( scalar( @$flavrs ), 1, "default flavor" );
 
     my $flav = $flavrs->[0];
-    
     my $game = $app->create_game( { name => "test game",
-                                   number_players => 2,
-                                   starting_tech_level => 1,
-                                   starting_resources => 100,
-                                   flavor => $flav,
-                                 }, $acct );
+				    number_players => 2,
+				    starting_tech_level => 1,
+				    starting_resources => 100,
+				    flavor => $flav,
+				  }, $acct );
     is( scalar( @{$game->get__turns()} ), 1, "Number of turns stored for initialized game" );
 
     is( $game->get_name(), "test game", "game name" );
@@ -271,7 +270,7 @@ sub test_suite {
     is( @$player_ships, 3, "Player now as 3 ships" );
     is( @$sector_ships, 3, "Sector now as 3 ships" );
     my( $scout, $battleship, $boat ) = @$sector_ships;
-    
+
     my $links = $fred_sector->_links();
     my $amy_links = $amy_sector->_links();
     is( @$links, 3, "three links from starting sector" );
@@ -313,10 +312,10 @@ sub test_suite {
 
     is( $fred->get_resources(), 128, "Fred resources" );
     ok( $b_m1->get_resolution(), "Boat 1st order ok" );
-    ok( ! $b_m2->get_resolution(), "Boat 2nd order not ok" );
+    ok( ! $b_m2->get_resolution(), "Boat 2nd order has failed as it should" );
     like( $b_m1->get_resolution_message(), qr/^moved from/i, "boat order message 1" );
     like( $b_m2->get_resolution_message(), qr/does not link/i, "boat order message for does not link" );
-    like( $b_m3->get_resolution_message(), qr/^out of movement/i, "boat order message for out of movement" );
+    like( $b_m3->get_resolution_message(), qr/^out of movement/i, "boat order message for out of movement since moving to unexplored sector ends movement for anything but a scout" );
 
     ok( $fred->_is( $links->[2]->get_owner() ), 'fred now owns sector' );
     ok( $boat->get_location()->_is( $links->[2] ), "boat moved to correct place" );
@@ -631,15 +630,13 @@ sub advance_turn {
 
 sub pass_order {
     my( $obj, $ord, $msg ) = @_;
-    my $res = $obj->new_order( $ord, $obj->get_owner()->get_acct() );
-    if( $res->{err} ) {
-        ok( 0, ($msg || 'made order'). ' got error '.$res->{err} );
-    }
-    elsif( $res ) {
-        ok( 1, $msg || 'made order' );
-        return $res;
-    }
-    ok( 0, $msg || 'made order' );
+    my $res;
+    eval {
+	$res = $obj->new_order( $ord, $obj->get_owner()->get_acct() );
+	ok( 1, $msg || 'made order' );
+    };
+    ok( 0, $msg || 'made order' ) unless $res;
+    return $res;
 }
 
 sub fail_order {

@@ -14,6 +14,8 @@ sub _init {
     my $flav = $self->new_flavor();
     $flav->set_name( "primary flavor" );
     $self->set_messageboard( new Yote::Util::MessageBoard() );
+    $self->set__games({});
+    $self->set_pending_games([]);
 }
 
 sub _init_account {
@@ -21,12 +23,22 @@ sub _init_account {
     $acct->set_active_games([]);
     $acct->set_pending_games([]);
     $acct->set_handle( $acct->get_login()->get_handle() );
+    $acct->set_Last_played( undef );
+}
+
+sub RESET {
+    my( $self, $data, $acct ) = @_;
+    die "Access Denied" unless $acct->get_login()->get__is_root();
+    $self->set_messageboard( new Yote::Util::MessageBoard() );
+    $self->set__account_roots({});
+    $self->set__games({});
+    $self->set_pending_games([]);
 }
 
 sub create_game {
     my( $self, $data, $acct ) = @_;
 
-    my $games = $self->get_games({});
+    my $games = $self->get__games();
     my $game = new StellarExpanse::Game();
 
     $game->set_name( $data->{name} );
@@ -40,7 +52,6 @@ sub create_game {
     $games->{$id} = $game;
 
     $self->add_once_to_pending_games( $game );
-
     return $game;
 } #create_game
 
@@ -53,7 +64,7 @@ sub new_flavor {
 
 sub available_games {
     my( $self, $data, $acct ) = @_;
-    return [ grep { ! $_->_find_player($acct) } @{$self->get_pending_games([])}];
+    return [ grep { ! $_->_find_player($acct) } @{$self->get_pending_games()}];
 } #available_games
 
 1;
