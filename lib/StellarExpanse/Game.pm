@@ -189,16 +189,19 @@ sub _start {
     my @words = @$words;
     unless( @words ) {
         # use random dictionary words
-        open( IN, "</etc/dictionaries-common/words" );
+	my( $dictfile ) = grep { -f $_ } qw! /etc/dictionaries-common/words /usr/share/dict/words !;
+	if( $dictfile ) {
+	    open( IN, $dictfile );
 
-my $dcount = 0;        # < for testing only > #
-        while( <IN> ) {
-            chomp;
-            next unless /^[a-z]+$/ && length( $_ ) > 2;
-            push @words, $_;
-last if ++$dcount > 200;        # < for testing only > #
-        }
-        close( IN );
+	    my $dcount = 0;        # < for testing only > #
+	    while( <IN> ) {
+		chomp;
+		next unless /^[a-z]+$/ && length( $_ ) > 2;
+		push @words, $_;
+		last if ++$dcount > 200;        # < for testing only > #
+	    }
+	    close( IN );
+	}
     }
 
     #

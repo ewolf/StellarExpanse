@@ -9,6 +9,12 @@ sub _init {
     $self->SUPER::_init();
     $self->set_ready( 0 );
     $self->set_owner( $self );
+    $self->set_Last_sector( undef );
+}
+
+sub _load {
+    my $self = shift;
+    $self->set_Last_sector( undef );    
 }
 
 sub mark_as_ready {
@@ -58,7 +64,7 @@ sub _give {
             my $sector = $ord->get_sector();
             if( $sector && $self->is( $sector->get_owner() ) ) {
                 $to->add_to_sectors( $sector );
-                $self->revove_from_sectors( $sector );
+                $self->remove_from_sectors( $sector );
                 $sector->set_owner( $to );
                 $ord->_resolve( "Gave sector " . $sector->get_name() . " to " . $to->get_name(), 1 );
             } else {

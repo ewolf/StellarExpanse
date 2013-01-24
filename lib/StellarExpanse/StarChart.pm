@@ -47,7 +47,7 @@ sub _update {
 	# add connecting nodes maybe?
 	$node->set_name( $sector->get_name() );
 	my $sector_links = $sector->get_links();
-	my $node_links = $node->get__links( {} );
+	my $node_links = $node->get_links( {} );
 	for my $other_sector_id (keys %$sector_links) {
 	    my $other_sector = Yote::ObjProvider::fetch( $other_sector_id );
 	    my $other_node   = $map->{ $other_sector_id };

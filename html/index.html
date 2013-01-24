@@ -52,10 +52,12 @@ $("body").bind("DOMSubtreeModified", function() {
 	    var on_turn    = game.get_turn_number();
 	    var players    = game.current_players();
 	    var player     = game.my_player();    // player -> handle
+	    var my_sectors = player.get_sectors();
 	    var starchart  = player.get_starchart();
 	    var map        = starchart.get_map(); //hash of sector id -> star chart node
 	    
-	    var update_text = '<button class="btn btn-link" type="button" id="back_to_lobby">Back to the Lobby </button><div><dl><dt><h2>' + game_name + '</h2></dt><tt>' +
+	    var update_text = '<button class="btn btn-link" type="button" id="back_to_lobby">Back to the Lobby </button>' +
+		'<div class="container"><div class="row"><div class="span3"><dl><dt><h2>' + game_name + '</h2></dt><tt>' +
 		'Turn : ' + on_turn  + 
 		'<BR><div id="playersdiv">Players : <ul id="playerslist">';
 
@@ -70,18 +72,44 @@ $("body").bind("DOMSubtreeModified", function() {
 
 	    //make a subway map of explored sectors. note if there are unexplored ends, and the connections this sector has.
 	    var tab = $.yote.util.make_table( 'border=1' );
-	    tab.add_header_row( [ 'Sector' ] );
+	    tab.add_header_row( [ 'Sector', 'Links' ] );
 
 	    var sectorids = map.keys();
 	    console.log( ['stuff',map,starchart] );
+	    var my_sectors = [];
 	    for( var i=0; i < sectorids.length; i++ ) {
 		var node = map.get( sectorids[i] );
 		if( node.get_discovered() == '1' ) {
-		    tab.add_row( [ node.get_name() ] );
+		    var links = node.get_links();
+		    var keys = links.keys();
+		    var linktxt = '<ul>';
+		    for( var j=0 ; j < keys.length; j++ ) {
+			linktxt += '<li>' + links.get( keys[ j ] ).get_name() + '</li>';
+		    }
+		    linktxt += '</ul>';
+		    tab.add_row( [ '<a href="#" id="sector_' + node.id + '">' + node.get_name() + '</a>', linktxt ] );
 		}
 	    }
 
-	    $( '#main_div' ).empty().append( update_text + '<div>' + tab.get_html() + '</div>' );
+	    update_text += '<div>' + tab.get_html() + '</div>' + 
+		'</div><div class="span9"><div id=sector_panel>';
+
+	    update_text += '</div><div id=fleet_panel>';
+
+
+	    update_text += '</div>';
+	    
+	    
+
+	    $( '#main_div' ).empty().append( update_text );
+
+	    if( player.get( 'Last_sector' ) ) {
+		show_sector( player.get_Last_sector() );
+	    } else {
+		show_sector( 
+	    }
+
+	    // ------- define listeners
 
 	    $( '#back_to_lobby' ).click( function() {
 		acct._send_update( { Last_played : '' } );
