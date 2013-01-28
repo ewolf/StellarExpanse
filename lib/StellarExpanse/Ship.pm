@@ -194,7 +194,6 @@ sub _move {
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
     for my $ord (@move_orders) {
         my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
-	print STDERR Data::Dumper->Dump([$ord,$self,$move]) if $self->get_name() eq 'Patrol_Boat';
         if( $loc ) {
             if( $loc->_is( $from ) ) {
                 if( $from->_valid_link( $to ) ) {

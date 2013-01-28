@@ -5,11 +5,30 @@ use StellarExpanse::TakesOrders;
 
 use base 'StellarExpanse::TakesOrders';
 
+# fields :
+#     name     - string
+#     game     - StellarExpanse::Game
+#     ships    - list of StellarExpanse::Ship
+#     links    - hash of sector id -> StellarExpanse::Sector
+#     owner    - StallarExpanse::Player
+#     indict   - boolean 
+#     currprod - int
+#     maxprod  - int ( max production this sector can use )
+#     buildcap - int
+
 sub _init {
     my $self = shift;
     $self->SUPER::_init();
     $self->set_ships([]);
     $self->set_links({});
+    $self->set_maxprod( 0 );
+    $self->set_currprod( 0 );
+    $self->set_buildcap( 0 );
+}
+
+sub can_build_items {
+    my( $self, $data, $acct ) = @_;
+    return [ grep { $_->get_size() <= $self->get_buildcap() }  @{ $self->get_owner()->get_can_build() } ];
 }
 
 #
@@ -158,7 +177,7 @@ sub _build {
                                     my $current = $player->get_tech_level();
                                     my $provided = $prototype->get_provides_tech();
                                     if( $provided > $current ) {
-                                        $player->set_tech_level( $provided );
+                                        $player->_change_tech_level( $provided );
                                         $player->set_resources( $player->get_resources() - $cost );
                                         $order->_resolve( "Upgraded to tech ".$player->get_tech_level()." from $current for a cost of $cost", 1 );
                                     } else {

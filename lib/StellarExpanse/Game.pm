@@ -217,7 +217,7 @@ sub _start {
         # Set up starting stats
         #
         $player->set_resources( $self->get_starting_resources() );
-        $player->set_tech_level( $self->get_starting_tech_level() );
+        $player->_change_tech_level( $self->get_starting_tech_level() );
         
 
         #

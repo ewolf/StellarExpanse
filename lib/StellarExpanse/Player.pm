@@ -4,17 +4,30 @@ use strict;
 
 use base 'StellarExpanse::TakesOrders';
 
+# fields - 
+#    ready       - boolean
+#    owner       - ( self, have to see why on earth this is there )
+#    Last_sector - StellarExpanse::Sector
+#    tech_level  - int
+#    can_build   - list of StellarExpanse::Ships
+#    resources   - int
+#    pending_orders - list of StellarExpanse::Order
+
 sub _init {
     my $self = shift;
     $self->SUPER::_init();
     $self->set_ready( 0 );
     $self->set_owner( $self );
     $self->set_Last_sector( undef );
+    $self->set_tech_level( 0 );
+    $self->set_resources( 0 );
+    $self->set_all_completed_orders([[]]); # a list of lists : each turn number gets a list. turn zero has an empty list
+    $self->set_ships([]);
 }
 
 sub _load {
     my $self = shift;
-    $self->set_Last_sector( undef );    
+    $self->set_Last_sector( undef ) unless $self->get_Last_sector();    
 }
 
 sub mark_as_ready {
@@ -28,8 +41,14 @@ sub mark_as_ready {
     if( $turn->_check_ready() ) {
         $turn->_increment_turn();
     }
-    return "Set Ready to " . $data->{ready};    
+    return $game->get_turn_number();
 } #mark_as_ready
+
+sub _change_tech_level {
+    my( $self, $level ) = @_;
+    $self->set_tech_level( $level );
+    $self->set_can_build( [ grep { $_->get_tech_level() <= $level } @{ $self->get_game()->get_flavor()->get_ships() } ] );
+}
 
 sub _notify {
     my( $self, $msg ) = @_;

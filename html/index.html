@@ -16,6 +16,12 @@
     <link rel="stylesheet" href="/yote/css/ui-lightness/jquery-ui-1.8.23.custom.css" type="text/css" media="all" />
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
 
+    <STYLE>
+       .panel { background-color: lightblue; padding:30px;
+		border: 4px groove black;
+	      }
+    </STYLE>
+
     <script>
     $().ready(function(){
         $.yote.debug = true;
@@ -24,6 +30,8 @@
 $("body").bind("DOMSubtreeModified", function() {
     //yes this works
 });
+
+
         var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
 	//se_app.RESET();
 
@@ -53,33 +61,93 @@ $("body").bind("DOMSubtreeModified", function() {
 	    var players    = game.current_players();
 	    var player     = game.my_player();    // player -> handle
 	    var my_sectors = player.get_sectors();
+	    var my_ships   = player.get_ships();
 	    var starchart  = player.get_starchart();
 	    var map        = starchart.get_map(); //hash of sector id -> star chart node
-	    
+
 	    var update_text = '<button class="btn btn-link" type="button" id="back_to_lobby">Back to the Lobby </button>' +
-		'<div class="container"><div class="row"><div class="span3"><dl><dt><h2>' + game_name + '</h2></dt><tt>' +
-		'Turn : ' + on_turn  + 
-		'<BR><div id="playersdiv">Players : <ul id="playerslist">';
+		'<div class="container"><div class="row"><div class="span3 panel"><dl><dt><h2>' + game_name + '</h2></dt><tt>' +
+		'<dl><dt>Turn</dt><dd>' + on_turn  + '</dd>' +
+		'<dt>Players</dt><dd><ul id="playerslist">';
 
 	    var pkeys = players.keys();
 	    for( var i=0; i < pkeys.length; i++ ) {
 		update_text += '<li>' + pkeys[ i ] + '</li>';
 	    }
+	    update_text += '</ul></dd>';
 
+	    update_text += '<dt>Ready</td>';
+	    if( parseInt( player.get_ready() ) > 0 ) {
+		update_text += '<div id="ready_div"><input type="radio" checked value="ready" name="ready"> Yes <BR> <input type="radio" value="not_ready" name="ready"> No</div>';
+	    } else {
+		update_text += '<div id="ready_div"><input type="radio" value="ready" name="ready"> Yes <BR> <input type="radio" value="not_ready" checked name="ready"> No</div>';
+	    }
 
-	    update_text += '</tt></dl></div>';
-	    
+	    if( on_turn > 0 ) {
+		update_text += '<dt>Last Turn Orders</dt>' +
+		    '<dd><ul>';
+		var lto = player.get_all_completed_orders().get( on_turn );
+		for( var i=0; i < lto.length(); i++ ) {
+		    var ord = lto.get( i );
+		    if( ord.get_order() == 'build' ) {
+			update_text += '<li>' + ord.get_resolution_message() + '</li>';
+		    } else {
+			update_text += '<li>' + ord.get_resolution_message() + '</li>';
+		    }
+		}
+		update_text += '</ul>';
+	    }
+
+	    update_text += '</tt>';
+
+	    update_text +=  '<dt>resource units</dt><tt>' + player.get_resources() + '</tt>';
+
+	    update_text += '</tt>';
 
 	    //make a subway map of explored sectors. note if there are unexplored ends, and the connections this sector has.
-	    var tab = $.yote.util.make_table( 'border=1' );
-	    tab.add_header_row( [ 'Sector', 'Links' ] );
 
+	    var my_discovered_tab = $.yote.util.make_table( 'border=1' );
+	    my_discovered_tab.add_header_row( [ 'Sector', 'Links' ] );
+
+	    var my_sector_tab = $.yote.util.make_table( 'border=1' );
+	    my_sector_tab.add_header_row( [ 'Sector', 'Links' ] );
+
+	    var my_fleet_tab = $.yote.util.make_table( 'border=1' );
+	    my_fleet_tab.add_header_row( [ 'Sector', 'Links' ] );
+
+	    my_sector_ids = {};
+	    for( var i=0 ; i < my_sectors.length() ; i++ ) {
+		var sec = my_sectors.get( i );
+		my_sector_ids[ sec.id ] = sec;
+		var links = sec.get_links();
+		var keys = links.keys();
+		var linktxt = '<ul>';
+		for( var j=0 ; j < keys.length; j++ ) {
+		    linktxt += '<li>' + links.get( keys[ j ] ).get_name() + '</li>';
+		}
+		linktxt += '</ul>';
+		my_sector_tab.add_row( [ '<a href="#" id="sector_' + sec.id + '">' + sec.get_name() + '</a>', linktxt ] );
+	    }
+	    var nodeid2ships = {};
+	    var nodeid2node = {};
+	    for( var i=0 ; i < my_ships.length(); i++ ) {
+		var ship = my_ships.get( i );
+		var loc = ship.get_location();
+		var node = map.get( loc.id );
+		nodeid2node[ node.id ] = node;
+		if( typeof nodeid2ships[ node.id ] === 'undefined' ) {
+		    nodeid2ships[ node.id ] = [];
+		}
+		nodeid2ships[ node.id ].push( ship );
+	    } //each ship
 	    var sectorids = map.keys();
-	    console.log( ['stuff',map,starchart] );
-	    var my_sectors = [];
+	    var nodes = [];
 	    for( var i=0; i < sectorids.length; i++ ) {
 		var node = map.get( sectorids[i] );
-		if( node.get_discovered() == '1' ) {
+		if( node.get_discovered() == '1' && ! ( sectorids[ i ] in my_sector_ids )) {
+		    // need to weed out owned vs discovered nodes
+		    // my_sectors
+
 		    var links = node.get_links();
 		    var keys = links.keys();
 		    var linktxt = '<ul>';
@@ -87,29 +155,346 @@ $("body").bind("DOMSubtreeModified", function() {
 			linktxt += '<li>' + links.get( keys[ j ] ).get_name() + '</li>';
 		    }
 		    linktxt += '</ul>';
-		    tab.add_row( [ '<a href="#" id="sector_' + node.id + '">' + node.get_name() + '</a>', linktxt ] );
+		    my_discovered_tab.add_row( [ '<a href="#" id="node_' + node.id + '">' + node.get_name() + '</a>', linktxt ] );
+		    nodes.push( node );
 		}
+	    } //each sector
+
+	    for( var nid in nodeid2ships ) {
+		var node = nodeid2node[ nid ];
+		var links = node.get_links();
+		var keys = links.keys();
+		var linktxt = '<ul>';
+		for( var j=0 ; j < keys.length; j++ ) {
+		    linktxt += '<li>' + links.get( keys[ j ] ).get_name() + '</li>';
+		}
+		linktxt += '</ul>';
+		my_fleet_tab.add_row( [ '<a href="#" id="shipnode_' + node.id + '">' + node.get_name() + '</a>', linktxt ] );
 	    }
 
-	    update_text += '<div>' + tab.get_html() + '</div>' + 
-		'</div><div class="span9"><div id=sector_panel>';
+	    update_text += '<dt>My Sectors</dt><dd>' + my_sector_tab.get_html() + '</dd>' +
+		'<dt>Fleet Locations</dt><dd>' + my_fleet_tab.get_html() + '</dd>' +
+		'<dt>Explored Sectors</dt><dd>' + my_discovered_tab.get_html() + '</dd>' +
+		'</div><div class="span8" ><div id=sector_panel>';
 
 	    update_text += '</div><div id=fleet_panel>';
-
+	    update_text += '</dl><BR>';
 
 	    update_text += '</div>';
-	    
-	    
+
+	    function make_ship_move_orders( shp ) {
+		var jumps = shp.get_jumps();
+		if( jumps > 0 ) {
+		    var ords = shp.get_pending_orders();
+		    var buf = '';
+		    var sec = shp.get_location();
+		    var cancel_ord = null;
+		    for( var i=0; i < ords.length(); i++ ) {
+			var ord = ords.get( i );
+			sec = ord.get_to();
+			buf += sec.get_name();
+			jumps--;
+			if( i == ords.length() - 1 ) {
+			    //last one
+			    cancel_ord = ord;
+			    buf += '<button id="cancel_move_' + ord.id + '" type="button" class="btn btn-link">Remove</button>';
+			}
+			buf += '<BR>';
+		    }
+		    if( jumps > 0 ) {
+			var links = sec.get_links();
+			var lkey = links.keys();
+			buf += '<select id="ship_' + shp.id + '_move_sel"><option value=0>none</option>';
+			for( var i=0; i< lkey.length; i++ ) {
+			    if( map.get( lkey[ i ] ) ) {
+				var link_sect = links.get( lkey[ i ] );
+				buf += '<option value="' + link_sect.id + '">' + link_sect.get_name() + '</option>';
+			    }
+			}
+			buf += '</select>'
+		    }
+		    $( '#ship_' + shp.id + '_move_div' ).empty().append( buf );
+		    if( cancel_ord != null ) {
+			(function( co, s ) {
+			    $( '#cancel_move_' + co.id ).click(function() {
+				s.remove_order( co );
+				make_ship_move_orders( s );
+			    } );
+			} )( cancel_ord, shp );
+		    }
+		    $( '#ship_' + shp.id + '_move_sel' ).change(function() {
+			if( $( this ).val() == 0 ) {
+			    //0 so do nothing
+			    return;
+			}
+			shp.new_order( {
+			    order : 'move',
+			    turn : on_turn,
+			    from : sec,
+			    to : links.get( $( this ).val() )
+			} );
+			make_ship_move_orders( shp );
+		    } );
+		} //if ship has more than one jump
+	    } //make_ship_move_orders
+
+	    function show_node( node, player, ships ) {
+		if( ! node ) { return }
+		var stext = '';
+
+		var tab = $.yote.util.make_table();
+		tab.add_param_row( [ 'name', node.get_name() ] );
+		tab.add_param_row( [ 'production ', node.get_seen_production() + ' / ' + node.get_seen_max_production() ] );
+
+		var ltxt = '<ul>';
+		var links = node.get_links();
+		var lkeys = links.keys();
+		for( var i=0; i<lkeys.length; i++ ) {
+		    var link_sect = links.get( lkeys[ i ] );
+		    ltxt += '<li>' + link_sect.get_name() + '</li>';
+		}
+		ltxt += '</ul>';
+		tab.add_param_row( [ 'Links', ltxt ] );
+
+		var ship_tab = $.yote.util.make_table( 'border=1' );
+		ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
+		var e_stxt = '<ul>';
+
+		var my_ships = [];
+		var other_ships = [];
+		for( var i=0; i < ships.length; i++ ) {
+		    var ship = ships[ i ];
+		    if( ship.get_owner().equals( player ) ) {
+			my_ships.push( ship );
+			// name, move, fire
+			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
+		    } else {
+			other_ships.push( ship );
+			e_stxt += '<li>' + ship.get_name() + '</li>';
+		    }
+		}
+		e_stxt  += '</ul>';
+
+		if( my_ships.length > 0 ) {
+		    tab.add_param_row( [ 'my ships', ship_tab.get_html() ] );
+		}
+		if( other_ships.length > 0 ) {
+		    tab.add_param_row( [ 'enemy ships', e_stxt ] );
+		}
+
+		stext += tab.get_html();
+
+		$( '#sector_panel' ).empty().append( stext );
+
+
+		/* ****** PATCH UP SHIP MOVE ORDERS ***** */
+		for( var i=0; i < ships.length; i++ ) {
+		    make_ship_move_orders( ships[ i ] );
+		}
+
+	    } //show_node
+
+
+	    function show_sector( sector, player ) {
+		if( ! sector ) { return }
+		var stext = '';
+
+		var tab = $.yote.util.make_table();
+		tab.add_param_row( [ 'name', sector.get_name() ] );
+		tab.add_param_row( [ 'production', sector.get_currprod() + ' of ' + sector.get_maxprod() ] );
+		tab.add_param_row( [ 'build capacity', sector.get_buildcap() ] );
+
+		var ltxt = '<ul>';
+		var links = sector.get_links();
+		var lkeys = links.keys();
+		for( var i=0; i<lkeys.length; i++ ) {
+		    var link_sect = links.get( lkeys[ i ] );
+		    ltxt += '<li>' + link_sect.get_name() + '</li>';
+		}
+		ltxt += '</ul>';
+		tab.add_param_row( [ 'Links', ltxt ] );
+
+		var ship_tab = $.yote.util.make_table( 'border=1' );
+		ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
+		var e_stxt = '<ul>';
+
+		var ships = sector.get_ships();
+		var my_ships = [];
+		var other_ships = [];
+		for( var i=0; i < ships.length(); i++ ) {
+		    var ship = ships.get( i );
+		    if( ship.get_owner().equals( player ) ) {
+			my_ships.push( ship );
+			// name, move, fire
+			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
+		    } else {
+			other_ships.push( ship );
+			e_stxt += '<li>' + ship.get_name() + '</li>';
+		    }
+		}
+		e_stxt  += '</ul>';
+
+		if( my_ships.length > 0 ) {
+		    tab.add_param_row( [ 'my ships', ship_tab.get_html() ] );
+		}
+		if( other_ships.length > 0 ) {
+		    tab.add_param_row( [ 'enemy ships', e_stxt ] );
+		}
+
+
+
+		// build orders here
+		// what to build, the quantity to build
+		// collect in an order, with a pending available credit
+
+		tab.add_param_row( [ 'pending orders', '<div id="pending_orders_div"><ul id="pending_orders_ul"></ul></div>' ] );
+		function add_to_pending_build_orders( order, sector ) {
+		    var ship = order.get_ship();
+		    var quan = order.get_quantity();
+		    if( quan == 1 ) {
+			$( '#pending_orders_ul' ).append( '<li>Build one ' + ship.get_name() + ' <button type="button" class="btn btn-link" id="cancel_order_' + order.id + '">Cancel</button></li>' );
+		    } else {
+			$( '#pending_orders_ul' ).append( '<li>Build ' + quan + ' ' + ship.get_name() + 's <button type="button" class="btn btn-link" id="cancel_order_' + order.id + '">Cancel</button></li>' );
+		    }
+		    (function(ord,sec) {
+			$( '#cancel_order_' + ord.id ).click( function() {
+			    sec.remove_order( ord );
+			    show_all_pending_orders( sec );
+			} );
+		    } )( order, sector );
+		} //add_to_pending_build_orders
+
+
+		stext += tab.get_html();
+
+		var can_bld = sector.can_build_items();
+		var can_bld_k = can_bld.keys();
+
+
+		stext += '<dl><dt>Build</dt><dd>';
+
+		var tab = $.yote.util.make_table('border=1');
+		tab.add_header_row( [ 'Ship', 'Quantity', 'Build' ] );
+		for( var i=0; i<can_bld_k.length; i++ ) {
+		    var item = can_bld.get( can_bld_k[ i ] );
+		    var max_quan =  parseInt( player.get_resources() / item.get_cost() );
+		    if( max_quan > 0 ) {
+			var txt = '';
+			if( item.get_type() == 'TECH' || max_quan == 1 ) {
+			    txt = '1<input type="hidden" value="1" id="quan_' + item.id + '">';
+			} else {
+			    txt += '<select id="quan_' + item.id + '">';
+			    for( var j=1; j <= max_quan ; j++ ) {
+				txt += '<option value="' + j + '">' + j + '</option>';
+			    }
+			    txt += '</select>';
+			}
+			tab.add_param_row( [ item.get_name(), txt, '<button id="buy_' + item.id  + '" type="button">Place Order</button>' ] );
+		    } else {
+			tab.add_param_row( [ item.get_name(), 'n/a', 'Not enough resources' ] );
+		    }
+		}
+
+		stext += tab.get_html() + '</dd></dl>';
+
+		$( '#sector_panel' ).empty().append( stext );
+
+
+		/* ****** PATCH UP SHIP MOVE ORDERS ***** */
+		for( var i=0; i < ships.length(); i++ ) {
+		    make_ship_move_orders( ships.get( i ) );
+		}
+
+
+		function show_all_pending_orders( sec ) {
+		    var pending_build_orders = sec.get_pending_orders();
+		    $( '#pending_orders_ul' ).empty();
+		    if( pending_build_orders.length() > 1 ) {
+			for( var i=0; i < pending_build_orders.length(); i++ ) {
+			    var ord = pending_build_orders.get( i );
+			    if( ord.get_order() == 'build' ) {
+				add_to_pending_build_orders( ord, sec );
+			    }
+			}
+		    }
+		} //show_all_pending_orders
+		show_all_pending_orders( sector );
+
+		for( var i=0; i<can_bld_k.length; i++ ) {
+		    (function( item, sec ) {
+			$( '#buy_' + item.id ).click( function() {
+			    add_to_pending_build_orders( sec.new_order( {
+				order : 'build',
+				turn  : on_turn,
+				ship  : item,
+				quantity : $( '#quan_' + item.id ).val()
+			    } ), sec );
+			} )
+		    } )( can_bld.get( can_bld_k[ i ] ), sector );
+		}
+
+		// now need to make some 'shopping cart' logic that holds onto build and other orders
+
+
+	    } //show_sector
 
 	    $( '#main_div' ).empty().append( update_text );
-
 	    if( player.get( 'Last_sector' ) ) {
-		show_sector( player.get_Last_sector() );
+		show_sector( player.get_Last_sector(), player );
 	    } else {
-		show_sector( 
+		show_sector( my_sectors.get( 0 ), player );
 	    }
 
 	    // ------- define listeners
+
+	    /*  ***** SECTOR LINKS ******* */
+	    for( var i=0; i < my_sectors.length(); i++ ) {
+		var sec = my_sectors.get( i );
+		(function( s ) {
+		    $( '#sector_' + s.id ).click(function() {
+			show_sector( s, player );
+		    } );
+		} )( sec );
+	    }
+	    /*  ***** NODE LINKS ******* */
+
+	    for( var i=0; i < sectorids.length; i++ ) {
+		var s_id = sectorids[ i ];
+		var n = map.get( s_id );
+		if( s_id in my_sector_ids ) {		    
+		    (function (sec,nod) {
+			$( '#node_' + nod.id ).click( function() {
+			    show_sector( sec, player );
+			} )
+			$( '#shipnode_' + nod.id ).click( function() {
+			    show_sector( sec, player );
+			} )
+		    })( my_sector_ids[ s_id ],n );
+		} else {
+		    if( node.get_discovered() == '1' ) {
+			(function (node) {
+			    $( '#node_' + node.id ).click( function() {
+				show_node( node, player, nodeid2ships[ node.id ] || [] );
+			    } )
+			    $( '#shipnode_' + node.id ).click( function() {
+				show_node( node, player, nodeid2ships[ node.id ] || [] );
+			    } )
+
+			})( n );
+		    }
+		}
+	    }
+
+	    $( "input[name=ready]:radio" ).change( function() {
+		var turn_now = player.mark_as_ready( {
+		    turn  : on_turn,
+		    ready : $( 'input[name=ready]:checked' ).val() == 'ready' ? 1 : 0
+		} );
+		if( turn_now > on_turn ) {
+		    play_game( game, acct ); //should make this asynchronous
+		}
+	    } );
+
 
 	    $( '#back_to_lobby' ).click( function() {
 		acct._send_update( { Last_played : '' } );
@@ -136,7 +521,7 @@ $("body").bind("DOMSubtreeModified", function() {
             var pending_games = acct.get_pending_games();
             var avail_games   = se_app.available_games();
 	    msg( message );
-	    var update_text = '<dl id="main_dl">'; 
+	    var update_text = '<dl id="main_dl">';
 
 	    if( active_games.length() > 0 ) {
 		var tab = $.yote.util.make_table('border=1');
@@ -223,9 +608,9 @@ $("body").bind("DOMSubtreeModified", function() {
 		    player_sel += '<option value="' + i + '">' + i + '</option>';
 		}
 		tab.add_param_row( [ 'Number of Players', player_sel + '</select>' ] );
-		var tect_sel = '<select id="tech_sel">';
+		var tech_sel = '<select id="tech_sel">';
 		for( var i=1; i < 5; i++ ) {
-		    tech_sel = '<option value="' + i + '">' + i + '</option>';
+		    tech_sel += '<option value="' + i + '">' + i + '</option>';
 		}
 		tab.add_param_row( [ 'Starting Tech Level', tech_sel + '</select>' ] );
 		tab.add_param_row( [ 'Starting Resources', '<input type="text" id="resource_fld">' ] );

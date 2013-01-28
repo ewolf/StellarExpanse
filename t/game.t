@@ -141,24 +141,24 @@ sub test_suite {
     ok( $turn->_check_ready() == 0, "Turn not ready" );
 
     my $res = $amy->mark_as_ready( { ready => 1, turn => 0 } );
-    like( $res, qr/Set Ready/i, "marking ready" );
+    is( $res, 0, "marking ready" );
     ok( $turn->_check_ready() == 0, "Turn not ready" );
     is( $turn->get_turn_number(), 0, "turn number is 0" );
 
     my $res = $amy->mark_as_ready( { ready => 0, turn => 0 } );
-    like( $res, qr/Set Ready/i, "marking ready" );
+    is( $res, 0, "marking ready" );
     ok( $turn->_check_ready() == 0, "Turn not ready" );
     is( $turn->get_turn_number(), 0, "turn number is 0" );
 
     my $res = $fred->mark_as_ready( { ready => 1, turn => 0 } );
-    like( $res, qr/Set Ready/i, "marking ready" );
+    is( $res, 0, "marking ready" );
     ok( $turn->_check_ready() == 0, "Turn not ready" );
     is( $turn->get_turn_number(), 0, "turn number is 0" );
 
     # ---------- take turn by marking ready
 
     my $res = $amy->mark_as_ready( { ready => 1, turn => 0 } );
-    like( $res, qr/Set Ready/i, "marking ready" );
+    is( $res, 1, "marking ready" );
 
     is( scalar( @{$game->get__turns()} ), 2, "Number of stored turns" );
 

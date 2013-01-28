@@ -1,5 +1,7 @@
 package StellarExpanse::StarChart;
 
+use strict;
+
 use base 'Yote::Obj';
 
 sub _init {
@@ -17,7 +19,7 @@ sub _update {
 
     my $node = $map->{$sector->{ID}};
     if( $node && $node->get_discovered() ) {
-        my $recorded_here = $node->get_ships();
+        my $recorded_here = $node->get__seen_ships();
         my $different_ships = scalar(@$recorded_here) != scalar(@$ships_here);
         unless( $different_ships ) {
             my( %ids_here ) = map { $_->{ID} => 1 } @$ships_here;
@@ -28,6 +30,10 @@ sub _update {
                 }
             }
         }
+	$node->set_seen_production( $sector->get_currprod() );
+	$node->set_seen_max_production( $sector->get_maxprod() );
+	$node->set_seen_owner( $sector->get_owner() );
+	$node->set__seen_ships( $ships_here );
 
         if( $different_ships || $node->get_seen_production() != $sector->get_currprod() || ( $node->get_seen_owner() && ( ! $node->get_seen_owner()->_is( $node->get_seen_owner() ) ) ) || $node->get_seen_owner() ) {
             $node->add_to_notes( { msg        => "Updated",
@@ -42,7 +48,6 @@ sub _update {
 	$node ||= new Yote::Obj();
 	$node->set_discovered( 1 );
         $node->set_game( $self->get_game() );
-        $node->set_player( $self->get_player() );
 
 	# add connecting nodes maybe?
 	$node->set_name( $sector->get_name() );
@@ -70,6 +75,7 @@ sub _update {
     }
 
     $node->set_seen_production( $sector->get_currprod() );
+    $node->set_seen_max_production( $sector->get_maxprod() );
     $node->set_seen_owner( $sector->get_owner() );
     $node->set__seen_ships( $ships_here );
 
