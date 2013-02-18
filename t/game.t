@@ -18,14 +18,32 @@ BEGIN {
     }
 }
 
-my( $fh, $name ) = mkstemp( "/tmp/SQLiteTest.XXXX" );
-$fh->close();
-Yote::ObjProvider::init(
-    datastore      => 'Yote::SQLiteIO',
-    sqlitefile     => $name,
-    );
-$Yote::ObjProvider::DATASTORE->ensure_datastore();
+if( 0 ) {
+    my( $fh, $name ) = mkstemp( "/tmp/SQLiteTest.XXXX" );
+    $fh->close();
+    Yote::ObjProvider::init(
+	datastore      => 'Yote::SQLiteIO',
+	sqlitefile     => $name,
+	);
+    $Yote::ObjProvider::DATASTORE->ensure_datastore();
+} else {
+    use MongoDB;
+    my( $host, $port ) = ( 'localhost', 27017 );
 
+    my $client = MongoDB::MongoClient->new(
+	host=> $host,
+	port=> $port,
+	);
+    my $db = $client->get_database( 'yote_test' );
+    $db->drop();
+    
+    Yote::ObjProvider::init(
+	datastore      => 'Yote::MongoIO',
+	datahost       => $host,
+	dataport       => $port,
+	databasename   => 'yote_test',
+	);
+}
 new Yote::YoteRoot();
 Yote::ObjProvider::stow_all();
 
@@ -577,7 +595,13 @@ sub test_suite {
     # check rewind
     $game->rewind_to( $turn->get_turn_number() - 1 );
     
-
+    my $hits = $Yote::ObjProvider::CACHE->{hits};
+    my $misses = $Yote::ObjProvider::CACHE->{misses};
+    my $total = $hits + $misses;
+    if( $total ) {
+	my $hit_ratio = $hits / $total;
+	print STDERR Data::Dumper->Dump(["Hit Ratio : $hit_ratio of $total"]);
+    } else { 	print STDERR Data::Dumper->Dump(["NO cache data"]); }
 
 } #test_suite
 
