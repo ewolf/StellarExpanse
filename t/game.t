@@ -194,6 +194,7 @@ sub test_suite {
     ok( $amy->_is( $amy_sect->[0]->get_owner() ), "Sector is owned by amy" );
     is( $amy_sect->[0]->get_currprod(), 20, "Prod at 20" );
     is( $amy_sect->[0]->get_maxprod(), 25, "Max Prod at 25" );
+    my $amy_chart = $amy->get_starchart();
 
     my $sect = $fred->get_sectors();
     my( $fred_sector ) = @$sect;
@@ -211,7 +212,9 @@ sub test_suite {
     my $fred_chart = $fred->get_starchart();
     ok( $fred_chart->_has_entry( $fred_sector ), "fred knows own sector" );
     ok( ! $fred_chart->_has_entry( $amy_sector ), "fred doesn't know amy's sector" );
-
+    is_deeply( $fred_chart->enemy_ships( $fred_sector->{ID} ), [], "no enemies in freds sector" );
+    is_deeply( $fred_chart->enemy_ships( $amy_sector->{ID} ), [], "no enemies known by fred in amys sector" );
+    
     is( scalar( @{$amy->get_pending_orders()} ), 0, "No orders yet" );
     
     my $o1 = pass_order( $amy, { order => 'give_resources', amount => 1, recipient => $fred, turn => $turn->get_turn_number() }, 'give 1 to fred' );
@@ -287,7 +290,7 @@ sub test_suite {
     my $sector_ships = $fred_sector->get_ships();
     is( @$player_ships, 3, "Player now as 3 ships" );
     is( @$sector_ships, 3, "Sector now as 3 ships" );
-    my( $scout, $battleship, $boat ) = @$sector_ships;
+    my( $fred_scout, $fred_battleship, $fred_boat ) = @$sector_ships;
 
     my $links = $fred_sector->_links();
     my $amy_links = $amy_sector->_links();
@@ -297,7 +300,7 @@ sub test_suite {
     # root and acct
     test_error(
 	sub {
-	    $battleship->new_order( {
+	    $fred_battleship->new_order( {
 		from  => $fred_sector,
 		to    => $links->[0],
 		turn  => $turn->get_turn_number(),
@@ -312,15 +315,15 @@ sub test_suite {
     #
     # try to move scout into an unexplored sector and move it back.
     #
-    my $s_m1 = move_order( $scout, $fred_sector, $links->[0], "scout move from home order" );
-    my $s_m2 = move_order( $scout, $links->[0], $fred_sector, "scout move back home order" );
+    my $s_m1 = move_order( $fred_scout, $fred_sector, $links->[0], "scout move from home order" );
+    my $s_m2 = move_order( $fred_scout, $links->[0], $fred_sector, "scout move back home order" );
 
     #
     # try to move boat like a scout. it has more movement but should stop at the unexplored place.
     #
-    my $b_m2 = move_order( $boat, $fred_sector, $amy_links->[0], "boat order to unconnected sector" );
-    my $b_m1 = move_order( $boat, $fred_sector, $links->[2], "boat order to explore" );
-    my $b_m3 = move_order( $boat, $links->[2], $fred_sector, "boat order to move back home" );
+    my $b_m2 = move_order( $fred_boat, $fred_sector, $amy_links->[0], "boat order to unconnected sector" );
+    my $b_m1 = move_order( $fred_boat, $fred_sector, $links->[2], "boat order to explore" );
+    my $b_m3 = move_order( $fred_boat, $links->[2], $fred_sector, "boat order to move back home" );
 
     my $bo_1 = build_order( $amy_sector, $ind_p, "Industry for amy" );
     my $bo_2 = build_order( $amy_sector, $cruis_p, "Cruizer for amy" );
@@ -336,8 +339,8 @@ sub test_suite {
     like( $b_m3->get_resolution_message(), qr/^out of movement/i, "boat order message for out of movement since moving to unexplored sector ends movement for anything but a scout" );
 
     ok( $fred->_is( $links->[2]->get_owner() ), 'fred now owns sector' );
-    ok( $boat->get_location()->_is( $links->[2] ), "boat moved to correct place" );
-    ok( $scout->get_location()->_is( $fred_sector ), "scout moved then moved back home" );
+    ok( $fred_boat->get_location()->_is( $links->[2] ), "boat moved to correct place" );
+    ok( $fred_scout->get_location()->_is( $fred_sector ), "scout moved then moved back home" );
     
     ok( $fred_chart->_has_entry( $fred_sector ), "fred knows own sector" );
     ok( ! $fred_chart->_has_entry( $amy_sector ), "fred doesn't know amy's sector" );
@@ -348,8 +351,8 @@ sub test_suite {
     ok( $bo_1->get_resolution(), "able to build an industry" );
     is( $amy_sector->get_currprod(), 21, "Industry updated" );
     ok( $bo_2->get_resolution(), "able to build ship" );
-    my( $cruizer ) = @{$amy_sector->get_ships()};    
-    $cruizer->set_name("FIRSTCRUIZ");
+    my( $amy_cruizer ) = @{$amy_sector->get_ships()};    
+    $amy_cruizer->set_name("FIRSTCRUIZ");
 
     # now link a fred system to amy's system so we can have a bit of combatishness.
     $amy_sector->_link_sectors( $links->[0] );
@@ -359,8 +362,8 @@ sub test_suite {
     #resources at 128 - 3*5 = 113
 
     # OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-    my $sm_1 = move_order( $scout, $fred_sector, $links->[0] );
-    my $sm_2 = move_order( $scout, $links->[0], $amy_sector );
+    my $sm_1 = move_order( $fred_scout, $fred_sector, $links->[0] );
+    my $sm_2 = move_order( $fred_scout, $links->[0], $amy_sector );
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
@@ -379,16 +382,16 @@ sub test_suite {
     my $seen_ships = $chart_entry->get__seen_ships();
 
     is( scalar( @$seen_ships ), 1, 'fred sees 1 ship' );
-    is( $seen_ships->[0], $cruizer, 'fred sees cruizer' );
+    is( $seen_ships->[0], $amy_cruizer, 'fred sees cruizer' );
 
 
     # OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-    my $c_move = move_order( $cruizer, $amy_sector, $links->[0] );
-    my $s_move = move_order( $scout, $amy_sector, $links->[0] );
-    my $bt_move = move_order( $battleship, $fred_sector, $links->[0] );
-    my $bo_move_1 = move_order( $boat, $links->[2], $fred_sector );
-    my $bo_move_2 = move_order( $boat, $fred_sector, $links->[0] );
-    my $fire_order = fire_order( $cruizer, $scout, 2," Cruizer firing on scout" );
+    my $c_move = move_order( $amy_cruizer, $amy_sector, $links->[0] );
+    my $s_move = move_order( $fred_scout, $amy_sector, $links->[0] );
+    my $bt_move = move_order( $fred_battleship, $fred_sector, $links->[0] );
+    my $bo_move_1 = move_order( $fred_boat, $links->[2], $fred_sector );
+    my $bo_move_2 = move_order( $fred_boat, $fred_sector, $links->[0] );
+    my $fire_order = fire_order( $amy_cruizer, $fred_scout, 2," Cruizer firing on scout" );
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
@@ -398,12 +401,18 @@ sub test_suite {
     }
     ok( ! $s_move->get_resolution(), "No scout to move" );
 
+    my $freds_enemies = $fred_chart->enemy_ships( $links->[0]->{ID} );
+    is( scalar( @$freds_enemies ), 1, "fred sees one amy ship" );
+    is( $freds_enemies->[0], $amy_cruizer, "fred sees amys ship" );
+    my $amys_enemies = $amy_chart->enemy_ships( $links->[0]->{ID} );
+    is( scalar( @$amys_enemies ), 2, "amy sees 2 fred ship" ); # the scout wwas destroyed
+
     # should have battleships, cruizer, boat in link 0, but not destroyed scout
 
     my $sector_ships = $links->[0]->get_ships();
     is( scalar( @$sector_ships ), 3, "3 ships now in link 0" );
-    ok( $scout->{is_dead}, "Scout is dead" );
-    ok( ! $scout->get_location(), "Scout not in any location" );
+    ok( $fred_scout->{is_dead}, "Scout is dead" );
+    ok( ! $fred_scout->get_location(), "Scout not in any location" );
 
     # OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 
@@ -413,8 +422,7 @@ sub test_suite {
     my $bo_c2 = build_order( $amy_sector, $cruis_p, "build a cruizer" );
     my $bo_s3 = build_order( $amy_sector, $scout_p, "build a third scout" );
 
-    move_order( $cruizer, $links->[0], $amy_sector, "Withdraw cruiser1" );
-
+    move_order( $amy_cruizer, $links->[0], $amy_sector, "Withdraw cruiser1" );
     
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );    
@@ -474,7 +482,7 @@ sub test_suite {
     # OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
     my $uo = pass_order( $scout2, { turn  => $scout2->get_game()->_current_turn()->get_turn_number(), 
                            order => 'unload' } );
-    my $lo = pass_order( $boat, { order => 'load', carrier => $carrier, turn  => $scout2->get_game()->_current_turn()->get_turn_number() } );
+    my $lo = pass_order( $fred_boat, { order => 'load', carrier => $carrier, turn  => $scout2->get_game()->_current_turn()->get_turn_number() } );
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
@@ -486,9 +494,9 @@ sub test_suite {
 
     # OOOOOOOOOOOOOOOOOOO
     my $bad_fire_1 = fire_order( $carrier, $scout2, 3, "bad fire 1" );
-    my $good_fire_1 = fire_order( $carrier, $boat, 3, "good fire 1" );
-    my $good_fire_2 = fire_order( $carrier, $battleship, 7, "good fire 2" );
-    my $bad_fire_2 = fire_order( $carrier, $scout, 3, "good fire 2" );
+    my $good_fire_1 = fire_order( $carrier, $fred_boat, 3, "good fire 1" );
+    my $good_fire_2 = fire_order( $carrier, $fred_battleship, 7, "good fire 2" );
+    my $bad_fire_2 = fire_order( $carrier, $fred_scout, 3, "good fire 2" );
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
@@ -496,8 +504,8 @@ sub test_suite {
     ok( $good_fire_1->get_resolution(), "Could fire on boat" );
     ok( $good_fire_2->get_resolution(), "Could fire on battleship" );
 
-    is( $battleship->get_hitpoints(), 45, "battleship healed all but one hitpoint" );
-    is( $boat->get_hitpoints(), 4, "boat damanaged and cant heal" );
+    is( $fred_battleship->get_hitpoints(), 45, "battleship healed all but one hitpoint" );
+    is( $fred_boat->get_hitpoints(), 4, "boat damanaged and cant heal" );
 
     ok( ! $bad_fire_1->get_resolution(), "Could not fire own ship" );
     ok( ! $bad_fire_2->get_resolution(), "Could not fire on scout. out of targets" );
@@ -512,10 +520,10 @@ sub test_suite {
     $links->[0]->set_maxprod(12);
     my $ind_bo = build_order( $links->[0], $ind_p, "Industry for fred new system", 12 );
 
-    my $f1 = fire_order( $carrier, $battleship, 10, "All on battleship" );
-    my $f2 = fire_order( $carrier, $boat, 3, "fire on boat but out of juice" );
+    my $f1 = fire_order( $carrier, $fred_battleship, 10, "All on battleship" );
+    my $f2 = fire_order( $carrier, $fred_boat, 3, "fire on boat but out of juice" );
     
-    my $ro = pass_order( $battleship, { turn  => $battleship->get_game()->_current_turn()->get_turn_number(),
+    my $ro = pass_order( $fred_battleship, { turn  => $fred_battleship->get_game()->_current_turn()->get_turn_number(),
                                         order => 'repair',
                                         repair_amount => 3 } );
     # battleships hp for next turn 45 - 10 + 3 (repair) + 6 = 44
@@ -523,8 +531,8 @@ sub test_suite {
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
 
-    is( $battleship->get_hitpoints(), 44, "battleships hp" );
-    is( $boat->get_hitpoints(), 4, "boat hp" );
+    is( $fred_battleship->get_hitpoints(), 44, "battleships hp" );
+    is( $fred_boat->get_hitpoints(), 4, "boat hp" );
     ok( $f1->get_resolution(), "fired on battleship" );
     ok( ! $f2->get_resolution(), "Out of juice to fire on boat" );
     ok( $ro->get_resolution(), "Repair order for battleship" );
@@ -532,8 +540,8 @@ sub test_suite {
 
 
     # OOOOOOOOOOOOOOO
-    move_order( $battleship, $links->[0], $fred_sector, "Withdraw battleship" );
-    move_order( $boat, $links->[0], $fred_sector, "Withdraw boat" );
+    move_order( $fred_battleship, $links->[0], $fred_sector, "Withdraw battleship" );
+    move_order( $fred_boat, $links->[0], $fred_sector, "Withdraw boat" );
     move_order( $cruiser2, $links->[0], $amy_sector, "Withdraw cruiser2" );
     #leaves a carrier which has beam strength 10
 
@@ -621,8 +629,8 @@ sub fire_order {
     my( $ship, $target, $amt, $msg ) = @_;
     return pass_order( $ship,
                        {
-                           target  => $target,
-                           beams   => $amt,
+                           Target  => $target,
+                           Beams   => $amt,
                            order => 'fire',
                            turn  => $ship->get_game()->_current_turn()->get_turn_number(),
                        },

@@ -19,15 +19,42 @@ sub _init {
     $self->set_ready( 0 );
     $self->set_owner( $self );
     $self->set_Last_sector( undef );
+    $self->set_notifications([]);
+    $self->set_sectors([]);
     $self->set_tech_level( 0 );
     $self->set_resources( 0 );
-    $self->set_all_completed_orders([[]]); # a list of lists : each turn number gets a list. turn zero has an empty list
     $self->set_ships([]);
+    $self->set_all_completed_orders( [] );
 }
 
-sub _load {
+sub load_data {
     my $self = shift;
-    $self->set_Last_sector( undef ) unless $self->get_Last_sector();    
+    my $turn_number = $self->get_game()->get_turn_number();
+    my $chart = $self->get_starchart();
+    return [ $self->get_ships(),
+	     @{ $self->get_ships() },
+	     @{[map { @{$_->get_pending_orders()} } @{$self->get_ships() }]},
+	     $self->get_all_completed_orders(),
+	     $self->get_pending_orders(),
+	     @{ $self->get_pending_orders() },
+	     @{ $self->get_all_completed_orders()->[$turn_number] || []  },
+	     $self->get_notifications(),
+	     @{ $self->get_notifications()->[$turn_number] || []  },
+	     $self->get_Last_sector(),
+	     $self->get_sectors(),
+	     @{ $self->get_sectors() },
+	     @{[map { @{$_->get_pending_orders()} } @{$self->get_sectors() }]},
+	     @{[ map { $_->get_links() } @{$self->get_sectors()} ]},
+	     @{[ map { values %{$_->get_links()} } @{$self->get_sectors()} ]},
+	     @{[ map { @{$_->get_ships()} } @{$self->get_sectors()}]},
+	     $self->get_pending_orders(),
+	     @{ $self->get_pending_orders() },
+	     $chart,
+	     $chart->get_map(),
+	     [values %{$chart->get_map()}],
+	     @{[ map { $_->get_links() } values %{$chart->get_map()} ] },
+	     @{[ map { values %{$_->get_links()||{}} } values %{$chart->get_map()} ] },
+	];
 }
 
 sub mark_as_ready {

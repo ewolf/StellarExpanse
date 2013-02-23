@@ -148,14 +148,14 @@ sub _fire {
     my $orders = $self->get_pending_orders();
     my( @fire_orders ) = grep { $_->get_order() eq 'fire' } @$orders;
     for my $ord ( @fire_orders ) {
-        my $targ = $ord->get_target();
+        my $targ = $ord->get_Target();
         if( $targ ) {
             my $loc = $self->get_location();
             if( $loc->_is( $targ->get_location() ) ) {
                 if( ! $self->get_owner()->_is( $targ->get_owner() ) ) {
                     if( $self->{targets} > 0 ) {
                         if( $self->{beams} > 0 ) {
-                            my $beam_req = $ord->get_beams();
+                            my $beam_req = $ord->get_Beams();
                             my $beams = $self->{beams} < $beam_req ? $self->{beams} : $beam_req;
                             $self->{beams} -= $beams;
                             $targ->set_hitpoints( $targ->get_hitpoints() - $beams );

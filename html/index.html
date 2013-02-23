@@ -24,7 +24,7 @@
 
     <script>
     $().ready(function(){
-        $.yote.debug = true;
+        $.yote.debug = false;
 	$.yote.init();
 
 $("body").bind("DOMSubtreeModified", function() {
@@ -60,12 +60,15 @@ $("body").bind("DOMSubtreeModified", function() {
 	    var on_turn    = game.get_turn_number();
 	    var players    = game.current_players();
 	    var player     = game.my_player();    // player -> handle
+	    player.load_data();
 	    var my_sectors = player.get_sectors();
 	    var my_ships   = player.get_ships();
 	    var starchart  = player.get_starchart();
 	    var map        = starchart.get_map(); //hash of sector id -> star chart node
 
 	    var update_text = '<button class="btn btn-link" type="button" id="back_to_lobby">Back to the Lobby </button>' +
+		'<BR>' +
+		'<button class="btn btn-link" type="button" id="refresh">Refresh Page</button>' +
 		'<div class="container"><div class="row"><div class="span3 panel"><dl><dt><h2>' + game_name + '</h2></dt><tt>' +
 		'<dl><dt>Turn</dt><dd>' + on_turn  + '</dd>' +
 		'<dt>Players</dt><dd><ul id="playerslist">';
@@ -87,12 +90,14 @@ $("body").bind("DOMSubtreeModified", function() {
 		update_text += '<dt>Last Turn Orders</dt>' +
 		    '<dd><ul>';
 		var lto = player.get_all_completed_orders().get( on_turn );
-		for( var i=0; i < lto.length(); i++ ) {
-		    var ord = lto.get( i );
-		    if( ord.get_order() == 'build' ) {
-			update_text += '<li>' + ord.get_resolution_message() + '</li>';
-		    } else {
-			update_text += '<li>' + ord.get_resolution_message() + '</li>';
+		if( lto ) {
+		    for( var i=0; i < lto.length(); i++ ) {
+			var ord = lto.get( i );
+			if( ord.get_order() == 'build' ) {
+			    update_text += '<li>' + ord.get_resolution_message() + '</li>';
+			} else {
+			    update_text += '<li>' + ord.get_resolution_message() + '</li>';
+			}
 		    }
 		}
 		update_text += '</ul>';
@@ -136,9 +141,9 @@ $("body").bind("DOMSubtreeModified", function() {
 		var node = map.get( loc.id );
 		nodeid2node[ node.id ] = node;
 		if( typeof nodeid2ships[ node.id ] === 'undefined' ) {
-		    nodeid2ships[ node.id ] = [];
+		    nodeid2ships[ node.id ] = { my : [], enemy : [] };
 		}
-		nodeid2ships[ node.id ].push( ship );
+		nodeid2ships[ node.id ][ 'my' ].push( ship );
 	    } //each ship
 	    var sectorids = map.keys();
 	    var nodes = [];
@@ -157,6 +162,15 @@ $("body").bind("DOMSubtreeModified", function() {
 		    linktxt += '</ul>';
 		    my_discovered_tab.add_row( [ '<a href="#" id="node_' + node.id + '">' + node.get_name() + '</a>', linktxt ] );
 		    nodes.push( node );
+		}
+
+		// also need to check the node that is in nodeid2ships to see if there are enemy ships there
+		// just pull in all ships from the sector
+		if( node.id in nodeid2ships || sectorids[i] in my_sector_ids ) {
+		    var node_enemies = starchart.enemy_ships( sectorids[ i ] );
+		    for( var j=0; j < node_enemies.length(); j++ ) {
+			nodeid2ships[ node.id ][ 'enemy' ].push( node_enemies.get( j ) );
+		    }
 		}
 	    } //each sector
 
@@ -182,19 +196,118 @@ $("body").bind("DOMSubtreeModified", function() {
 
 	    update_text += '</div>';
 
+	    function make_ship_fire_orders( shp, enemies ) {
+		function add_fire_order( div, ship, targs, o_idx, existing_order ) {
+		    // existing order has order='fire', beams, and target
+		    var txt = 'beams : <SELECT id="ships_beams_' + ship.id + '_' + o_idx + '">';
+		    var beams = shp.get_attack_beams();
+		    for( var i=0; i <= beams; i++ ) {
+			if( existing_order && existing_order.get_Beams() == i ) {
+			    txt += '<option selected value="' + i + '">' + i + '</option>';
+			} else {
+			    txt += '<option value="' + i + '">' + i + '</option>';
+			}
+		    }
+		    txt += '</select>';
+		    txt += 'Target : <SELECT id="ships_targets_' + ship.id + '_' + o_idx + '">';
+
+		    var enhash = {};
+		    for( var j=0; j < enemies.length ; j++ ) {
+			var en = enemies[ j ];
+			enhash[ en.id ] = en;
+			if( existing_order && en.equals( existing_order.get_Target() ) ) {
+			    txt += '<option SELECTED value="' + en.id + '">' + en.get_name() + ' (' + en.get_owner().get_name() + ")</option>";
+			} else {
+			    txt += '<option value="' + en.id + '">' + en.get_name() + ' (' + en.get_owner().get_name() + ")</option>";
+			}
+		    }
+		    txt += '</select>';
+		    
+		    $( div ).append( txt );
+
+		    function bind_select( dv, shp, odx, ene, ens, ex_ord ) {
+			console.log( [ "ADDING BIND FOR " + odx, ex_ord ] );
+			$( '#ships_beams_' + shp.id + '_' + odx ).unbind();			
+			$( '#ships_targets_' + shp.id + '_' + odx ).unbind();
+
+			$( '#ships_beams_' + shp.id + '_' + odx ).change(function() {
+			    if( ex_ord ) {
+				var bchange = $( '#ships_beams_' + shp.id + '_' + odx ).val();
+				if( bchange != '0' ) {
+
+				    // THE BIG DEAL is that only capitalized keys get any love.
+				    // might have to change the keynames here, or just remove and recreate the order
+
+				    ex_ord.set_Beams( $( '#ships_beams_' + shp.id + '_' + odx ).val() );
+				} else {
+				    shp.remove_order( ex_ord );
+				    $( '#ships_beams_' + shp.id + '_' + odx ).remove();
+				    $( '#ships_targets_' + shp.id + '_' + odx ).remove();
+				    //put a bind function here
+				}
+			    } else {
+				var fire_ord = shp.new_order( {
+				    order  : 'fire',
+				    turn   : on_turn,
+				    Target : ens[ $( '#ships_targets_' + shp.id + '_' + odx ).val() ],
+				    Beams  : $( '#ships_beams_' + shp.id + '_' + odx ).val()
+				} );
+				bind_select( dv, shp, odx, ene, ens, fire_ord );
+				console.log( [ "ORD", fire_ord ] );
+				alert( 'just made order ' );
+				// should only add if there are more targets
+				add_fire_order( dv, shp, ene, odx + 1 );
+			    }
+			} );
+			$( '#ships_targets_' + shp.id + '_' + odx ).change(function() {
+			    if( ex_ord ) {
+				ex_ord.set_Target( ens[ $( '#ships_targets_' + shp.id + '_' + odx ).val() ] );
+			    }			    
+			} );
+		    } //bind_select
+
+		    bind_select( div, ship, o_idx, enemies, enhash, existing_order );
+
+		} //add_fire_order
+
+		var beams = shp.get_attack_beams();
+
+		if( beams > 0 ) {
+		    $( '#ship_' + shp.id + '_attack_target_div' ).empty();
+		    var ords = shp.get_pending_orders();
+		    var fire_idx = 0;
+		    for( var i=0; i < ords.length(); i++ ) {
+			var ord = ords.get( i );
+			if( ord.get_order() == 'fire' ) {
+			    add_fire_order( '#ship_' + shp.id + '_attack_target_div' , shp, enemies, fire_idx, ord );
+			    fire_idx++;
+			}
+		    }
+		    add_fire_order( '#ship_' + shp.id + '_attack_target_div', shp, enemies, fire_idx );
+		} //if there are beams
+	    } //make_ship_fire_orders
+
 	    function make_ship_move_orders( shp ) {
 		var jumps = shp.get_jumps();
 		if( jumps > 0 ) {
 		    var ords = shp.get_pending_orders();
+		    var move_ords = [];
+		    for( var i=0; i < ords.length(); i++ ) {
+			var ord = ords.get( i );
+			if( ord.get_order() == 'move' ) {
+			    move_ords.push( ord );
+			}
+		    }
+		    
 		    var buf = '';
 		    var sec = shp.get_location();
 		    var cancel_ord = null;
-		    for( var i=0; i < ords.length(); i++ ) {
-			var ord = ords.get( i );
+		    for( var i=0; i < move_ords.length; i++ ) {
+			var ord = move_ords[i];
 			sec = ord.get_to();
 			buf += sec.get_name();
 			jumps--;
-			if( i == ords.length() - 1 ) {
+			if( i == move_ords.length() - 1 ) {
 			    //last one
 			    cancel_ord = ord;
 			    buf += '<button id="cancel_move_' + ord.id + '" type="button" class="btn btn-link">Remove</button>';
@@ -238,7 +351,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		} //if ship has more than one jump
 	    } //make_ship_move_orders
 
-	    function show_node( node, player, ships ) {
+	    function show_node( node, player, fleets ) {
 		if( ! node ) { return }
 		var stext = '';
 
@@ -256,47 +369,66 @@ $("body").bind("DOMSubtreeModified", function() {
 		ltxt += '</ul>';
 		tab.add_param_row( [ 'Links', ltxt ] );
 
-		var ship_tab = $.yote.util.make_table( 'border=1' );
-		ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
-		var e_stxt = '<ul>';
 
-		var my_ships = [];
-		var other_ships = [];
-		for( var i=0; i < ships.length; i++ ) {
-		    var ship = ships[ i ];
-		    if( ship.get_owner().equals( player ) ) {
-			my_ships.push( ship );
-			// name, move, fire
-			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
+		var my_ships = fleets[ 'my' ];
+		var other_ships = fleets[ 'enemy' ];
+
+		var ship_tab = $.yote.util.make_table( 'border=1' );
+
+		if( other_ships.length > 0 ) {
+		    ship_tab.add_header_row( [ 'Ship', 'Move Orders', 'Attack Target' ] );
+		} else {
+		    ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
+		}
+		for( var i=0; i < my_ships.length; i++ ) {
+		    var ship = my_ships[ i ];
+		    // name, move, fire
+		    if( other_ships.length > 0 ) {
+			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>', '<div id="ship_' + ship.id + '_attack_target_div">No Target</div>' ] );
 		    } else {
-			other_ships.push( ship );
-			e_stxt += '<li>' + ship.get_name() + '</li>';
+			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
 		    }
 		}
-		e_stxt  += '</ul>';
+		
 
 		if( my_ships.length > 0 ) {
 		    tab.add_param_row( [ 'my ships', ship_tab.get_html() ] );
 		}
 		if( other_ships.length > 0 ) {
+		    var e_stxt = '<ul>';
+		    for( var i=0; i < other_ships.length; i++ ) {
+			var ship = other_ships[ i ];
+			e_stxt += '<li>' + ship.get_name() + '</li>';
+		    }
+		    e_stxt  += "</ul>";
 		    tab.add_param_row( [ 'enemy ships', e_stxt ] );
 		}
 
 		stext += tab.get_html();
-
 		$( '#sector_panel' ).empty().append( stext );
 
 
 		/* ****** PATCH UP SHIP MOVE ORDERS ***** */
-		for( var i=0; i < ships.length; i++ ) {
-		    make_ship_move_orders( ships[ i ] );
+		for( var i=0; i < my_ships.length; i++ ) {
+		    var ship = my_ships[ i ];
+		    make_ship_move_orders( ship );
+		    make_ship_fire_orders( ship, other_ships );
 		}
 
 	    } //show_node
 
 
-	    function show_sector( sector, player ) {
+	    function show_sector( sector, node, player, fleets ) {
 		if( ! sector ) { return }
+
+
+		/* Refactor this so it shows
+		     * ship controls
+		     * sector info
+		     * subway map
+		     * build requests
+		 */
+
 		var stext = '';
 
 		var tab = $.yote.util.make_table();
@@ -314,34 +446,37 @@ $("body").bind("DOMSubtreeModified", function() {
 		ltxt += '</ul>';
 		tab.add_param_row( [ 'Links', ltxt ] );
 
+		var my_ships = fleets[ 'my' ];
+		var other_ships = fleets[ 'enemy' ];
 		var ship_tab = $.yote.util.make_table( 'border=1' );
-		ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
-		var e_stxt = '<ul>';
-
-		var ships = sector.get_ships();
-		var my_ships = [];
-		var other_ships = [];
-		for( var i=0; i < ships.length(); i++ ) {
-		    var ship = ships.get( i );
-		    if( ship.get_owner().equals( player ) ) {
-			my_ships.push( ship );
-			// name, move, fire
-			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
+		if( other_ships.length > 0 ) {
+		    ship_tab.add_header_row( [ 'Ship', 'Move Orders', 'Attack Target' ] );
+		} else {
+		    ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
+		}
+		
+		for( var i=0; i < my_ships.length; i++ ) {
+		    var ship = my_ships[ i ];
+		    // name, move, fire
+		    if( other_ships.length > 0 ) {
+			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>', '<div id="ship_' + ship.id + '_attack_target_div">No Target</div>' ] );
 		    } else {
-			other_ships.push( ship );
-			e_stxt += '<li>' + ship.get_name() + '</li>';
+			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
 		    }
 		}
-		e_stxt  += '</ul>';
 
 		if( my_ships.length > 0 ) {
 		    tab.add_param_row( [ 'my ships', ship_tab.get_html() ] );
 		}
 		if( other_ships.length > 0 ) {
+		    var e_stxt = '<ul>';
+		    for( var i=0; i < other_ships.length; i++ ) {
+			var ship = other_ships[ i ];
+			e_stxt += '<li>' + ship.get_name() + ' (' + ship.get_owner().get_name() + ')</li>';
+		    }
+		    e_stxt  += '</ul>';
 		    tab.add_param_row( [ 'enemy ships', e_stxt ] );
 		}
-
-
 
 		// build orders here
 		// what to build, the quantity to build
@@ -400,11 +535,11 @@ $("body").bind("DOMSubtreeModified", function() {
 		$( '#sector_panel' ).empty().append( stext );
 
 
-		/* ****** PATCH UP SHIP MOVE ORDERS ***** */
-		for( var i=0; i < ships.length(); i++ ) {
-		    make_ship_move_orders( ships.get( i ) );
+		for( var i=0; i < my_ships.length; i++ ) {
+		    var ship = my_ships[ i ];
+		    make_ship_move_orders( ship );
+		    make_ship_fire_orders( ship, other_ships );
 		}
-
 
 		function show_all_pending_orders( sec ) {
 		    var pending_build_orders = sec.get_pending_orders();
@@ -439,11 +574,12 @@ $("body").bind("DOMSubtreeModified", function() {
 	    } //show_sector
 
 	    $( '#main_div' ).empty().append( update_text );
+	    var lsect = my_sectors.get( 0 );
 	    if( player.get( 'Last_sector' ) ) {
-		show_sector( player.get_Last_sector(), player );
-	    } else {
-		show_sector( my_sectors.get( 0 ), player );
+		lsect = player.get_Last_sector();
 	    }
+	    var last_node = map.get( lsect.id );
+	    show_sector( lsect, last_node,  player, nodeid2ships[ last_node.id ] || { my : [], enemy : [] }  );
 
 	    // ------- define listeners
 
@@ -452,7 +588,8 @@ $("body").bind("DOMSubtreeModified", function() {
 		var sec = my_sectors.get( i );
 		(function( s ) {
 		    $( '#sector_' + s.id ).click(function() {
-			show_sector( s, player );
+			var nd = map.get( s.id );			
+			show_sector( s, nd, player, nodeid2ships[ nd.id ] || { my : [], enemy : [] } );
 		    } );
 		} )( sec );
 	    }
@@ -464,21 +601,22 @@ $("body").bind("DOMSubtreeModified", function() {
 		if( s_id in my_sector_ids ) {		    
 		    (function (sec,nod) {
 			$( '#node_' + nod.id ).click( function() {
-			    show_sector( sec, player );
+			    show_sector( sec, nod, player, nodeid2ships[ nod.id ] || { my : [], enemy : [] } );
 			} )
 			$( '#shipnode_' + nod.id ).click( function() {
-			    show_sector( sec, player );
+			    show_sector( sec, nod, player, nodeid2ships[ nod.id ] || { my : [], enemy : [] } );
 			} )
 		    })( my_sector_ids[ s_id ],n );
-		} else {
+		} 
+		else {
 		    if( node.get_discovered() == '1' ) {
 			(function (node) {
 			    $( '#node_' + node.id ).click( function() {
-				show_node( node, player, nodeid2ships[ node.id ] || [] );
-			    } )
+				show_node( node, player, nodeid2ships[ node.id ] || { my : [], enemy : [] } );
+			    } );
 			    $( '#shipnode_' + node.id ).click( function() {
-				show_node( node, player, nodeid2ships[ node.id ] || [] );
-			    } )
+				show_node( node, player, nodeid2ships[ node.id ] || { my : [], enemy : [] } );
+			    } );
 
 			})( n );
 		    }
@@ -499,6 +637,11 @@ $("body").bind("DOMSubtreeModified", function() {
 	    $( '#back_to_lobby' ).click( function() {
 		acct._send_update( { Last_played : '' } );
 		to_game_login( acct.get_login(), acct, '' );
+	    } );
+	    
+	    $( '#refresh' ).click(function() {
+		game.refresh();
+		play_game( game, acct );
 	    } );
 
 	    // subway map?
@@ -617,7 +760,6 @@ $("body").bind("DOMSubtreeModified", function() {
 		update_text += tab.get_html() + '<BR><button type="button" id="create_game" class="btn disabled btn-link">Create</button>';
 
 		$( '#main_div' ).empty().append( update_text );
-
 		$( '#back_to_lobby' ).click( function() {
 		    acct._send_update( { Last_played : '' } );
 		    to_game_login( acct.get_login(), acct, '' );

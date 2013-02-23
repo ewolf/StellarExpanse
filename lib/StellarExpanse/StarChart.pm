@@ -81,6 +81,32 @@ sub _update {
 
 } #_update
 
+sub enemy_ships {
+    my( $self, $sector_id, $acct ) = @_;
+    # returns ships list if there are ships that can currently be seen here
+    my $node = $self->get_map()->{ $sector_id };
+    my $ret = [];
+    if( $node ) {
+	my $sector = Yote::ObjProvider::fetch( $sector_id );
+	if( $sector ) {
+	    my $sec_ships = $sector->get_ships();
+	    my $e_ships = [];
+	    my $has_own_ship = 0;
+	    for my $sec_ship (@$sec_ships) {
+		if( $sec_ship->get_owner()->_is( $self->get_owner() ) ) {
+		    $has_own_ship = 1;
+		} else {
+		    push( @$e_ships, $sec_ship );
+		}
+	    }
+	    if( $has_own_ship || $self->get_owner()->_is( $sector->get_owner() ) ) {
+		$ret = $e_ships;
+	    }
+	}
+    }
+    return $ret;
+}
+
 sub _get_entry {
     my( $self, $sector ) = @_;
 
