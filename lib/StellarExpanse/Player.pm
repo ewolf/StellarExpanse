@@ -39,7 +39,6 @@ sub load_data {
 	     @{ $self->get_pending_orders() },
 	     @{ $self->get_all_completed_orders()->[$turn_number] || []  },
 	     $self->get_notifications(),
-	     @{ $self->get_notifications()->[$turn_number] || []  },
 	     $self->get_Last_sector(),
 	     $self->get_sectors(),
 	     @{ $self->get_sectors() },
@@ -51,7 +50,7 @@ sub load_data {
 	     @{ $self->get_pending_orders() },
 	     $chart,
 	     $chart->get_map(),
-	     [values %{$chart->get_map()}],
+	     @{ [values %{$chart->get_map()}] },
 	     @{[ map { $_->get_links() } values %{$chart->get_map()} ] },
 	     @{[ map { values %{$_->get_links()||{}} } values %{$chart->get_map()} ] },
 	];

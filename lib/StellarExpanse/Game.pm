@@ -198,7 +198,7 @@ sub _start {
 		chomp;
 		next unless /^[a-z]+$/ && length( $_ ) > 2;
 		push @words, $_;
-		last if ++$dcount > 200;        # < for testing only > #
+#		last if ++$dcount > 200;        # < for testing only > #
 	    }
 	    close( IN );
 	}

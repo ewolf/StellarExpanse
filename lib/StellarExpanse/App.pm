@@ -22,6 +22,7 @@ sub _init_account {
     my( $self, $acct ) = @_;
     $acct->set_active_games([]);
     $acct->set_pending_games([]);
+    $acct->set_active_games([]);
     $acct->set_handle( $acct->get_login()->get_handle() );
     $acct->set_Last_played( undef );
 }

@@ -307,7 +307,7 @@ $("body").bind("DOMSubtreeModified", function() {
 			sec = ord.get_to();
 			buf += sec.get_name();
 			jumps--;
-			if( i == move_ords.length() - 1 ) {
+			if( i == move_ords.length - 1 ) {
 			    //last one
 			    cancel_ord = ord;
 			    buf += '<button id="cancel_move_' + ord.id + '" type="button" class="btn btn-link">Remove</button>';
@@ -684,12 +684,6 @@ $("body").bind("DOMSubtreeModified", function() {
 		    tab.add_row( [ game.get_name(), game.active_player_count() + " of " + game.get_number_players(), game.get_created_by().get_handle(), '<button type="button" id="leave_' + game.id + '" class="btn btn-link">Leave Game</button>' ] );
 		}
 		update_text += "<dt>Games waiting to start</dt><tt>" + tab.get_html() + "</tt>";
-		for( var i=0 ; i < pending_games.length() ; i ++ ) {
-		    var g = pending_games.get( i );
-		    $( '#leave_' + g.id ).click( (function( game, login, acct ) { return function() {
-			game.remove_player('',function(m){ to_game_login( login, acct, m ) },function(e){ msg( e ) });
-		    } } )( g, login, acct ) );
-		}
 	    } //pending games
 
 	    if( avail_games.length() > 0 ) {
@@ -725,6 +719,16 @@ $("body").bind("DOMSubtreeModified", function() {
 		    play_game( game, acct );
 		} } )( g, acct ) );
 	    }
+
+	    if( pending_games.length() > 0 ) {
+		for( var i=0 ; i < pending_games.length() ; i ++ ) {
+		    var g = pending_games.get( i );
+		    $( '#leave_' + g.id ).click( (function( game, login, acct ) { return function() {
+			game.remove_player('',function(m){ to_game_login( login, acct, m ) },function(e){ msg( e ) });
+		    } } )( g, login, acct ) );
+		}
+	    }
+
 
 	    $( '#newgame' ).click(function() {
 		update_text = '<button class="btn btn-link" type="button" id="back_to_lobby">Back to the Lobby </button><h2>Create New Game</h2>';
