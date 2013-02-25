@@ -13,26 +13,27 @@
 <script src="/yote/js/yote-mobile.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
- <script>
-   $().ready( function() { 
+  <script>
+    $(document).bind( 'mobileinit', function() { alert(1) } );
+    $().ready( function() { 
        $.yote.init();
        var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
-       var acct = se_app.account();
 
        function message(m) {
 	   
        }
        function welcome() {
-	   show_games()
+	   show_games();
        }
        function show_games(msg) {
-	   var active_games, i, pending_games, avail_games;
+	   var acct, active_games, i, pending_games, avail_games;
            message(msg);
 	   $( '#game_select_ul' ).empty();
+           acct = se_app.account();
            active_games  = acct.get_active_games();
-	   if( active_games.size() > 0 ) {
+	   if( active_games.length() > 0 ) {
 	       html = '<li>Active Games <ul data-role="listview">';
-	       for( i=0; i<active_games.size(); ++i ) {
+	       for( i=0; i<active_games.length(); ++i ) {
 		   game = active_games.get(i);
 		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
 		       '<li><b>Number Players</b> ' + game.get_number_players() + '</li>' +
@@ -41,14 +42,14 @@
 		       '</ul></li>';
 	       }
 	       html += '</ul></li>';
-	       $( '#game_select_ul' ).append( 'html' );
+	       $( '#game_select_ul' ).append( html );
 	   } else {
 	       $( '#game_select_ul' ).append( '<li>No Active Games</li>' );
 	   }
            pending_games = acct.get_pending_games();
-	   if( pending_games.size() > 0 ) {
+	   if( pending_games.length() > 0 ) {
 	       html = '<li>Pending Games <ul data-role="listview">';
-	       for( i=0; i<pending_games.size(); ++i ) {
+	       for( i=0; i<pending_games.length(); ++i ) {
 		   game = pending_games.get(i);
 		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
 		       '<li><b>Joined Players</b> ' + game.joined_playercount() + ' of ' + game.get_number_players() + '</li>' +
@@ -56,13 +57,13 @@
 		       '</ul></li>';
 	       }
 	       html += '</ul></li>';
-	       $( '#game_select_ul' ).append( 'html' );
+	       $( '#game_select_ul' ).append( html );
 	   }
 
            avail_games   = se_app.available_games();           
-	   if( avail_games.size() > 0 ) {
+	   if( avail_games.length() > 0 ) {
 	       html = '<li>Avail Games <ul data-role="listview">';
-	       for( i=0; i<avail_games.size(); ++i ) {
+	       for( i=0; i<avail_games.length(); ++i ) {
 		   game = avail_games.get(i);
 		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
 		       '<li><b>Number Players</b> ' + game.get_number_players() + '</li>' +
@@ -71,10 +72,41 @@
 		       '</ul></li>';
 	       }
 	       html += '</ul></li>';
-	       $( '#game_select_ul' ).append( 'html' );
+	       $( '#game_select_ul' ).append( html );
 	   } else {
 	       $( '#game_select_ul' ).append( '<li>No Available Games</li>' );
 	   }
+	   $( '#game_select_ul' ).append( '<button type=button id=create_game_b>Create Game</button>' );
+	   $( '#create_game_b' ).click( function() {
+	       var buff;
+	       var flavors = se_app.get_flavors();
+	       buff = '    <label for=new_game_name>Name</label>' +
+		   '<input type=text id=new_game_name>';		   
+	       if( flavors.length() > 1 ) {
+		   buff += '<label for=new_game_flavor>Flavor</label>' + 
+		       '<select id=new_game_flavor>';
+		   for( var i=0; i<flavors.length(); ++i ) {
+		       var flav = flavors.get(i);
+		       buff += '<option value=' + flav.id + '>' + flav.get_name() + '</option>';
+		   }
+		   buff += '</select>';
+	       } else if( flavors.length() == 1 ) {
+		   flav = flavors.get(0);
+		   buff += 'Flavor : ' + '<input type=text display=hidden id=new_game_flavor value=' + flav.id + '>' +
+		       flav.get_name();
+	       } else {
+		   alert( 'no flavors defined. game error' );
+	       }
+	       buff += '<label for=new_game_players>Number of Players</label>' +
+		   '<input type=range id=new_game_players min=1 max=10 value=4>' +
+		   '<label for=new_game_tech>Starting Tech Level</label>' +
+		   '<input type=range id=new_game_tech min=1 max=4 value=1>' +
+		   '<label for=new_game_resource>Starting Resources</label>' +
+		   '<input type=range id=new_game_tech min=0 max=1000 value=100>' +
+		   '<button type=button id=new_game_b>Create</button>';
+	       $( '#create_page_content' ).empty().append( buff );
+	       $.mobile.changePage( $('#create_page') );
+	   } );
        }
        $.yote.util.make_login_box( {
 	   target:'#login_div',
@@ -86,7 +118,7 @@
 </head>
 <body>
 
-<div data-role="page">
+<div data-role="page" id=main_page>
   <div data-role="header">
     Stellar Expanse <div id='login_div'></div>
   </div>
@@ -98,6 +130,17 @@
   <div data-role="footer">
     footer
   </div>
+</div>
+
+<div data-role="page" id=create_page>
+  <div data-role="header">
+    Stellar Expanse
+  </div>
+  <div data-role="content" id=create_page_content>
+  </div>
+  <div data-role="footer">
+    footer
+  </div>  
 </div>
 
 </body>
