@@ -162,7 +162,6 @@ sub _build {
                                 elsif( $prototype->get_type() eq 'IND' ) {
                                     if( $self->get_currprod() < $self->get_maxprod() ) {
                                         $self->set_currprod($self->get_currprod() + 1 );
-                                        $order->_resolve( "Built industry in location ".$self->get_name()." for a cost of $cost", 1 );
                                         $player->set_resources( $player->get_resources() - $cost );
                                         $actually_built++;
                                     } 
