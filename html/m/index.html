@@ -3,7 +3,6 @@
 
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <link href="https://fonts.googleapis.com/css?family=Limelight|Flamenco|Federo|Yesteryear|Josefin Sans|Spinnaker|Sansita One|Handlee|Droid Sans|Oswald:400,300,700" media="screen" rel="stylesheet" type="text/css" />
     <link href="/css/bootstrap.css" media="screen" rel="stylesheet" type="text/css" />
     <link href="/css/bootstrap-responsive.css" media="screen" rel="stylesheet" type="text/css" />
@@ -26,7 +25,7 @@
 <script src="/yote/js/yote.js"></script>
 <script src="/yote/js/yote.util.js"></script>
 <script src="/yote/js/yote-mobile.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
  <script>
    $().ready( function() {
@@ -57,8 +56,6 @@
 	   var active_games  = acct.get_active_games();
 	   var pending_games = acct.get_pending_games();
 	   var avail_games   = se_app.available_games();
-
-	   alert( "Entered the lobby. Pending games are " + pending_games.length() );
 
 	   if( false && is_returning != true ) {
 	       if( acct.get( 'Last_played' ) ) {
