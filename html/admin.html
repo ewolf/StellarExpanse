@@ -38,7 +38,6 @@
 
             function edit_flavors() {
 		var flavs = se_app.get_flavors();
-		$.yote.load_direct_descendents( se_app, flavs );
 
 		$('#flavor_div').empty();
 		$('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
@@ -177,7 +176,6 @@
 		$('#reset').click( (function(ed) { return function() { if( confirm("Really Revert?") ) { edit_flavor(ed) }} })(flav) );
 
 		var ships = flav.get('ships');
-		$.yote.load_direct_descendents( se_app, ships );            
 
 
 		$('#save').click( (function(ed) { 
