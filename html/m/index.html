@@ -30,7 +30,7 @@
 
  <script>
    $().ready( function() {
-       $.yote.debug = false;
+       $.yote.debug = true;
        $.yote.init();
 
        var se_app  = $.yote.fetch_app( 'StellarExpanse::App' );
@@ -48,7 +48,7 @@
        function lobby( is_returning ) {
 	   var i, j, active_games, buf = '<div class="row-fluid"><span class="span12">';
 	   msg( '' );
-	   console.log( [ '*** ACCT ***', acct, se_app, acct.get_pending_games() ] );
+	   console.log( [ '*** ACCT ***', acct, se_app, acct.get_pending_games().length() ] );
 	   $( '.playing' ).show();
 	   $( '.login' ).hide();
 	   $( '.logout' ).show();
@@ -58,7 +58,7 @@
 	   var pending_games = acct.get_pending_games();
 	   var avail_games   = se_app.available_games();
 
-	   alert( pending_games.length() );
+	   alert( "Entered the lobby. Pending games are " + pending_games.length() );
 
 	   if( false && is_returning != true ) {
 	       if( acct.get( 'Last_played' ) ) {
@@ -246,13 +246,13 @@
 
 	   $( '#show_pending_game' ).click(function() {
 	       (function(g) {
-		   display_game( g, 'Leave', function() { g.remove_player( '', lobby(true), msg ); } )
+		   display_game( g, 'Leave', function() { g.remove_player( '', function(){lobby(true)}, msg ); } )
 	       } )(pending_games.get( 0 ) );
 	   } );
 	   $( '#pending_game_sel' ).click(function(){
 	       var v = $( this ).val();
 	       (function(g) {
-		   display_game( g, 'Leave', function() { g.remove_player( '', lobby(true), msg ); } )
+		   display_game( g, 'Leave', function() { g.remove_player( '', function(){lobby(true)}, msg ); } )
 	       } )(  pending_sel.get( v ) );
 
 	   } );

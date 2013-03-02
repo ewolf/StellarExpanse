@@ -56,6 +56,15 @@ sub create_game {
     return $game;
 } #create_game
 
+sub load_flavors {
+    my( $self, $data, $acct ) = @_;
+
+    return [
+	@ { $self->get_flavors() },
+	map { @{ $_->get_ships() } } @ { $self->get_flavors() },
+	];
+}
+
 sub new_flavor {
     my( $self, $data, $acct ) = @_;
     my $flav = new StellarExpanse::Flavor();
