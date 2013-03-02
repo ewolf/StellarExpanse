@@ -1,6 +1,21 @@
-<html>
+<!DOCTYPE HTML>
+<html lang="en">
+
   <head>
-<title>Stellar Expanse</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Limelight|Flamenco|Federo|Yesteryear|Josefin Sans|Spinnaker|Sansita One|Handlee|Droid Sans|Oswald:400,300,700" media="screen" rel="stylesheet" type="text/css" />
+    <link href="/css/bootstrap.css" media="screen" rel="stylesheet" type="text/css" />
+    <link href="/css/bootstrap-responsive.css" media="screen" rel="stylesheet" type="text/css" />
+<!--    <link href="common.css" media="screen" rel="stylesheet" type="text/css" /> -->
+    <link href="fontawesome.css" media="screen" rel="stylesheet" type="text/css" />
+    <link href="style.css" media="screen" rel="stylesheet" type="text/css" />
+    <!-- Typekit fonts require an account and a kit containing the fonts used. see https://typekit.com/plans for details. <script type="text/javascript" src="//use.typekit.net/YOUR_KIT_ID.js"></script>
+  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+-->
+    <title>Main Page</title>
+
+
 <link rel="stylesheet" href="/yote/css/jquery.mobile.css">
 <script type="text/javascript" src="/yote/js/jquery-latest.js"></script>
 <script type="text/javascript" src="/yote/js/jquery-mobile-latest.js"></script>
@@ -14,91 +29,324 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
  <script>
-   $().ready( function() { 
+   $().ready( function() {
+       $.yote.debug = false;
        $.yote.init();
-       var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
-       var acct = se_app.account();
 
-       function message(m) {
-	   
+       var se_app  = $.yote.fetch_app( 'StellarExpanse::App' );
+       var acct    = se_app.account();
+       var flavors = se_app.get_flavors();
+
+       function msg( m ) {
+	   $( '#message_span' ).empty().append( m );
        }
-       function welcome() {
-	   show_games()
+
+       function play_game( game ) {
+	   alert( "BANG : " + game.get_name() );
        }
-       function show_games(msg) {
-	   var active_games, i, pending_games, avail_games;
-           message(msg);
-	   $( '#game_select_ul' ).empty();
-           active_games  = acct.get_active_games();
-	   if( active_games.size() > 0 ) {
-	       html = '<li>Active Games <ul data-role="listview">';
-	       for( i=0; i<active_games.size(); ++i ) {
-		   game = active_games.get(i);
-		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
-		       '<li><b>Number Players</b> ' + game.get_number_players() + '</li>' +
-		       '<li><b>Created By</b> ' + game.get_created_by().get_handle() + '</li>' + 
-		       '<li><b>Enter Game</b></li>' + 
-		       '</ul></li>';
+
+       function lobby( is_returning ) {
+	   var i, j, active_games, buf = '<div class="row-fluid"><span class="span12">';
+	   msg( '' );
+	   console.log( [ '*** ACCT ***', acct, se_app, acct.get_pending_games() ] );
+	   $( '.playing' ).show();
+	   $( '.login' ).hide();
+	   $( '.logout' ).show();
+	   $( '#loginname' ).empty().append( acct.get_handle() );
+
+	   var active_games  = acct.get_active_games();
+	   var pending_games = acct.get_pending_games();
+	   var avail_games   = se_app.available_games();
+
+	   alert( pending_games.length() );
+
+	   if( false && is_returning != true ) {
+	       if( acct.get( 'Last_played' ) ) {
+		   return play_game( active_games.get( 0 ) );
 	       }
-	       html += '</ul></li>';
-	       $( '#game_select_ul' ).append( 'html' );
-	   } else {
-	       $( '#game_select_ul' ).append( '<li>No Active Games</li>' );
-	   }
-           pending_games = acct.get_pending_games();
-	   if( pending_games.size() > 0 ) {
-	       html = '<li>Pending Games <ul data-role="listview">';
-	       for( i=0; i<pending_games.size(); ++i ) {
-		   game = pending_games.get(i);
-		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
-		       '<li><b>Joined Players</b> ' + game.joined_playercount() + ' of ' + game.get_number_players() + '</li>' +
-		       '<li><b>Created By</b> ' + game.get_created_by().get_handle() + '</li>' + 
-		       '</ul></li>';
+
+	       if( active_games.length() == 1 ) {
+		   return play_game( active_games.get( 0 ) );
 	       }
-	       html += '</ul></li>';
-	       $( '#game_select_ul' ).append( 'html' );
 	   }
 
-           avail_games   = se_app.available_games();           
-	   if( avail_games.size() > 0 ) {
-	       html = '<li>Avail Games <ul data-role="listview">';
-	       for( i=0; i<avail_games.size(); ++i ) {
-		   game = avail_games.get(i);
-		   html += '<li>' + game.get_name() + ' <ul data-role="listview">' +
-		       '<li><b>Number Players</b> ' + game.get_number_players() + '</li>' +
-		       '<li><b>Created By</b> ' + game.get_created_by().get_handle() + '</li>' + 
-		       '<li><b>Join Game</b></li>' + 
-		       '</ul></li>';
+	   function display_game( game, button_name, action ) {
+	       var buf = '<b>Name</b> : ' + game.get_name() + '<BR>';
+	       if( flavors.length() > 1 ) {
+		   buf += '<b>Flavor</b> : ' + game.get_flavor().get_name() + '<BR>';
 	       }
-	       html += '</ul></li>';
-	       $( '#game_select_ul' ).append( 'html' );
-	   } else {
-	       $( '#game_select_ul' ).append( '<li>No Available Games</li>' );
+
+	       buf += '<b>Number of Players</b> : ' + game.get_number_players() + '<BR>';
+		   '<b>Starting Tech Level</b> : ' + game.get_starting_tech_level() + '<BR>' +
+		   '<b>Starting Resources</b> : ' + game.get_starting_resources() + '<BR>';
+
+	       buf += '<BUTTON type="BUTTON" id="' + button_name + '_btn">' + button_name + '</BUTTON>';
+
+	       $( '#show_game_panel' ).empty().append( buf );
+
+	       $( '#' + button_name + '_btn' ).click( action );
 	   }
-       }
-       $.yote.util.make_login_box( {
-	   target:'#login_div',
-	   on_login:welcome,
-	   on_register:welcome,
+
+	   function hide_game() {
+
+	   }
+
+	   function new_game() {
+	       var buf = '<input type="text" placeholder="Game Name" id="new_game_name">' +
+		   '<LABEL FOR="new_number_players">Number of Players</LABEL><SELECT id="new_number_players">';
+	       for( var i=1; i < 10; i++ ) {
+		   buf += '<OPTION value="' + i + '">' + i + '</OPTION>';
+	       }
+	       buf += '</SELECT>';
+
+	       if( flavors.length() > 1 ) {
+		   buf += '<LABEL FOR="new_flavor">Game Flavor</LABEL>' +
+		       '<SELECT id="new_flavor">';
+		   for( var i=0; i < flavors.length(); i++ ) {
+		       buf += '<OPTION value="' + res[ i ] + '">' + flavors.get( i ).get_name() + "</OPTION>";
+		   }
+		   buf += '</SELECT>';
+	       } else {
+		   buf += '<INPUT TYPE="hidden" id="new_flavor" value="0">';
+	       }
+
+	       buf += '<LABEL FOR="new_tech_level">Starting Tech Level</LABEL>' +
+		   '<SELECT id="new_tech_level">';
+	       for( var i=1; i < 5; i++ ) {
+		   buf += '<OPTION value="' + i + '">' + i + '</OPTION>';
+	       }
+	       buf += '</SELECT>';
+
+	       buf += '<LABEL FOR="new_starting_resources">Starting Resources</LABEL>' +
+		   '<SELECT id="new_resource">';
+	       var res = [ 0, 5, 10, 20, 50, 150 ];
+	       for( var i=0; i < res.length; i++ ) {
+		   buf += '<OPTION value="' + res[ i ] + '">' + res[ i ] + "</OPTION>";
+	       }
+	       buf += '</SELECT>';
+
+	       buf += '<BR><BUTTON TYPE="BUTTON" id="new_game_b">Create</BUTTON>';
+	       buf += '<BR><BR><BUTTON TYPE="BUTTON" id="cancel_new_game_b">Cancel</BUTTON>';
+
+	       $( '#show_game_panel' ).empty().append( buf );
+
+	       $( '#cancel_new_game_b' ).click(function(){
+		   $( '#show_game_panel' ).empty();
+		   $( '.collapse' ).collapse('hide');
+	       } );
+
+	       $( '#new_game_b' ).click(function() {
+		   se_app.create_game(
+		       {
+                           name                : $('#new_game_name').val(),
+                           number_players      : $('#new_number_players').val(),
+			   starting_resources  : $('#new_resource').val(),
+			   starting_tech_level : $('#new_tech_level').val(),
+			   flavor              : flavors.get($('#new_flavor').val())
+		       },
+		       function( msg ) {
+			   $( '#show_game_panel' ).empty();
+			   $( '.collapse' ).collapse('hide');
+			   lobby( true );
+		       }
+		   );
+	       } );
+	   } //new_game
+
+
+	   // populate the drop downs
+
+	   /****** ACTIVE GAMES *******/
+	   if( active_games.length() == 1 ) {
+	       var game = active_games.get( 0 );
+	       buf += '<button type="button" id="play_single_game">Play : ' + game.get_name() + '</button>' +
+		   '</span></div><div class="row-fluid"><span class="span12">';
+	   } else if( active_games.length() > 1 ) {
+	       var play_sel = $.yote.util.build_select_txt( {
+		   items : active_games,
+		   val   : function( x, id ) { return id; },
+		   text   : function( x ) { return '(' + x.active_player_count() + ' players) ' +  x.get_name(); },
+		   id    : 'play_game_sel'
+	       } );
+	       buf += '<div class=accordion" id="play_accord"><div class="accordion-group"><div class="accordion-heading">' +
+		   '<a class="accordion-toggle" data-toggle="collapse" data-parent="#play_accord" href="#play_collapse">' +
+		   active_games.length() + ' active games</a></div>' +
+		   '<div id="play_collapse" class="accordion-body collapse in"><div class="accordian-inner">' +
+		   play_sel + "</div></div> </div>" +
+		   '</span></div><div class="row-fluid"><span class="span12">';
+	   } //multiple active games
+
+	   /****** PENDING GAMES *******/
+	   if( pending_games.length() == 1 ) {
+	       var game = pending_games.get( 0 );
+	       buf += '<button type="button" id="show_pending_game">1 Pending game : ' + game.get_name() + '</button>' +
+		   '</span></div><div class="row-fluid"><span class="span12">';
+	   } else if( pending_games.length() > 1 ) {
+	       var pending_sel = $.yote.util.build_select_txt( {
+		   items : pending_games,
+		   val   : function( x, id ) { return id; },
+		   text  : function( x ) { return '(' + x.active_player_count() + ' of ' + x.get_number_players() + ' players) ' +  x.get_name(); },
+		   id    : 'pending_game_sel'
+	       } );
+	       buf += '<div class=accordion" id="pend_accord"><div class="accordion-group"><div class="accordion-heading">' +
+		   '<a class="accordion-toggle" data-toggle="collapse" data-parent="#pend_accord" href="#pend_collapse">' +
+		   active_games.length() + ' active games</a></div>' +
+		   '<div id="pend_collapse" class="accordion-body collapse in"><div class="accordian-inner">' +
+		   pending_sel + "</div></div> </div>" +
+		   '</span></div><div class="row-fluid"><span class="span12">';
+	   } //multiple pending games
+
+	   /****** AVAIL GAMES *******/
+	   if( avail_games.length() == 1 ) {
+	       var game = avail_games.get( 0 );
+	       buf += '<button type="button" id="join_single_game">Join : ' + game.get_name() + '</button>' +
+		   '</span></div><div class="row-fluid"><span class="span12">';
+	   } else if( avail_games.length() > 1 ) {
+	       var avail_sel = $.yote.util.build_select_txt( {
+		   items : avail_games,
+		   val   : function( x, id ) { return id; },
+		   text   : function( x ) { return '(' + x.active_player_count() + ' of ' + x.get_number_players() + ' players) ' +  x.get_name(); },
+		   id    : 'avail_game_sel'
+	       } );
+	       buf += '<div class=accordion" id="avail_accord"><div class="accordion-group"><div class="accordion-heading">' +
+		   '<a class="accordion-toggle" data-toggle="collapse" data-parent="#avail_accord" href="#avail_collapse">' +
+		   avail_games.length() + ' available games</a></div>' +
+		   '<div id="avail_collapse" class="accordion-body collapse in"><div class="accordian-inner">' +
+		   avail_sel + "</div></div> </div>" +
+		   '</span></div><div class="row-fluid"><span class="span12">';
+	   } //multiple avail games
+
+	   buf += '<button type="button" id="create_new_game_b">New Game</button>' +
+	       '</span></div><div class="row-fluid"><span class="span12" id="show_game_panel">' +
+	       '</span></div>';
+
+	   // ----------- add the html text -----------
+
+	   $( '#playing' ).empty().append( buf );
+	   $( '.collapse' ).collapse('hide');
+
+	   // ----------- connect the html controls -----------
+
+	   $( '#create_new_game_b' ).click(function(){
+	       new_game();
+	   } );
+
+	   $( '#play_single_game' ).click(function(){
+	       (function(g) {
+		   play_game( g );
+	       } )(active_games.get( 0 ) );
+	   } );
+
+	   $( '#play_game_sel' ).click(function(){
+	       var v = $( this ).val();
+	       (function(g) {
+		   display_game( g, 'Play', function() { play_game( g ); } );
+	       } )(  play_sel.get( v ) );
+	   } );
+
+	   $( '#show_pending_game' ).click(function() {
+	       (function(g) {
+		   display_game( g, 'Leave', function() { g.remove_player( '', lobby(true), msg ); } )
+	       } )(pending_games.get( 0 ) );
+	   } );
+	   $( '#pending_game_sel' ).click(function(){
+	       var v = $( this ).val();
+	       (function(g) {
+		   display_game( g, 'Leave', function() { g.remove_player( '', lobby(true), msg ); } )
+	       } )(  pending_sel.get( v ) );
+
+	   } );
+       
+	   $( '#join_single_game' ).click(function() {
+	       (function(g) {
+		   g.add_player( '', function() {
+		       if( g.needs_players() ) {
+			   lobby( true );
+		       } else {
+			   play_game( g );
+		       }
+		   }, msg );
+	       } )( avail_games.get( 0 ) );
+	   } );
+	   $( '#avail_game_sel' ).change(function(){
+	       (function(g) {
+		   display_game( g,
+				 'Join',
+				 function() { 
+				     g.add_player( '', function() {
+					 if( g.needs_players() ) {
+					     lobby( true );
+					 } else {
+					     play_game( g );
+					 }
+				     }, msg );
+				 } );
+	       }) ( avail_games.get( $( this ).val() ) );
+	   } );
+       } // logged_in
+
+       //  connect main buttons
+       $( '#log_out_b' ).click( function() {
+	   $.yote.logout();
+	   $( '#playing' ).empty();
+	   $( '.logout' ).hide();
+	   $( '.login' ).show();
        } );
+       $.yote.util.button_actions( {
+	   button : '#log_in_b',
+	   texts  : [ '#uname_txt', '#pw' ],
+	   action : function() {
+	       $.yote.login( $('#uname_txt').val(), $('#pw').val(),
+			     lobby,
+			     msg //fail
+			   );
+	   }
+       } );
+
+       // initial logic to detect cookie login
+       if( $.yote.is_logged_in() ) {
+	   lobby();
+       } else {
+	   $( '.login' ).show();
+	   $( '.logout' ).hide();
+       }
    } );
  </script>
-</head>
-<body>
 
-<div data-role="page">
-  <div data-role="header">
-    Stellar Expanse <div id='login_div'></div>
-  </div>
-  <div data-role="content">
-      <ul data-role="listview" id=game_select_ul>
-      </ul>
-    </ul>
-  </div>
-  <div data-role="footer">
-    footer
-  </div>
-</div>
+  </head>
 
-</body>
+  <body>
+    <div class="container-fluid">
+      <div class="row-fluid">
+        <span class="span12">
+          <div class="page-header">
+            <h1>Stellar Expanse <small>the space game</small>
+            </h1>
+          </div>
+        </span>
+      </div>
+      <div class="row-fluid">
+	<span id="message_span" class="span12">
+	</span>
+      </div>
+      <div class="row-fluid">
+	<span class="login span12">
+	  <h3>Log In</h3>
+	  <input type="text" id="uname_txt" value="" placeholder="Name">
+	  <input type="password" id="pw" placeholder="Password">
+	  <button type="button" id="log_in_b">Log In</button>
+	</span>
+      </div>
+      <div class="row-fluid">
+	<span class="logout span12">
+	  Logged in as <span id="loginname"></span>
+	  <button type="button" id="log_out_b">Log Out</button>
+	</span>
+      </div>
+    </div>
+    <div class="container-fluid" id="playing">
+    </div>
+    <script src="/js/bootstrap.js"></script>
+  </body>
+
 </html>
