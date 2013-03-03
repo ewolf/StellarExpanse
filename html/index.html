@@ -15,7 +15,9 @@
     <link rel="stylesheet" href="/yote/css/jquery.mobile.css" type="text/css" media="all" />
     <link rel="stylesheet" href="/yote/css/ui-lightness/jquery-ui-1.8.23.custom.css" type="text/css" media="all" />
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
-
+    <script type="text/javascript" src="js/graphdracula/raphael-min.js"></script>
+    <script type="text/javascript" src="js/graphdracula/dracula_graffle.js"></script>
+    <script type="text/javascript" src="js/graphdracula/dracula_graph.js"></script>
     <STYLE>
        .panel { background-color: lightblue; padding:30px;
 		border: 4px groove black;
@@ -23,14 +25,17 @@
     </STYLE>
 
     <script>
+    var renderer;
     $().ready(function(){
         $.yote.debug = false;
 	$.yote.init();
 
+/*
 $("body").bind("DOMSubtreeModified", function() {
     //yes this works
 });
-
+*/
+	
 
         var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
 	//se_app.RESET();
@@ -367,6 +372,41 @@ $("body").bind("DOMSubtreeModified", function() {
 		    ltxt += '<li>' + link_sect.get_name() + '</li>';
 		}
 		ltxt += '</ul>';
+
+		// build a graph of things within 4 of the node
+		var graph = new Graph();
+		var to_graph = {};
+		var seen     = {};
+		var round = [ node ]; // list of nodes to use for next layer
+		for( var i=0; i < 4; i++ ) { //the 4 layers
+		    var next_round = {};
+		    for( var j=0; j < round.length; j++ ) {
+			var round_node  = round[ j ];
+			if( round_node.get_links ) { 
+			    if( ! (round_node.id in seen) ) {
+				seen[ round_node.id ] = 1;
+				graph.addNode( round_node.get_name() );
+			    }
+			    var round_links = round_node.get_links();
+			    var r_keys      = round_links.keys()
+			    for( var k=0; k < r_keys.length; k++ ) {
+				var x_sect = round_links.get( r_keys[ k ] );
+				if( ! ( x_sect.id in seen ) ) {
+				    seen[ x_sect.id ] = 1;
+				    graph.addNode( x_sect.get_name() );
+				}
+				graph.addEdge( round_node.get_name(), x_sect.get_name() );
+				next_round[ x_sect.id ] = x_sect;
+			    }
+			}
+		    }
+		    round = [];
+		    for( var j in next_round ) {
+			round.push( next_round[ j ] );
+		    }
+		    console.log( [ "ROUND NOW ", round ] );
+		} // the four layers
+
 		tab.add_param_row( [ 'Links', ltxt ] );
 
 
@@ -404,9 +444,15 @@ $("body").bind("DOMSubtreeModified", function() {
 		    tab.add_param_row( [ 'enemy ships', e_stxt ] );
 		}
 
-		stext += tab.get_html();
+		stext += '<div id="canvas"></div>' + tab.get_html();
 		$( '#sector_panel' ).empty().append( stext );
 
+		/* ******* ACTIVATE GRAPH ZAHL **** */
+		var layouter = new Graph.Layout.Spring( graph );
+		renderer = new Graph.Renderer.Raphael( 'canvas', graph, 500, 500 );
+
+		layouter.layout();
+		renderer.draw();
 
 		/* ****** PATCH UP SHIP MOVE ORDERS ***** */
 		for( var i=0; i < my_ships.length; i++ ) {
