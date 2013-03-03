@@ -466,15 +466,6 @@ $("body").bind("DOMSubtreeModified", function() {
 
 	    function show_sector( sector, node, player, fleets ) {
 		if( ! sector ) { return }
-
-
-		/* Refactor this so it shows
-		     * ship controls
-		     * sector info
-		     * subway map
-		     * build requests
-		 */
-
 		var stext = '';
 
 		var tab = $.yote.util.make_table();
@@ -490,6 +481,42 @@ $("body").bind("DOMSubtreeModified", function() {
 		    ltxt += '<li>' + link_sect.get_name() + '</li>';
 		}
 		ltxt += '</ul>';
+
+		// build a graph of things within 4 of the node
+		var graph = new Graph();
+		var to_graph = {};
+		var seen     = {};
+		var round = [ node ]; // list of nodes to use for next layer
+		for( var i=0; i < 4; i++ ) { //the 4 layers
+		    var next_round = {};
+		    for( var j=0; j < round.length; j++ ) {
+			var round_node  = round[ j ];
+			if( round_node.get_links ) { 
+			    if( ! (round_node.id in seen) ) {
+				seen[ round_node.id ] = 1;
+				graph.addNode( round_node.get_name() );
+			    }
+			    var round_links = round_node.get_links();
+			    var r_keys      = round_links.keys()
+			    for( var k=0; k < r_keys.length; k++ ) {
+				var x_sect = round_links.get( r_keys[ k ] );
+				if( ! ( x_sect.id in seen ) ) {
+				    seen[ x_sect.id ] = 1;
+				    graph.addNode( x_sect.get_name() );
+				}
+				graph.addEdge( round_node.get_name(), x_sect.get_name() );
+				next_round[ x_sect.id ] = x_sect;
+			    }
+			}
+		    }
+		    round = [];
+		    for( var j in next_round ) {
+			round.push( next_round[ j ] );
+		    }
+		    console.log( [ "ROUND NOW ", round ] );
+		} // the four layers
+
+
 		tab.add_param_row( [ 'Links', ltxt ] );
 
 		var my_ships = fleets[ 'my' ];
@@ -546,7 +573,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		} //add_to_pending_build_orders
 
 
-		stext += tab.get_html();
+		stext += '<div id="canvas"></div>' + tab.get_html();
 
 		var can_bld = sector.can_build_items();
 		var can_bld_k = can_bld.keys();
@@ -613,6 +640,13 @@ $("body").bind("DOMSubtreeModified", function() {
 			} )
 		    } )( can_bld.get( can_bld_k[ i ] ), sector );
 		}
+
+		/* ******* ACTIVATE GRAPH ZAHL **** */
+		var layouter = new Graph.Layout.Spring( graph );
+		renderer = new Graph.Renderer.Raphael( 'canvas', graph, 500, 500 );
+
+		layouter.layout();
+		renderer.draw();
 
 		// now need to make some 'shopping cart' logic that holds onto build and other orders
 
