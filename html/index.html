@@ -27,21 +27,26 @@
     <script>
     var renderer;
     $().ready(function(){
-        $.yote.debug = false;
+        $.yote.debug = true;
 	$.yote.init();
+	var game_check_interval;
 
 /*
 $("body").bind("DOMSubtreeModified", function() {
     //yes this works
 });
 */
-	
+
 
         var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
 	//se_app.RESET();
 
 	function msg( m, cls ) {
 	    $( '#msg_div' ).empty().append( '<div class="' + cls + '">' + m + '</div>' );
+	}
+
+	function splash_screen() {
+	    $( '#main_div' ).empty().append( "SPLASH SCREEN FOR YOUR ENTERTAINMENT" );
 	}
 
 	function play_game( game, acct ) {
@@ -227,12 +232,12 @@ $("body").bind("DOMSubtreeModified", function() {
 			}
 		    }
 		    txt += '</select>';
-		    
+
 		    $( div ).append( txt );
 
 		    function bind_select( dv, shp, odx, ene, ens, ex_ord ) {
 			console.log( [ "ADDING BIND FOR " + odx, ex_ord ] );
-			$( '#ships_beams_' + shp.id + '_' + odx ).unbind();			
+			$( '#ships_beams_' + shp.id + '_' + odx ).unbind();
 			$( '#ships_targets_' + shp.id + '_' + odx ).unbind();
 
 			$( '#ships_beams_' + shp.id + '_' + odx ).change(function() {
@@ -267,7 +272,7 @@ $("body").bind("DOMSubtreeModified", function() {
 			$( '#ships_targets_' + shp.id + '_' + odx ).change(function() {
 			    if( ex_ord ) {
 				ex_ord.set_Target( ens[ $( '#ships_targets_' + shp.id + '_' + odx ).val() ] );
-			    }			    
+			    }
 			} );
 		    } //bind_select
 
@@ -303,7 +308,7 @@ $("body").bind("DOMSubtreeModified", function() {
 			    move_ords.push( ord );
 			}
 		    }
-		    
+
 		    var buf = '';
 		    var sec = shp.get_location();
 		    var cancel_ord = null;
@@ -382,7 +387,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		    var next_round = {};
 		    for( var j=0; j < round.length; j++ ) {
 			var round_node  = round[ j ];
-			if( round_node.get_links ) { 
+			if( round_node.get_links ) {
 			    if( ! (round_node.id in seen) ) {
 				seen[ round_node.id ] = 1;
 				graph.addNode( round_node.get_name() );
@@ -429,7 +434,7 @@ $("body").bind("DOMSubtreeModified", function() {
 			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
 		    }
 		}
-		
+
 
 		if( my_ships.length > 0 ) {
 		    tab.add_param_row( [ 'my ships', ship_tab.get_html() ] );
@@ -469,12 +474,17 @@ $("body").bind("DOMSubtreeModified", function() {
 		var stext = '';
 
 		var tab = $.yote.util.make_table();
-		tab.add_param_row( [ 'name', sector.get_name() ] );
-		tab.add_param_row( [ 'production', sector.get_currprod() + ' of ' + sector.get_maxprod() ] );
-		tab.add_param_row( [ 'build capacity', sector.get_buildcap() ] );
+		if( sector ) {
+		    tab.add_param_row( [ 'name', sector.get_name() ] );
+		    tab.add_param_row( [ 'production', sector.get_currprod() + ' of ' + sector.get_maxprod() ] );
+		    tab.add_param_row( [ 'build capacity', sector.get_buildcap() ] );
+		} else {
+		tab.add_param_row( [ 'name', node.get_name() ] );
+		tab.add_param_row( [ 'production ', node.get_seen_production() + ' / ' + node.get_seen_max_production() ] );
+		}
 
 		var ltxt = '<ul>';
-		var links = sector.get_links();
+		var links = node.get_links();
 		var lkeys = links.keys();
 		for( var i=0; i<lkeys.length; i++ ) {
 		    var link_sect = links.get( lkeys[ i ] );
@@ -491,7 +501,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		    var next_round = {};
 		    for( var j=0; j < round.length; j++ ) {
 			var round_node  = round[ j ];
-			if( round_node.get_links ) { 
+			if( round_node.get_links ) {
 			    if( ! (round_node.id in seen) ) {
 				seen[ round_node.id ] = 1;
 				graph.addNode( round_node.get_name() );
@@ -527,7 +537,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		} else {
 		    ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
 		}
-		
+
 		for( var i=0; i < my_ships.length; i++ ) {
 		    var ship = my_ships[ i ];
 		    // name, move, fire
@@ -575,36 +585,37 @@ $("body").bind("DOMSubtreeModified", function() {
 
 		stext += '<div id="canvas"></div>' + tab.get_html();
 
-		var can_bld = sector.can_build_items();
-		var can_bld_k = can_bld.keys();
+		if( sector ) {
+		    var can_bld = sector.can_build_items();
+		    var can_bld_k = can_bld.keys();
 
 
-		stext += '<dl><dt>Build</dt><dd>';
+		    stext += '<dl><dt>Build</dt><dd>';
 
-		var tab = $.yote.util.make_table('border=1');
-		tab.add_header_row( [ 'Ship', 'Quantity', 'Build' ] );
-		for( var i=0; i<can_bld_k.length; i++ ) {
-		    var item = can_bld.get( can_bld_k[ i ] );
-		    var max_quan =  parseInt( player.get_resources() / item.get_cost() );
-		    if( max_quan > 0 ) {
-			var txt = '';
-			if( item.get_type() == 'TECH' || max_quan == 1 ) {
-			    txt = '1<input type="hidden" value="1" id="quan_' + item.id + '">';
-			} else {
-			    txt += '<select id="quan_' + item.id + '">';
-			    for( var j=1; j <= max_quan ; j++ ) {
-				txt += '<option value="' + j + '">' + j + '</option>';
+		    var tab = $.yote.util.make_table('border=1');
+		    tab.add_header_row( [ 'Ship', 'Quantity', 'Build' ] );
+		    for( var i=0; i<can_bld_k.length; i++ ) {
+			var item = can_bld.get( can_bld_k[ i ] );
+			var max_quan =  parseInt( player.get_resources() / item.get_cost() );
+			if( max_quan > 0 ) {
+			    var txt = '';
+			    if( item.get_type() == 'TECH' || max_quan == 1 ) {
+				txt = '1<input type="hidden" value="1" id="quan_' + item.id + '">';
+			    } else {
+				txt += '<select id="quan_' + item.id + '">';
+				for( var j=1; j <= max_quan ; j++ ) {
+				    txt += '<option value="' + j + '">' + j + '</option>';
+				}
+				txt += '</select>';
 			    }
-			    txt += '</select>';
+			    tab.add_param_row( [ item.get_name(), txt, '<button id="buy_' + item.id  + '" type="button">Place Order</button>' ] );
+			} else {
+			    tab.add_param_row( [ item.get_name(), 'n/a', 'Not enough resources' ] );
 			}
-			tab.add_param_row( [ item.get_name(), txt, '<button id="buy_' + item.id  + '" type="button">Place Order</button>' ] );
-		    } else {
-			tab.add_param_row( [ item.get_name(), 'n/a', 'Not enough resources' ] );
 		    }
+
+		    stext += tab.get_html() + '</dd></dl>';
 		}
-
-		stext += tab.get_html() + '</dd></dl>';
-
 		$( '#sector_panel' ).empty().append( stext );
 
 
@@ -626,19 +637,22 @@ $("body").bind("DOMSubtreeModified", function() {
 			}
 		    }
 		} //show_all_pending_orders
-		show_all_pending_orders( sector );
 
-		for( var i=0; i<can_bld_k.length; i++ ) {
-		    (function( item, sec ) {
-			$( '#buy_' + item.id ).click( function() {
-			    add_to_pending_build_orders( sec.new_order( {
-				order : 'build',
-				turn  : on_turn,
-				ship  : item,
-				quantity : $( '#quan_' + item.id ).val()
-			    } ), sec );
-			} )
-		    } )( can_bld.get( can_bld_k[ i ] ), sector );
+		if( sector ) {
+		    show_all_pending_orders( sector );
+
+		    for( var i=0; i<can_bld_k.length; i++ ) {
+			(function( item, sec ) {
+			    $( '#buy_' + item.id ).click( function() {
+				add_to_pending_build_orders( sec.new_order( {
+				    order : 'build',
+				    turn  : on_turn,
+				    ship  : item,
+				    quantity : $( '#quan_' + item.id ).val()
+				} ), sec );
+			    } )
+			} )( can_bld.get( can_bld_k[ i ] ), sector );
+		    }
 		}
 
 		/* ******* ACTIVATE GRAPH ZAHL **** */
@@ -650,7 +664,19 @@ $("body").bind("DOMSubtreeModified", function() {
 
 		// now need to make some 'shopping cart' logic that holds onto build and other orders
 
-
+		// a polling to see what's changed
+		if( game_check_interval ) {
+		    clearInterval( game_check_interval );
+		}
+		game_check_interval = setInterval(
+		    function() {
+			acct.sync_all();
+			if( game.get_turn_number() > on_turn ) {
+			    play_game( game, acct );
+			    msg( "The Turn Advanced to " + game.get_turn_number() );
+			}
+		    }, 10000 );
+		
 	    } //show_sector
 
 	    $( '#main_div' ).empty().append( update_text );
@@ -668,7 +694,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		var sec = my_sectors.get( i );
 		(function( s ) {
 		    $( '#sector_' + s.id ).click(function() {
-			var nd = map.get( s.id );			
+			var nd = map.get( s.id );
 			show_sector( s, nd, player, nodeid2ships[ nd.id ] || { my : [], enemy : [] } );
 		    } );
 		} )( sec );
@@ -678,7 +704,7 @@ $("body").bind("DOMSubtreeModified", function() {
 	    for( var i=0; i < sectorids.length; i++ ) {
 		var s_id = sectorids[ i ];
 		var n = map.get( s_id );
-		if( s_id in my_sector_ids ) {		    
+		if( s_id in my_sector_ids ) {
 		    (function (sec,nod) {
 			$( '#node_' + nod.id ).click( function() {
 			    show_sector( sec, nod, player, nodeid2ships[ nod.id ] || { my : [], enemy : [] } );
@@ -687,15 +713,15 @@ $("body").bind("DOMSubtreeModified", function() {
 			    show_sector( sec, nod, player, nodeid2ships[ nod.id ] || { my : [], enemy : [] } );
 			} )
 		    })( my_sector_ids[ s_id ],n );
-		} 
+		}
 		else {
 		    if( node.get_discovered() == '1' ) {
 			(function (node) {
 			    $( '#node_' + node.id ).click( function() {
-				show_node( node, player, nodeid2ships[ node.id ] || { my : [], enemy : [] } );
+				show_sector( false, node, player, nodeid2ships[ node.id ] || { my : [], enemy : [] } );
 			    } );
 			    $( '#shipnode_' + node.id ).click( function() {
-				show_node( node, player, nodeid2ships[ node.id ] || { my : [], enemy : [] } );
+				show_sector( false, node, player, nodeid2ships[ node.id ] || { my : [], enemy : [] } );
 			    } );
 
 			})( n );
@@ -718,7 +744,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		acct._send_update( { Last_played : '' } );
 		to_game_login( acct.get_login(), acct, '' );
 	    } );
-	    
+
 	    $( '#refresh' ).click(function() {
 		game.refresh();
 		play_game( game, acct );
@@ -878,12 +904,19 @@ $("body").bind("DOMSubtreeModified", function() {
 
 	} //to_game_login
 
-	$.yote.util.make_login_bar( { brand_html         : '<a class="brand"><IMG src="se.png"> <huge>Stellar Expanse</huge></a>',
-				      app                : se_app,
-				      container_id       : '#nav-container',
-				      logged_in_function : function( login, act ) { to_game_login( login, act, "Welcome, " + login.get_handle()) } ,
-				      not_logged_in_function : function(){$('#games').hide();},
-				      modal_div          : '#modal_div'
+	$.yote.util.make_login_bar( { brand_html             : '<a class="brand"><IMG src="se.png"> <huge>Stellar Expanse</huge></a>',
+				      app                    : se_app,
+				      container_id           : '#nav-container',
+				      logged_in_function     : function( login, act ) { to_game_login( login, act, "Welcome, " + login.get_handle()) } ,
+				      not_logged_in_function : function(){ splash_screen(); },
+				      modal_div              : '#modal_div',
+				      logged_out_function    : function() { 
+					  if( game_check_interval ) { 
+					      clearInterval( game_check_interval );
+					  } 
+					  splash_screen(); 
+					  msg( "Logged out of Stellar Expanse" );
+				      }
 				    } );
     });
     </script>
