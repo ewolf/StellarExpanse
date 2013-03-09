@@ -22,6 +22,8 @@
        .panel { background-color: lightblue; padding:30px;
 		border: 4px groove black;
 	      }
+       .splash { background-color: wheat;
+       }
     </STYLE>
 
     <script>
@@ -46,7 +48,17 @@ $("body").bind("DOMSubtreeModified", function() {
 	}
 
 	function splash_screen() {
-	    $( '#main_div' ).empty().append( "SPLASH SCREEN FOR YOUR ENTERTAINMENT" );
+	    $( '#main_div' ).empty().append( '<DIV class="container">' +
+					     ' <DIV class="row">' +
+					     '   <DIV class="span2 offset1 splash">' +
+					     '    <DIV id="msgboard"></DIV>' +
+					     "   </DIV>" +
+					     '   <DIV class="span6 offset 2 splash">' +
+					     ' BLAH ' +
+					     "   </DIV>" +
+					     " </DIV>" +
+					     "</DIV>"
+					   );
 	}
 
 	function play_game( game, acct ) {
@@ -675,7 +687,7 @@ $("body").bind("DOMSubtreeModified", function() {
 			    play_game( game, acct );
 			    msg( "The Turn Advanced to " + game.get_turn_number() );
 			}
-		    }, 10000 );
+		    }, 4000 );
 		
 	    } //show_sector
 
@@ -770,30 +782,39 @@ $("body").bind("DOMSubtreeModified", function() {
             var pending_games = acct.get_pending_games();
             var avail_games   = se_app.available_games();
 	    msg( message );
-	    var update_text = '<dl id="main_dl">';
+	    var update_text = '<div class="container">' +
+		'<div class="row">' +
+		' <div class="span11 offset1">' +
+		'  The Lobby ' +
+		' </div>' +
+		'</div>' +
+		'<div class="row">' +
+		' <div class="span11 offset1">';
 
 	    if( active_games.length() > 0 ) {
-		var tab = $.yote.util.make_table('border=1');
+		var tab = $.yote.util.make_table('class="gametable"');
 		tab.add_header_row( [ 'Game', 'Number of Players', 'Created By', 'On Turn', 'Play' ] );
 		for( var i=0 ; i < active_games.length() ; i ++ ) {
 		    var game = active_games.get( i );
 		    tab.add_row( [ game.get_name(), game.get_number_players(), game.get_created_by().get_handle(), game.get_turn_number(), '<button type="button" id="play_' + game.id + '" class="btn btn-link">Play</button>' ] );
 		}
-		update_text += "<dt>Active Games</dt><tt>" + tab.get_html() + "</tt>";
+		update_text += "<dl><dt>Active Games</dt><tt>" + tab.get_html() + "</tt>";
 	    } //active games
 
 	    if( pending_games.length() > 0 ) {
-		var tab = $.yote.util.make_table('border=1');
+		var tab = $.yote.util.make_table('class="gametable"');
 		tab.add_header_row( [ 'Game', 'Joined Players', 'Created By', 'Leave' ] );
 		for( var i=0 ; i < pending_games.length() ; i ++ ) {
 		    var game = pending_games.get( i );
 		    tab.add_row( [ game.get_name(), game.active_player_count() + " of " + game.get_number_players(), game.get_created_by().get_handle(), '<button type="button" id="leave_' + game.id + '" class="btn btn-link">Leave Game</button>' ] );
 		}
-		update_text += "<dt>Games waiting to start</dt><tt>" + tab.get_html() + "</tt>";
+		update_text += '</dl></div></div><div class="row">' +
+		    ' <div class="span11 offset1">' +
+		    "    <dl<dt>Games waiting to start</dt><tt>" + tab.get_html() + "</tt>";
 	    } //pending games
 
 	    if( avail_games.length() > 0 ) {
-		var tab = $.yote.util.make_table('border=1');
+		var tab = $.yote.util.make_table('class="gametable"');
 		tab.add_header_row( [ 'Game', 'Joined Players', 'Starting Tech', 'Starting Resources', 'Created By', 'Join' ] );
 		for( var i=0 ; i < avail_games.length() ; i ++ ) {
 		    var game = avail_games.get( i );
@@ -805,12 +826,16 @@ $("body").bind("DOMSubtreeModified", function() {
 				   '<button type="button" id="join_' + game.id + '" class="btn btn-link">Join Game</button>'
 				 ] );
 		}
-		update_text += "<dt>Available Games</dt><tt>" + tab.get_html() + "</tt>";
+		update_text += '</dl></div></div><div class="row">' +
+		    ' <div class="span11 offset1">' +
+		    "<dl><dt>Available Games</dt><tt>" + tab.get_html() + "</tt>";
 	    } //available games
 
-	    update_text += '</dl></div>';
+	    update_text += '</dl></div></div>';
 
-	    $( '#main_div' ).empty().append( update_text + '<button id="newgame" type="button">New Game</button>' );
+	    $( '#main_div' ).empty().append( update_text + '<div id="row"><div class="span11 offset1"><button id="newgame" type="button">New Game</button></div></div></div>' );
+
+	    // -------------   UI ADDED. NOW ATTACH EVENTS ---------
 
 	    for( var i=0 ; i < avail_games.length() ; i ++ ) {
 		var g = avail_games.get( i );
@@ -868,6 +893,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		tab.add_param_row( [ 'Starting Tech Level', tech_sel + '</select>' ] );
 		tab.add_param_row( [ 'Starting Resources', '<input type="text" id="resource_fld">' ] );
 		update_text += tab.get_html() + '<BR><button type="button" id="create_game" class="btn disabled btn-link">Create</button>';
+
 
 		$( '#main_div' ).empty().append( update_text );
 		$( '#back_to_lobby' ).click( function() {
