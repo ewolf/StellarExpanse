@@ -82,7 +82,7 @@ sub _take_turn {
         $ship->_unload();
     }
     for my $ship (@$ships) {
-        $ship->_load();
+        $ship->_load_onto_carrier();
     }
 
     for my $ship (@$ships) {

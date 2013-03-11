@@ -19,11 +19,17 @@
     <script type="text/javascript" src="js/graphdracula/dracula_graffle.js"></script>
     <script type="text/javascript" src="js/graphdracula/dracula_graph.js"></script>
     <STYLE>
+       .gametable { text-align: center; }
        .panel { background-color: lightblue; padding:30px;
 		border: 4px groove black;
 	      }
-       .splash { background-color: wheat;
+       .splash { background-color: wheat; 
        }
+       .even-row .even-col { background-color:AD9CD5 }
+       .odd-row  .even-col { background-color:B7ABD5  }
+
+       .even-row .odd-col  { background-color:9CA9D4  }
+       .odd-row  .odd-col  { background-color:ABB4D4}
     </STYLE>
 
     <script>
@@ -107,6 +113,15 @@ $("body").bind("DOMSubtreeModified", function() {
 	    } else {
 		update_text += '<div id="ready_div"><input type="radio" value="ready" name="ready"> Yes <BR> <input type="radio" value="not_ready" checked name="ready"> No</div>';
 	    }
+
+	    function enemy_ship( ene ) {
+		return ene.get_name();
+	    }
+	    
+	    function my_ship( shp ) {
+		return shp.get_name();
+	    }
+
 
 	    if( on_turn > 0 ) {
 		update_text += '<dt>Last Turn Orders</dt>' +
@@ -238,9 +253,9 @@ $("body").bind("DOMSubtreeModified", function() {
 			var en = enemies[ j ];
 			enhash[ en.id ] = en;
 			if( existing_order && en.equals( existing_order.get_Target() ) ) {
-			    txt += '<option SELECTED value="' + en.id + '">' + en.get_name() + ' (' + en.get_owner().get_name() + ")</option>";
+			    txt += '<option SELECTED value="' + en.id + '">' + enemy_ship( en ) + ' (' + en.get_owner().get_name() + ")</option>";
 			} else {
-			    txt += '<option value="' + en.id + '">' + en.get_name() + ' (' + en.get_owner().get_name() + ")</option>";
+			    txt += '<option value="' + en.id + '">' + enemy_ship( en ) + ' (' + en.get_owner().get_name() + ")</option>";
 			}
 		    }
 		    txt += '</select>';
@@ -309,6 +324,59 @@ $("body").bind("DOMSubtreeModified", function() {
 		} //if there are beams
 	    } //make_ship_fire_orders
 
+	    function make_ship_carrier_orders( shp, m_ships ) {
+		var rs = shp.get_racksize() * 1;
+		if( rs > 0 ) {
+		    var buf = '';
+		    var include = false;
+
+		    var carried = shp.get_carried();
+		    if( carried.length() > 0 ) {
+			for( var i=0; i < carried.length(); i++ ) {
+			    buf += '<button type="button" id="unload_' + carried.get( i ).id +
+				'>Unload ' + my_ship( carried.get( i ) ) + '</button><br>';
+			    include = true;
+			}
+		    }
+		    for( var i=0; i < m_ships.length; i++ ) {
+			var m_ship = m_ships[ i ];
+			if( m_ship.get_size() <= rs ) {
+			    buf += '<button id="load_' + shp.id + '_' + m_ship.id +
+				' type="button">Load ' + my_ship( m_ship ) + '</button><br>';
+			    include = true;
+			}
+		    }
+		    
+		    if( include ) {
+			$( '#ship_' + shp.id + '_carrier_cmd_div' ).empty().append( buf );
+
+			if( carried.length() > 0 ) {
+			    for( var i=0; i < carried.length(); i++ ) {
+				var c = carried.get( i );
+				$( '#unload_' + c.id ).click( (function(s){ function() {
+				    s.new_order( {
+					order : 'unload',
+					turn  : on_turn
+				    } );
+				    make_ship_carrier_orders( s, m_ships );
+				} } )( shp ) );
+			    }
+			}
+			for( var i=0; i < m_ships.length; i++ ) {
+			    var m_ship = m_ships[ i ];
+			    if( m_ship.get_size() <= rs ) {
+				$( '#load_' + shp.id + '_' + m_ships[ i ].id ).click( (function(cs,s){ function() {
+				    s.new_order( {
+					order    : 'load',
+					carrier  : cs,
+				    } );
+				} } )( shp, m_ship ) );
+			    }
+			}
+		    }
+		}
+	    } //make_ship_carrier_orders
+
 	    function make_ship_move_orders( shp ) {
 		var jumps = shp.get_jumps();
 		if( jumps > 0 ) {
@@ -373,114 +441,6 @@ $("body").bind("DOMSubtreeModified", function() {
 		} //if ship has more than one jump
 	    } //make_ship_move_orders
 
-	    function show_node( node, player, fleets ) {
-		if( ! node ) { return }
-		var stext = '';
-
-		var tab = $.yote.util.make_table();
-		tab.add_param_row( [ 'name', node.get_name() ] );
-		tab.add_param_row( [ 'production ', node.get_seen_production() + ' / ' + node.get_seen_max_production() ] );
-
-		var ltxt = '<ul>';
-		var links = node.get_links();
-		var lkeys = links.keys();
-		for( var i=0; i<lkeys.length; i++ ) {
-		    var link_sect = links.get( lkeys[ i ] );
-		    ltxt += '<li>' + link_sect.get_name() + '</li>';
-		}
-		ltxt += '</ul>';
-
-		// build a graph of things within 4 of the node
-		var graph = new Graph();
-		var to_graph = {};
-		var seen     = {};
-		var round = [ node ]; // list of nodes to use for next layer
-		for( var i=0; i < 4; i++ ) { //the 4 layers
-		    var next_round = {};
-		    for( var j=0; j < round.length; j++ ) {
-			var round_node  = round[ j ];
-			if( round_node.get_links ) {
-			    if( ! (round_node.id in seen) ) {
-				seen[ round_node.id ] = 1;
-				graph.addNode( round_node.get_name() );
-			    }
-			    var round_links = round_node.get_links();
-			    var r_keys      = round_links.keys()
-			    for( var k=0; k < r_keys.length; k++ ) {
-				var x_sect = round_links.get( r_keys[ k ] );
-				if( ! ( x_sect.id in seen ) ) {
-				    seen[ x_sect.id ] = 1;
-				    graph.addNode( x_sect.get_name() );
-				}
-				graph.addEdge( round_node.get_name(), x_sect.get_name() );
-				next_round[ x_sect.id ] = x_sect;
-			    }
-			}
-		    }
-		    round = [];
-		    for( var j in next_round ) {
-			round.push( next_round[ j ] );
-		    }
-		    console.log( [ "ROUND NOW ", round ] );
-		} // the four layers
-
-		tab.add_param_row( [ 'Links', ltxt ] );
-
-
-		var my_ships = fleets[ 'my' ];
-		var other_ships = fleets[ 'enemy' ];
-
-		var ship_tab = $.yote.util.make_table( 'border=1' );
-
-		if( other_ships.length > 0 ) {
-		    ship_tab.add_header_row( [ 'Ship', 'Move Orders', 'Attack Target' ] );
-		} else {
-		    ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
-		}
-		for( var i=0; i < my_ships.length; i++ ) {
-		    var ship = my_ships[ i ];
-		    // name, move, fire
-		    if( other_ships.length > 0 ) {
-			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>', '<div id="ship_' + ship.id + '_attack_target_div">No Target</div>' ] );
-		    } else {
-			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
-		    }
-		}
-
-
-		if( my_ships.length > 0 ) {
-		    tab.add_param_row( [ 'my ships', ship_tab.get_html() ] );
-		}
-		if( other_ships.length > 0 ) {
-		    var e_stxt = '<ul>';
-		    for( var i=0; i < other_ships.length; i++ ) {
-			var ship = other_ships[ i ];
-			e_stxt += '<li>' + ship.get_name() + '</li>';
-		    }
-		    e_stxt  += "</ul>";
-		    tab.add_param_row( [ 'enemy ships', e_stxt ] );
-		}
-
-		stext += '<div id="canvas"></div>' + tab.get_html();
-		$( '#sector_panel' ).empty().append( stext );
-
-		/* ******* ACTIVATE GRAPH ZAHL **** */
-		var layouter = new Graph.Layout.Spring( graph );
-		renderer = new Graph.Renderer.Raphael( 'canvas', graph, 500, 500 );
-
-		layouter.layout();
-		renderer.draw();
-
-		/* ****** PATCH UP SHIP MOVE ORDERS ***** */
-		for( var i=0; i < my_ships.length; i++ ) {
-		    var ship = my_ships[ i ];
-		    make_ship_move_orders( ship );
-		    make_ship_fire_orders( ship, other_ships );
-		}
-
-	    } //show_node
-
-
 	    function show_sector( sector, node, player, fleets ) {
 		if( ! sector ) { return }
 		var stext = '';
@@ -543,21 +503,40 @@ $("body").bind("DOMSubtreeModified", function() {
 
 		var my_ships = fleets[ 'my' ];
 		var other_ships = fleets[ 'enemy' ];
-		var ship_tab = $.yote.util.make_table( 'border=1' );
-		if( other_ships.length > 0 ) {
-		    ship_tab.add_header_row( [ 'Ship', 'Move Orders', 'Attack Target' ] );
-		} else {
-		    ship_tab.add_header_row( [ 'Ship', 'Move Orders' ] );
+
+
+		var header_row = [ 'Ship', 'Move Orders' ];
+
+		// check if there are carriers here
+		var has_carriers = false;
+		for( var i=0; i < my_ships.length; i++ ) {
+		    if( my_ships[ i ].get_racksize() * 1 > 0 ) {
+			has_carriers = true;
+		    }
 		}
+		if( has_carriers ) {
+		    header_row.push( 'Carrier Commands' );
+		}
+
+		if( other_ships.length > 0 ) {
+		    header_row.push( 'Attack Target' );
+		}
+
+		var ship_tab = $.yote.util.make_table( 'border=1' );
+		ship_tab.add_header_row( header_row );
 
 		for( var i=0; i < my_ships.length; i++ ) {
 		    var ship = my_ships[ i ];
 		    // name, move, fire
-		    if( other_ships.length > 0 ) {
-			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>', '<div id="ship_' + ship.id + '_attack_target_div">No Target</div>' ] );
-		    } else {
-			ship_tab.add_row( [ ship.get_name(), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ] );
+		    var ship_tab_row = [ my_ship( ship ), '<div id="ship_' + ship.id + '_move_div">No Move</div>' ];
+		    if( has_carriers ) {
+			ship_tab_row.push( '<div id="ship_' + ship.id + '_carrier_cmd_div">N/A</div>' );
 		    }
+
+		    if( other_ships.length > 0 ) {
+			ship_tab_row.push('<div id="ship_' + ship.id + '_attack_target_div">No Target</div>');
+		    }
+		    ship_tab.add_row( ship_tab_row );
 		}
 
 		if( my_ships.length > 0 ) {
@@ -567,7 +546,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		    var e_stxt = '<ul>';
 		    for( var i=0; i < other_ships.length; i++ ) {
 			var ship = other_ships[ i ];
-			e_stxt += '<li>' + ship.get_name() + ' (' + ship.get_owner().get_name() + ')</li>';
+			e_stxt += '<li>' + my_ship( ship ) + ' (' + ship.get_owner().get_name() + ')</li>';
 		    }
 		    e_stxt  += '</ul>';
 		    tab.add_param_row( [ 'enemy ships', e_stxt ] );
@@ -635,6 +614,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		    var ship = my_ships[ i ];
 		    make_ship_move_orders( ship );
 		    make_ship_fire_orders( ship, other_ships );
+		    make_ship_carrier_orders( ship, my_ships );
 		}
 
 		function show_all_pending_orders( sec ) {
@@ -687,7 +667,7 @@ $("body").bind("DOMSubtreeModified", function() {
 			    play_game( game, acct );
 			    msg( "The Turn Advanced to " + game.get_turn_number() );
 			}
-		    }, 4000 );
+		    }, 40000 );
 		
 	    } //show_sector
 

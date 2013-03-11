@@ -4,6 +4,18 @@ use strict;
 
 use base 'StellarExpanse::TakesOrders';
 
+sub _init {
+    my $self = shift;
+    $self->SUPER::_init();
+    $self->set_carried( [] );
+}
+
+sub _load {
+    my $self = shift;
+    $self->SUPER::_load();
+    $self->get_carried( [] );
+}
+
 sub _notify {
     my( $self, $msg ) = @_;
     $self->get_owner()->_notify( "Ship " . $self->get_name() . " in sector " . $self->get_location->get_name() . " reports : $msg " );
@@ -14,7 +26,7 @@ sub _notify {
 #
 sub _unload {
     my $self = shift;
-    my $orders = $self->get_pending_orders();
+    my $orders  = $self->get_pending_orders();
     my $carrier = $self->get_carrier();
     if( $carrier ) {
         if( grep { $_->get_order() eq 'unload' } @$orders) {
@@ -37,7 +49,7 @@ sub _unload {
 #
 # Load me onto a carrier.
 #
-sub _load {
+sub _load_onto_carrier {
     my $self = shift;
     my $orders = $self->get_pending_orders();
     my( $ord ) = grep { $_->get_order() eq 'load' } @$orders;
@@ -70,7 +82,7 @@ sub _load {
             $ord->_resolve( "Unable to load onto carrier. Carrier not owned by you" );
         }
     }
-} #_load
+} #_load_onto_carrier
 
 sub _death_check {
     my $self = shift;
