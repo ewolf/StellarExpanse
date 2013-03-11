@@ -176,11 +176,13 @@ $("body").bind("DOMSubtreeModified", function() {
 		var ship = my_ships.get( i );
 		var loc = ship.get_location();
 		var node = map.get( loc.id );
-		nodeid2node[ node.id ] = node;
-		if( typeof nodeid2ships[ node.id ] === 'undefined' ) {
-		    nodeid2ships[ node.id ] = { my : [], enemy : [] };
+		if( node ) {
+		    nodeid2node[ node.id ] = node;
+		    if( typeof nodeid2ships[ node.id ] === 'undefined' ) {
+			nodeid2ships[ node.id ] = { my : [], enemy : [] };
+		    }
+		    nodeid2ships[ node.id ][ 'my' ].push( ship );
 		}
-		nodeid2ships[ node.id ][ 'my' ].push( ship );
 	    } //each ship
 	    var sectorids = map.keys();
 	    var nodes = [];
@@ -210,6 +212,9 @@ $("body").bind("DOMSubtreeModified", function() {
 		    }
 		}
 	    } //each sector
+
+	    console.log( nodeid2ships );
+	    console.log( '------' );
 
 	    for( var nid in nodeid2ships ) {
 		var node = nodeid2node[ nid ];
@@ -333,16 +338,41 @@ $("body").bind("DOMSubtreeModified", function() {
 		    var carried = shp.get_carried();
 		    if( carried.length() > 0 ) {
 			for( var i=0; i < carried.length(); i++ ) {
-			    buf += '<button type="button" id="unload_' + carried.get( i ).id +
-				'>Unload ' + my_ship( carried.get( i ) ) + '</button><br>';
+			    var car = carried.get( i );
+			    var ords = car.get_pending_orders();
+			    var is_unloading = false;
+			    for( var j=0; j < ords.length(); j++ ) {
+				if( ords.get( j ).get_order() == 'unload' ) {
+				    is_unloading = true;
+				}
+			    }
+			    if( is_unloading ) {
+				buf += 'Unloading ' + my_ship( car ) + 
+				    ' <BUTTON TYPE="BUTTON" id="remove_unload_' + car.id + '">cancel</button><BR>';
+			    } else {
+				buf += '<button type="button" id="unload_' + car.id +
+				    '">Unload ' + my_ship( car ) + '</button><br>';
+			    }
 			    include = true;
 			}
 		    }
 		    for( var i=0; i < m_ships.length; i++ ) {
 			var m_ship = m_ships[ i ];
 			if( m_ship.get_size() <= rs ) {
-			    buf += '<button id="load_' + shp.id + '_' + m_ship.id +
-				' type="button">Load ' + my_ship( m_ship ) + '</button><br>';
+			    var c_ords = m_ship.get_pending_orders();
+			    var is_loading = false;
+			    for( var j=0; j < c_ords.length(); j++ ) {
+				if( c_ords.get( j ).get_order() == 'load' && c_ords.get( j ).get_carrier().equals( shp ) ) {
+				    is_loading = true;
+				}
+			    }
+			    if( is_loading ) {
+				buf += 'Loading ' + my_ship( m_ship ) + ' <BUTTON TYPE="BUTTON" id="remove_load_' 
+				    + shp.id + '_' + m_ship.id + '">cancel</button><BR>';
+			    } else {
+				buf += '<button id="load_' + shp.id + '_' + m_ship.id +
+				    '" type="button">Load ' + my_ship( m_ship ) + '</button><br>';
+			    }
 			    include = true;
 			}
 		    }
@@ -353,24 +383,51 @@ $("body").bind("DOMSubtreeModified", function() {
 			if( carried.length() > 0 ) {
 			    for( var i=0; i < carried.length(); i++ ) {
 				var c = carried.get( i );
-				$( '#unload_' + c.id ).click( (function(s){ function() {
-				    s.new_order( {
+				var unloading_order = false;
+				for( var j=0; j < ords.length(); j++ ) {
+				    if( ords.get( j ).get_order() == 'unload' ) {
+					unloading_order = ords.get( j );
+				    }
+				}
+				$( '#unload_' + c.id ).click( (function(cc,ss){ return function() {
+				    cc.new_order( {
 					order : 'unload',
 					turn  : on_turn
 				    } );
-				    make_ship_carrier_orders( s, m_ships );
-				} } )( shp ) );
+				    make_ship_carrier_orders( ss, m_ships );
+				} } ) ( c, shp ) );
+				if( unloading_order ) {
+				    $( '#remove_unload_' + c.id ).click( (function(cc,ss,uo){ return function() {
+					cc.remove_order( uo );
+					make_ship_carrier_orders( ss, m_ships );
+				    } } ) ( c, shp, unloading_order ) );
+				}
 			    }
 			}
 			for( var i=0; i < m_ships.length; i++ ) {
 			    var m_ship = m_ships[ i ];
 			    if( m_ship.get_size() <= rs ) {
-				$( '#load_' + shp.id + '_' + m_ships[ i ].id ).click( (function(cs,s){ function() {
+				var loading_order = false;
+				for( var j=0; j < c_ords.length(); j++ ) {
+				    if( c_ords.get( j ).get_order() == 'load' && c_ords.get( j ).get_carrier().equals( shp ) ) {
+					loading_order = c_ords.get( j );
+				    }
+				}
+				$( '#load_' + shp.id + '_' + m_ship.id ).click( (function(cs,s){ return function() {
 				    s.new_order( {
 					order    : 'load',
 					carrier  : cs,
+					turn     : on_turn
 				    } );
+				    make_ship_carrier_orders( cs, m_ships );
 				} } )( shp, m_ship ) );
+				if( loading_order ) {
+				    $( '#remove_load_' + shp.id + '_' + m_ship.id ).click( (function(cs,s,lo){ return function() {
+					alert( 1 );
+					s.remove_order( lo );
+					make_ship_carrier_orders( cs, m_ships );
+				    } } )( shp, m_ship, loading_order ) );
+				}
 			    }
 			}
 		    }
