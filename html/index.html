@@ -10,8 +10,6 @@
     <script src="/yote/js/yote.js"></script>
     <script src="/yote/js/yote.util.js"></script>
     <script src="/yote/js/yote.system.util.js"></script>
-    <link href="/css/bootstrap.css" rel="stylesheet" type="text/css" media="all" />
-    <link href="/css/bootstrap-responsive.css" rel="stylesheet" type="text/css" media="all" />
     <link rel="stylesheet" href="/yote/css/jquery.mobile.css" type="text/css" media="all" />
     <link rel="stylesheet" href="/yote/css/ui-lightness/jquery-ui-1.8.23.custom.css" type="text/css" media="all" />
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
@@ -19,17 +17,35 @@
     <script type="text/javascript" src="js/graphdracula/dracula_graffle.js"></script>
     <script type="text/javascript" src="js/graphdracula/dracula_graph.js"></script>
     <STYLE>
-       .gametable { text-align: center; }
-       .panel { background-color: lightblue; padding:30px;
-		border: 4px groove black;
-	      }
-       .splash { background-color: wheat; 
-       }
-       .even-row .even-col { background-color:AD9CD5 }
-       .odd-row  .even-col { background-color:B7ABD5  }
+      body { 
+          margin-top:90px; 
+	  background-color: rgb(14, 10, 29);
+	  background-image: url(se_starback.png);
+      }
+      section { padding-left:04px; }
+      .main_div { width:600px; 
+		 margin:auto; 
+	       }
+      
+      .header { position:fixed; top:0px; left:0px; height:80px; margin:auto; width:100%; margin-right:40px; color:white; background-color:black; vertical-align:middle; }
+      .login  { float:right; margin-right:15px; padding-right:15px; display:inline-block; vertical-align:middle; height:100%; }
+      table { text-align: center;  }
 
-       .even-row .odd-col  { background-color:9CA9D4  }
-       .odd-row  .odd-col  { background-color:ABB4D4}
+      .column { display:inline-block; top:0px; vertical-align: top }
+
+      .gametable { text-align: center; }
+      .panel { background-color:rgba(80,140,200,0.6);
+	       margin:30px;
+	       padding:5px;
+	     }
+      .splash { 
+	  background-color: wheat; 
+      }
+      .even-row .even-col { background-color:AD9CD5 }
+      .odd-row  .even-col { background-color:B7ABD5  }
+      
+      .even-row .odd-col  { background-color:9CA9D4  }
+      .odd-row  .odd-col  { background-color:ABB4D4}
     </STYLE>
 
     <script>
@@ -54,17 +70,18 @@ $("body").bind("DOMSubtreeModified", function() {
 	}
 
 	function splash_screen() {
-	    $( '#main_div' ).empty().append( '<DIV class="container">' +
-					     ' <DIV class="row">' +
-					     '   <DIV class="span2 offset1 splash">' +
-					     '    <DIV id="msgboard"></DIV>' +
-					     "   </DIV>" +
-					     '   <DIV class="span6 offset 2 splash">' +
-					     ' BLAH ' +
-					     "   </DIV>" +
-					     " </DIV>" +
-					     "</DIV>"
-					   );
+	    var buf = '<div class="panel"><h1>Welcome to Stellar Expanse</h1></div>';
+	    if( $.yote.is_logged_in() ) {
+		buf += '<h2>You are in the lobby</h2><div id="lobby_div"></div>';
+	    } else {
+		buf += '<div class="panel" id="create_acct_div">' +
+		    '<P><input type="text" id="username" placeholder="Name"><input type="password" placeholder="Password" id="pw"> <BUTTON typ="BUTTON">Log In</BUTTON></P><BR>' +
+		    'Create an Account' + 
+		    '</div>';
+		
+	    }
+	    
+	    $( '#main_div' ).empty().append( buf );
 	}
 
 	function play_game( game, acct ) {
@@ -213,9 +230,6 @@ $("body").bind("DOMSubtreeModified", function() {
 		}
 	    } //each sector
 
-	    console.log( nodeid2ships );
-	    console.log( '------' );
-
 	    for( var nid in nodeid2ships ) {
 		var node = nodeid2node[ nid ];
 		var links = node.get_links();
@@ -268,7 +282,6 @@ $("body").bind("DOMSubtreeModified", function() {
 		    $( div ).append( txt );
 
 		    function bind_select( dv, shp, odx, ene, ens, ex_ord ) {
-			console.log( [ "ADDING BIND FOR " + odx, ex_ord ] );
 			$( '#ships_beams_' + shp.id + '_' + odx ).unbind();
 			$( '#ships_targets_' + shp.id + '_' + odx ).unbind();
 
@@ -295,7 +308,6 @@ $("body").bind("DOMSubtreeModified", function() {
 				    Beams  : $( '#ships_beams_' + shp.id + '_' + odx ).val()
 				} );
 				bind_select( dv, shp, odx, ene, ens, fire_ord );
-				console.log( [ "ORD", fire_ord ] );
 				alert( 'just made order ' );
 				// should only add if there are more targets
 				add_fire_order( dv, shp, ene, odx + 1 );
@@ -521,6 +533,40 @@ $("body").bind("DOMSubtreeModified", function() {
 		}
 		ltxt += '</ul>';
 
+		var myrender = function(r, n) {
+		    /* the Raphael set is obligatory, containing all you want to display */
+		    var fill_color = '#fa8';
+		    console.log( [ n.id, map, "BBEEEEPP" ] );
+
+		    var set = r.set().push(
+			/* custom objects go here */
+			
+			
+/*
+			r.rect(n.point[0]-30, n.point[1]-13, 62, 86)
+*/
+			r.circle( n.point[ 0 ], n.point[ 1 ], 60 )
+			    .attr({"fill": "#fa8", 
+				   "stroke-width": 2,
+				   r : "9px"}))
+			.push(r.text(n.point[0], 
+				     n.point[1] + 30, 
+				     n.label)
+			      .attr({"font-size":"15px"}));
+		    /* custom tooltip attached to the set */
+		    set.items.forEach(
+			function(el) {
+			    el.tooltip(r.set().push(r.circle(0,0) //r.rect(0, 0, 30, 30)
+						    .attr({"fill": "#fec", "stroke-width": 1, r : "9px"})))});
+		    /*
+		    set.items.forEach(
+			function(el) {
+			    el.tooltip(r.set().push(r.rect(0, 0, 30, 30)
+						    .attr({"fill": "#fec", "stroke-width": 1, r : "9px"})))});
+		    */
+		    return set;
+		};
+
 		// build a graph of things within 4 of the node
 		var graph = new Graph();
 		var to_graph = {};
@@ -533,18 +579,22 @@ $("body").bind("DOMSubtreeModified", function() {
 			if( round_node.get_links ) {
 			    if( ! (round_node.id in seen) ) {
 				seen[ round_node.id ] = 1;
-				graph.addNode( round_node.get_name() );
+				var node = graph.addNode( round_node.id, { 
+				    label : round_node.get_name(), 
+				    render : myrender } );
+				(function( rn ) { node.map_node = rn; } )( round_node );
 			    }
 			    var round_links = round_node.get_links();
 			    var r_keys      = round_links.keys()
 			    for( var k=0; k < r_keys.length; k++ ) {
-				var x_sect = round_links.get( r_keys[ k ] );
-				if( ! ( x_sect.id in seen ) ) {
-				    seen[ x_sect.id ] = 1;
-				    graph.addNode( x_sect.get_name() );
+				var x_node = round_links.get( r_keys[ k ] );
+				if( ! ( x_node.id in seen ) ) {
+				    seen[ x_node.id ] = 1;
+				    var node = graph.addNode( x_node.id, { label  : x_node.get_name(), 
+									   render : myrender } );
 				}
-				graph.addEdge( round_node.get_name(), x_sect.get_name() );
-				next_round[ x_sect.id ] = x_sect;
+				graph.addEdge( round_node.id, x_node.id );
+				next_round[ x_node.id ] = x_node;
 			    }
 			}
 		    }
@@ -552,7 +602,6 @@ $("body").bind("DOMSubtreeModified", function() {
 		    for( var j in next_round ) {
 			round.push( next_round[ j ] );
 		    }
-		    console.log( [ "ROUND NOW ", round ] );
 		} // the four layers
 
 
@@ -707,6 +756,10 @@ $("body").bind("DOMSubtreeModified", function() {
 		/* ******* ACTIVATE GRAPH ZAHL **** */
 		var layouter = new Graph.Layout.Spring( graph );
 		renderer = new Graph.Renderer.Raphael( 'canvas', graph, 500, 500 );
+
+		for( var key in graph.nodes ) {
+		    graph.nodes[ key ].render
+		}
 
 		layouter.layout();
 		renderer.draw();
@@ -932,7 +985,7 @@ $("body").bind("DOMSubtreeModified", function() {
 		update_text += tab.get_html() + '<BR><button type="button" id="create_game" class="btn disabled btn-link">Create</button>';
 
 
-		$( '#main_div' ).empty().append( update_text );
+		$( '#lobby_div' ).empty().append( update_text );
 		$( '#back_to_lobby' ).click( function() {
 		    acct._send_update( { Last_played : '' } );
 		    to_game_login( acct.get_login(), acct, '' );
@@ -966,7 +1019,8 @@ $("body").bind("DOMSubtreeModified", function() {
 
 
 	} //to_game_login
-
+	
+	/*
 	$.yote.util.make_login_bar( { brand_html             : '<a class="brand"><IMG src="se.png"> <huge>Stellar Expanse</huge></a>',
 				      app                    : se_app,
 				      container_id           : '#nav-container',
@@ -981,6 +1035,8 @@ $("body").bind("DOMSubtreeModified", function() {
 					  msg( "Logged out of Stellar Expanse" );
 				      }
 				    } );
+				    */
+	splash_screen();
     });
     </script>
     <style>
@@ -988,20 +1044,14 @@ $("body").bind("DOMSubtreeModified", function() {
       .bordered { border: 1px solid black;padding:5px; margin: 5px;}
     </style>
   </head>
-  <body>
-    <div STYLE="background-color:#181818;vertical-align:middle">
-	<div id="nav-container" class="container" style="width: auto"></div>
-    </div>
 
-    <HEADER class="jumbotron subhead" style="height:70px">
-      &nbsp;
-      <div style="position:fixed;top:350px;left:350px;" id="modal_div"></div>
-    </HEADER>
-
-    <DIV id="outer_div" style="margin:10px">
-      <DIV id="msg_div"></div>
-      <DIV id="main_div"></div>
+  <BODY>
+    <DIV class="header">
+      <DIV class="login" id="login_div"></DIV>
+      <img src="se.png">
     </DIV>
-    <script src="/js/bootstrap.js"></script>
-  </body>
+
+    <DIV id="main_div" class="main_div"></DIV>
+
+  </BODY>
 </html>
