@@ -27,11 +27,6 @@ sub _init {
     $self->set_messageboard( new Yote::Util::MessageBoard() );
 } #init
 
-sub _on_load {
-    my $self = shift;
-    $self->{NO_DEEP_CLONE} = 1;
-}
-
 sub _current_turn {
     my $self = shift;
     return $self->get__turns()->[$self->get_turn_number()];

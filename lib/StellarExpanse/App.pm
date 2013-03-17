@@ -22,7 +22,6 @@ sub _init_account {
     my( $self, $acct ) = @_;
     $acct->set_active_games([]);
     $acct->set_pending_games([]);
-    $acct->set_active_games([]);
     $acct->set_handle( $acct->get_login()->get_handle() );
     $acct->set_Last_played( undef );
 }
@@ -35,6 +34,19 @@ sub RESET {
     $self->set__games({});
     $self->set_pending_games([]);
 }
+
+sub load_data {
+    my( $self, $data, $acct ) = @_;
+    if( $acct ) {
+	return [
+	    $acct->get_active_games(),
+	    @{ $acct->get_active_games() },
+	    $acct->get_pending_games(),
+	    @{ $acct->get_pending_games() },
+	    ];
+    }
+    return undef;
+} #load_data
 
 sub create_game {
     my( $self, $data, $acct ) = @_;
