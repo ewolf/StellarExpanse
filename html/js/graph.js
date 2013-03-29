@@ -9,8 +9,9 @@ function graph() {
 	set       : undefined,
 	node      : function( name, data ) {
 	    var newid = this._next_node_id++;
-	    var nd = { name : name, 
-		       data : data, 
+	    var nd = { name  : name, 
+		       data  : data, 
+		       drawn : false,
 		       links : {}, id : newid, 
 		       graphics : { links : {}, self : []  } };
 	    this.nodes[ newid ] = nd;
@@ -367,7 +368,7 @@ function graph() {
 	    for( var key in this.matrix ) {
 		for( var okey in this.matrix[ key ] ) {
 		    var node = this.matrix[ key ][ okey ];
-		    if( typeof node === 'object' ) {
+		    if( typeof node === 'object' && ! node.drawn ) {
 			var npos = this.mkey[ node.id ];
 			if( typeof this.matrix[ key ][ okey ][ 'offsetx' ] === 'undefined' ) {
 			    this.matrix[ key ][ okey ].offsetx = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
@@ -408,30 +409,35 @@ function graph() {
 	    for( var key in this.matrix ) {
 		for( var okey in this.matrix[ key ] ) {
 		    var node = this.matrix[ key ][ okey ];
-		    if( minX == false || minX > key * 1 ) {
-			minX = key * 1;
-		    }
-		    if( minY == false || minY > okey * 1 ) {
-			minY = okey * 1;
-		    }
 		    if( typeof node === 'object' ) {
-			var c = this.paper.circle( this.matrix[ key ][ okey ].offsetx + key * this.cell_size + this.half_cell, 
-					      this.matrix[ key ][ okey ].offsety + this.cell_size * okey + this.half_cell, 
-					      10 );
-			c.attr( { fill : '20-#3B4-#BFB' } );
-			var g = c.glow();
-			node.graphics[ 'self' ].push( g );
-			node.graphics[ 'self' ].push( c );
+			if( minX == false || minX > key * 1 ) {
+			    minX = key * 1;
+			}
+			if( minY == false || minY > okey * 1 ) {
+			    minY = okey * 1;
+			}
+			if( ! node.drawn ) {
+			    if( typeof node === 'object' ) {
+				var c = this.paper.circle( this.matrix[ key ][ okey ].offsetx + key * this.cell_size + this.half_cell, 
+							   this.matrix[ key ][ okey ].offsety + this.cell_size * okey + this.half_cell, 
+							   10 );
+				c.attr( { fill : '20-#3B4-#BFB' } );
+				var g = c.glow();
+				node.graphics[ 'self' ].push( g );
+				node.graphics[ 'self' ].push( c );
 
-			this.set.push( g );
-			this.set.push( c );
-			var txt = this.paper.text( this.matrix[ key ][ okey ].offsetx + key * this.cell_size + this.half_cell, 
-					      this.matrix[ key ][ okey ].offsety + this.cell_size * okey + this.half_cell, 
-					      this.matrix[ key ][ okey ].name );
-			console.log( "Adding text " + this.matrix[ key ][ okey ].name );
-			this.set.push( txt );
-			node.graphics[ 'self' ].push( txt );
-		    }
+				this.set.push( g );
+				this.set.push( c );
+				var txt = this.paper.text( this.matrix[ key ][ okey ].offsetx + key * this.cell_size + this.half_cell, 
+							   this.matrix[ key ][ okey ].offsety + this.cell_size * okey + this.half_cell, 
+							   this.matrix[ key ][ okey ].name );
+				console.log( "Adding text " + this.matrix[ key ][ okey ].name );
+				this.set.push( txt );
+				node.graphics[ 'self' ].push( txt );
+			    }
+			    node.drawn = true;
+			}
+		    } //if not drawn
 		}
 	    }
 	    
