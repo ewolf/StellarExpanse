@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<HTML>
+  <head>
+    <title>GRAPH</title>
+
+    <script src="/yote/js/jquery-latest.js"></script>
+    <script src="/js/raphael-min.js"></script>
+    <script src="js/graph.js"></script>
+
+
+<SCRIPT>
+    $().ready( function() {
+
+	//pentagon with a node off of two points
+	var g = graph()
+	g.node( 'A' ); // 0
+	var bnode = g.node( 'B' ); // 1
+	g.node( 'C' ); // 2
+	g.node( 'D' ); // 3
+	g.node( 'E' ); // 4
+
+	g.node( 'F' ); // 5
+	g.node( 'G' ); // 6
+
+	g.node( 'H' ); // unconnected 7
+
+	g.link( 0, 1 ); //a - b
+	g.link( 1, 2 ); //b - c
+	g.link( 2, 3 ); //c - d
+	g.link( 3, 4 ); //d - e
+	g.link( 4, 0 ); //e - a
+
+	g.link( 1, 4 ); //b - e
+
+	g.link( 1, 6 );
+	g.link( 3, 5 );
+
+
+	function test( a, b, res ) {
+	    var d = g._dist( a, b, {} );
+	    if( res != d ) alert( a + ' to ' + b + ' got ' + d + ' and expecting ' + res );
+	    var d = g._dist( b, a, {} );
+	    if( res != d ) alert( b + ' to ' + a + ' got ' + d + ' and expecting ' + res );
+	}
+
+	test( 0, 0, 0 );
+	test( 0, 1, 1 );
+	test( 0, 7, -1 );
+	test( 0, 1, 1 );
+	test( 0, 2, 2 );
+	test( 0, 3, 2 );
+	test( 0, 4, 1 );
+	test( 0, 6, 2 );
+	test( 5, 6, 4 );
+	test( 6, 5, 4 );
+	test( 1, 4, 1 );
+	test( 6, 4, 2 );
+
+	test( 3, 5, 1 );
+	test( 5, 3, 1 );
+	test( 1, 5, 3 );
+	test( 5, 1, 3 );
+	
+	g.build_matrix();
+	g.draw();
+
+	
+//	g.remove_node( bnode.id );
+
+	console.log( g.matrix );
+
+	var nn = g.node( 'Q' );
+	g.link( nn.id, 3 );
+	g._add_one_to_matrix( nn );
+	g.draw();
+
+    } );
+	       
+</SCRIPT>
+
+</head>
+
+<body>
+<h1>GRAPH</h1>
+<div id="MSG"></div>
+<SVG>
+</SVG>
+</body>
+</HTML>
