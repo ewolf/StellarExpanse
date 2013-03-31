@@ -1,4 +1,5 @@
-function graph() {
+if( ! window[ 'se' ] ) { se = {}; }
+se.graph = function() {
     return {
 	_next_node_id : 0,
 	nodes     : {},
@@ -7,8 +8,10 @@ function graph() {
 	placed    : undefined,
 	mkey      : {},
 	set       : undefined,
-	node      : function( name, data ) {
-	    var newid = this._next_node_id++;
+	node      : function( name, id, data, opts ) {
+	    var opt = opts || {};
+	    var newid = id || this._next_node_id;
+	    this._next_node_id = newid + 1;
 	    var nd = { name  : name, 
 		       data  : data, 
 		       drawn : false,
@@ -18,6 +21,7 @@ function graph() {
 	    return nd;
 	},
 	link      : function( a, b ) {
+	    console.log( [ this, a, b ] );
 	    this.nodes[ a ].links[ b ] = this.nodes[ b ];
 	    this.nodes[ b ].links[ a ] = this.nodes[ a ];
 	},
@@ -285,7 +289,7 @@ function graph() {
 		nexty = this.placed[ placedids[ 0 ] ][ 2 ] + ( Math.random() > .5 ? -1 : 1 );
 	    } else {
 		nextx = Math.round( this.placed[ placedids[ 0 ] ][ 1 ] + this.placed[ placedids[ 1 ] ][ 1 ] / 2.0 );	    
-		nexty = Math.round( this.placed[ placedids[ 0  ]][ 2 ] + this.placed[ placedids[ 1 ] ][ 2 ] / 2.0 );
+		nexty = Math.round( this.placed[ placedids[ 0 ] ][ 2 ] + this.placed[ placedids[ 1 ] ][ 2 ] / 2.0 );
 	    }
 
 	    if( typeof this.matrix[ nextx ] === 'undefined' ) { this.matrix[ nextx ] = {}; }
@@ -360,51 +364,14 @@ function graph() {
 	paper        : undefined,
 	set          : undefined,
 
-	draw : function() {
+	draw : function( x, y, w, h ) {
+	    if( this.matrix == undefined ) {
+		this.build_matrix();
+	    }
 	    if( this.paper == undefined ) {
-		this.paper = Raphael( 150, 150, 800, 800 );
+		this.paper = Raphael( x, y, w, h );
 		this.set = this.paper.set();
 	    }
-	    for( var key in this.matrix ) {
-		for( var okey in this.matrix[ key ] ) {
-		    var node = this.matrix[ key ][ okey ];
-		    if( typeof node === 'object' && ! node.drawn ) {
-			var npos = this.mkey[ node.id ];
-			if( typeof this.matrix[ key ][ okey ][ 'offsetx' ] === 'undefined' ) {
-			    this.matrix[ key ][ okey ].offsetx = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
-			    this.matrix[ key ][ okey ].offsety = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
-			}
-
-			var linkids = Object.keys( node.links );
-			for( var j=0; j < linkids.length; j++ ) {
-			    var link = this.matrix[ key ][ okey ].links[ linkids[ j ] ];
-			    var opos = this.mkey[ link.id ];
-			    //randomize the center a little bit
-			    if( typeof link[ 'offsetx' ] === 'undefined' ) {
-				link.offsetx = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
-				link.offsety = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
-			    }
-			    var pth = this.paper.path( "M" + (  link.offsetx + this.half_cell + this.cell_size * opos[ 0 ] ) + ' ' + 
-						  ( link.offsety + this.half_cell + this.cell_size * opos[ 1 ] ) + 
-						  'L' + ( this.matrix[ key ][ okey ].offsetx + this.half_cell + this.cell_size * npos[ 0 ] ) + ' ' + ( this.matrix[ key ][ okey ].offsety + this.half_cell + this.cell_size * npos[ 1 ] ) );
-			    pth.attr( { 'stroke-width' : 2, 
-					'opacity' : .4, 
-					//				    stroke : clr
-				      } );
-			    var g = pth.glow();
-			    node.graphics[ 'links' ][ link.id ] = [];
-			    node.graphics[ 'links' ][ link.id ].push( g );
-			    node.graphics[ 'links' ][ link.id ].push( pth );
-			    var clr = '#' + Math.round( 5 + 10 * (Math.random() - .5 ) ) + '' + Math.round( 5 + 10 * (Math.random() - .5 ) ) + '' + Math.round( 5 + 10 * (Math.random() - .5 ) );
-			    g.attr( { stroke : clr,
-				      //				  'opacity' : .2
-				    } );
-			    this.set.push( pth );
-			    this.set.push( g );
-			}
-		    }
-		}
-	    } // each item in the matrix
 	    var minX = false, minY = false;
 	    for( var key in this.matrix ) {
 		for( var okey in this.matrix[ key ] ) {
@@ -417,37 +384,76 @@ function graph() {
 			    minY = okey * 1;
 			}
 			if( ! node.drawn ) {
-			    if( typeof node === 'object' ) {
-				var c = this.paper.circle( this.matrix[ key ][ okey ].offsetx + key * this.cell_size + this.half_cell, 
-							   this.matrix[ key ][ okey ].offsety + this.cell_size * okey + this.half_cell, 
-							   10 );
-				c.attr( { fill : '20-#3B4-#BFB' } );
-				var g = c.glow();
-				node.graphics[ 'self' ].push( g );
-				node.graphics[ 'self' ].push( c );
+			    var npos = this.mkey[ node.id ];
+			    if( typeof node[ 'offsetx' ] === 'undefined' ) {
+				node.offsetx = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
+				node.offsety = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
+			    }
 
+			    var c = this.paper.circle( node.offsetx + key * this.cell_size + this.half_cell, 
+						       node.offsety + this.cell_size * okey + this.half_cell, 
+						       10 );
+			    c.attr( { fill : '20-#3B4-#BFB' } );
+			    console.log( c );
+			    var g = c.glow();
+			    node.graphics[ 'self' ].push( g );
+			    node.graphics[ 'self' ].push( c );
+			    
+			    this.set.push( g );
+			    this.set.push( c );
+			    var txt = this.paper.text( node.offsetx + key * this.cell_size + this.half_cell, 
+						       node.offsety + this.cell_size * okey + this.half_cell, 
+						       node.name );
+			    console.log( "Adding text " + node.name );
+			    this.set.push( txt );
+			    node.graphics[ 'self' ].push( txt );
+			    
+			    var linkids = Object.keys( node.links );
+			    for( var j=0; j < linkids.length; j++ ) {
+				var link = node.links[ linkids[ j ] ];
+				var opos = this.mkey[ link.id ];
+				//randomize the center a little bit
+				if( typeof link[ 'offsetx' ] === 'undefined' ) {
+				    link.offsetx = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
+				    link.offsety = Math.round( this.quarter_cell * ( Math.random() - .5 ) );
+				}
+				var pth = this.paper.path( "M" + (  link.offsetx + this.half_cell + this.cell_size * opos[ 0 ] ) + ' ' + 
+							   ( link.offsety + this.half_cell + this.cell_size * opos[ 1 ] ) + 
+							   'L' + ( node.offsetx + this.half_cell + this.cell_size * npos[ 0 ] ) + ' ' + ( node.offsety + this.half_cell + this.cell_size * npos[ 1 ] ) );
+				pth.attr( { 'stroke-width' : 2, 
+					    'opacity' : .4, 
+					    //				    stroke : clr
+					  } );
+				var g = pth.glow();
+				pth.toBack();
+				g.toBack();
+				node.graphics[ 'links' ][ link.id ] = [];
+				node.graphics[ 'links' ][ link.id ].push( g );
+				node.graphics[ 'links' ][ link.id ].push( pth );
+				var clr = '#' + Math.round( 5 + 10 * (Math.random() - .5 ) ) + '' + Math.round( 5 + 10 * (Math.random() - .5 ) ) + '' + Math.round( 5 + 10 * (Math.random() - .5 ) );
+				g.attr( { stroke : clr,
+					  //				  'opacity' : .2
+					} );
+				this.set.push( pth );
 				this.set.push( g );
-				this.set.push( c );
-				var txt = this.paper.text( this.matrix[ key ][ okey ].offsetx + key * this.cell_size + this.half_cell, 
-							   this.matrix[ key ][ okey ].offsety + this.cell_size * okey + this.half_cell, 
-							   this.matrix[ key ][ okey ].name );
-				console.log( "Adding text " + this.matrix[ key ][ okey ].name );
-				this.set.push( txt );
-				node.graphics[ 'self' ].push( txt );
 			    }
 			    node.drawn = true;
-			}
-		    } //if not drawn
+			} //if not drawn
+		    } //if obj
 		}
-	    }
+	    } // each item in the matrix
 	    
 	    var tX = this.cell_size, tY = this.cell_size;
 	    if( minX < 0 ) { tX -= this.cell_size * minX; }
 	    if( minY < 0 ) { tY -= this.cell_size * minY; }
-	    
 	    this.set.forEach( function( el ) { el.transform( "t" + tX + ',' + tY ); } );
-//	    this.set.animate( { transform : "t" + tX + ',' + tY }, 1000 );
-	} //draw
-	
+//	    this.set.animate( { transform : "t" + tX + ',' + tY }, 400 );
+	    return this.paper;
+	}, //draw
+	hide: function() {
+	    if( this.paper != undefined ) {
+		this.paper.remove();
+	    }
+	}
     };
 } //graph

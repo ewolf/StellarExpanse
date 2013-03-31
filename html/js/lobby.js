@@ -1,47 +1,105 @@
-function splash_screen( msg, first_time ) {
-    var buf = '<div class="panel core"><h1>Welcome to Stellar Expanse</h1></div>';
+if( ! window[ 'se' ] ) { se = {}; }
+
+se.refresh_chat = function() {
+    var li = se_app.get_logged_in();
+    var buf = "Who's logged in <ul>";	
+    for( var i=0; i < li.length(); i++ ) {
+	buf += '<li>' + li.get( i ) + '</li>';
+    }
+    buf += '</ul>' +
+	'<div id="lobby_chat_messages_div">';
+
+    var msgs = se_app.get_lobby_messages();
+    var max = msgs.length();
+    if( max > 15 ) { max = 15; }
+    for( var i=0 ; i < max ; i++ ) {
+	var msg = msgs.get( i );
+	var dt = new Date( msg.get_time() * 1000 );
+	dtxt = dt.getHours() + ':' + dt.getMinutes();
+	buf += '<b>' + msg.get( 'author' ) + '</b> <span STYLE="font-size:small">' + dtxt + '</span>' +
+	    ' : ' + msg.get( 'message' ) + '<BR>';
+    }
+    
+
+    buf += '<input type="text" id="chat_msg"> <button type="Button" id="chat_b">Chat</button>' + 
+	'</div>';
+
+    $( '#lobby_chatter_div' ).empty().append( buf );
+
+    $.yote.util.button_actions( {
+	button : '#chat_b',
+	texts  : [ '#chat_msg' ],
+	action : function() {
+	    se_app.message( $( '#chat_msg' ).val() );
+	    console.log( [ se_app.get_lobby_messages()] );
+	    se.refresh_chat();
+	    $( '#chat_msg' ).focus();
+	}
+    } );
+    
+} //se.refresh_chat
+
+/* SPLASH SCREEN ... entry point */
+se.splash_screen = function( msg, first_time ) {
+    $( '#header_bar' ).empty().append( "Welcome to Stellar Expanse" );
+    var buf = '';
     if( $.yote.is_logged_in() ) {
+	se_app.sync_lobby();
+	$( '#main_div' ).removeClass( 'logged_out_div' );
+	$( '#main_div' ).addClass( 'logged_in_div' );
 	buf += '<div class="core" id="lobby_columns">' + 
-	    '<div class="panel core"><h2>You are in the lobby</h2></div>' + 
-	    '<div class="core">' + 
-	    '<div id="lobby_div" class="column"></div>' + 
-	      '<div id="lobby_chatter_div" class="panel column">' + 
-	    
-	      '</div>' +
-	    '</div></div>';
+	    '     <div class="panel core"><h2>You are in the lobby</h2></div>' + 
+//	    '     <div class="core">' + 
+	    '       <div id="lobby_div" class="column"></div>' + 
+	    '       <div id="lobby_chatter_div" class="panel column"></div>' + 
+	    '     </div>' + 
+	    //	    '   </div>'
+	    '';
+	$( '#logged_in_status' ).empty().append( 
+	    'Logged in as ' + se_app.account().get_login().get_handle() + '<BR><A href="#" id="logout">Log Out</A>'
+	);
+	$( '#logout' ).click( function() {
+	    $.yote.logout();
+	    $( '#header_bar' ).empty();
+	    se.splash_screen( 'Logged Out');
+	} );
     } else {
-	buf += '<div class="panel" id="create_acct_div">' +
+	$( '#main_div' ).addClass( 'logged_out_div' );
+	$( '#main_div' ).removeClass( 'logged_in_div' );
+	buf += '<div class="panel core" id="create_acct_div">' +
 	    '<P><input type="text" id="username" placeholder="Name"><input type="password" placeholder="Password" id="pw"> <BUTTON type="BUTTON" id="log_in_b">Log In</BUTTON></P><BR>' +
 	    'Create an Account' + 
 	    '</div>';
-	
+	// start w/ being cleaned, coming to as if passed out, then flashback to revenge scene
     }
     
     $( '#main_div' ).empty().append( buf );
 
     if( $.yote.is_logged_in() ) {
+	se.refresh_chat();
 	var acct = se_app.account();
-	se_app.load_data();
-	to_game_login( acct.get_login(), acct, '', first_time );
+	se.to_game_login( acct.get_login(), acct, '', first_time );
     } else {
 	$.yote.util.button_actions( {
 	    button : '#log_in_b',
-	    text   : [ '#username', '#pw' ],
+	    texts   : [ '#username', '#pw' ],
 	    action : function() {
 		$.yote.login( $( '#username' ).val(), $( '#pw' ).val(),
 			      function( succ )  {
-				  splash_screen("Logged in as '" + succ + "'")
+				  se.splash_screen("Logged in as '" + succ + "'")
 			      },
 			      function( err ) {
-				  splash_screen(err);
+				  se.splash_screen(err);
 			      } );
 	    }
 	} );
     }
-}
-function to_game_login( login, acct, message, first_time ) {
+} //se.splash_screen
+
+
+se.to_game_login = function( login, acct, message, first_time ) {
     if( acct.get( 'Last_played' ) && first_time) {
-	play_game( acct.get_Last_played(), acct );
+	se.play_game( acct.get_Last_played(), acct );
 	return;
     }
     var active_games  = acct.get_active_games();
@@ -84,7 +142,7 @@ function to_game_login( login, acct, message, first_time ) {
 			   '<button type="button" id="join_' + game.id + '" class="btn btn-link">Join Game</button>'
 			 ] );
 	}
-	update_text += '</dl></div><div class="row">' +
+	update_text += '</dl></div><div class="panel">' +
 	    "<dl><dt>Available Games</dt><tt>" + tab.get_html() + "</tt>";
     } //available games
 
@@ -97,14 +155,14 @@ function to_game_login( login, acct, message, first_time ) {
     for( var i=0 ; i < avail_games.length() ; i ++ ) {
 	var g = avail_games.get( i );
 	$( '#join_' + g.id ).click( (function( game, login, acct ) { return function() {
-	    game.add_player( '', function(m) { to_game_login( login, acct, m ) },function(e){msg( e ) } );
+	    game.add_player( '', function(m) { se.to_game_login( login, acct, m ) },function(e){msg( e ) } );
 	} } )( g, login, acct ) );
     }
 
     for( var i=0 ; i < active_games.length() ; i ++ ) {
 	var g = active_games.get( i );
 	$( '#play_' + g.id ).click( (function( game, acct ) { return function() {
-	    play_game( game, acct );
+	    se.play_game( game, acct );
 	} } )( g, acct ) );
     }
 
@@ -112,7 +170,7 @@ function to_game_login( login, acct, message, first_time ) {
 	for( var i=0 ; i < pending_games.length() ; i ++ ) {
 	    var g = pending_games.get( i );
 	    $( '#leave_' + g.id ).click( (function( game, login, acct ) { return function() {
-		game.remove_player('',function(m){ to_game_login( login, acct, m ) },function(e){ msg( e ) });
+		game.remove_player('',function(m){ se.to_game_login( login, acct, m ) },function(e){ msg( e ) });
 	    } } )( g, login, acct ) );
 	}
     }
@@ -155,7 +213,7 @@ function to_game_login( login, acct, message, first_time ) {
 
 	$( '#lobby_div' ).empty().append( update_text );
 	$( '#cancel_new' ).click( function() {
-	    to_game_login( acct.get_login(), acct, '' );
+	    se.to_game_login( acct.get_login(), acct, '' );
 	} );
 
 	$( '#game_name_fld,#resource_fld' ).keyup(function() {
@@ -175,7 +233,7 @@ function to_game_login( login, acct, message, first_time ) {
 		    flavor:flavors.get($('#flavor_sel').val())
 		},
 		function( msg ) {
-		    to_game_login( login, acct, msg );
+		    se.to_game_login( login, acct, msg );
 		},
 		function( err ) {
 		    msg( err );
@@ -185,4 +243,4 @@ function to_game_login( login, acct, message, first_time ) {
     });
 
 
-} //to_game_login
+} //se.to_game_login

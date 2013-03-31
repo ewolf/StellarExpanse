@@ -121,6 +121,8 @@ sub remove_player {
     return "player '$handle' removed from game";
 } #remove_player
 
+sub refresh {}
+
 sub active_player_count {
     my $self = shift;
     return scalar( keys %{$self->_current_turn()->get_players()} );

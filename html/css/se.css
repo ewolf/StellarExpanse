@@ -6,9 +6,21 @@ body {
     background-size: cover;
 }
 section { padding-left:04px; }
-.main_div { width:900px; 
-	    margin:auto; 
-	  }
+.logged_in_div { width:900px; 
+		 margin:auto; 
+	       }
+.in_game_div {
+    width:1400px; 
+    margin:auto; 
+}
+.logged_out_div { width:500px; 
+		  margin:auto; 
+		}
+
+.logged_in {
+    float:right;
+    color:blue;
+}
 
 .header { position:fixed; top:0px; left:0px; height:80px; margin:auto; width:100%; margin-right:40px; color:white; background-color:black; vertical-align:middle; }
 .login  { float:right; margin-right:15px; padding-right:15px; display:inline-block; vertical-align:middle; height:100%; }
@@ -29,12 +41,12 @@ table { text-align: center;  }
 
 .even-row .odd-col  { background-color:9CA9D4  }
 .odd-row  .odd-col  { background-color:ABB4D4}
-#canvas {background-color:rgba(80,140,200,0.6);}
+//#canvas {background-color:rgba(80,140,200,0.6);}
 .core { 
     width: 100% 
 }
 .panel { background-color:rgba(80,140,200,0.6);
-	 margin:5px;
+	 margin-top:5px;
 	 padding:5px;
        }
 #lobby_div {
@@ -46,4 +58,49 @@ table { text-align: center;  }
 }
 #cancel_new {
     float:right
+}
+#side_summary {
+    width: 300px;
+}
+#system_panel {
+    width: 550px;
+}
+
+.not_ready {
+    background-color:rgb(255,150,120);
+    padding: 3px;
+    width:80px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
+    -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+.ready {
+    background-color:rgb(40,255,45);
+    -webkit-box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
+    -moz-box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
+    padding: 3px;
+    width:80px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
+    -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+.left {
+    float:left;
+}
+.right {
+    float:right;
+}
+
+#header_bar {
+   text-align:center;
+   font-size:x-large;
+   vertical-align: middle;
 }

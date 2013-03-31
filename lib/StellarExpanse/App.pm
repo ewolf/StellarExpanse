@@ -16,6 +16,14 @@ sub _init {
     $self->set_messageboard( new Yote::Util::MessageBoard() );
     $self->set__games({});
     $self->set_pending_games([]);
+    $self->set_logged_in([]);
+    $self->set_lobby_messages([]);
+}
+
+sub _load {
+    my $self = shift;
+    $self->get_logged_in([]);
+    $self->get_lobby_messages([]);
 }
 
 sub _init_account {
@@ -24,7 +32,9 @@ sub _init_account {
     $acct->set_pending_games([]);
     $acct->set_handle( $acct->get_login()->get_handle() );
     $acct->set_Last_played( undef );
+    $acct->set_last_msg( time() )
 }
+
 
 sub RESET {
     my( $self, $data, $acct ) = @_;
@@ -35,9 +45,82 @@ sub RESET {
     $self->set_pending_games([]);
 }
 
+sub sync_lobby {
+    my( $self, $data, $acct ) = @_;
+    $self->_register_account( $acct );
+} #sync_lobby 
+
+sub _register_account {
+    my( $self, $acct ) = @_;
+    
+    my $now = time();
+
+    my $blocks = $self->get__logged_in_blocks( {} );
+    my $five_min_block = int( $now / 300 );
+    my $five_min_container = $blocks->{ $five_min_block };
+    unless( $five_min_container ) {
+	$five_min_container = {};
+	$blocks->{ $five_min_block } = $five_min_container;
+	# check here to remove containers older than 10 mins
+	my $too_old = $five_min_block - 1;
+	for my $block ( keys %$blocks ) {
+	    if( $block < $too_old ) {
+		delete $blocks->{ $block };
+	    }
+	}
+	# refresh get_logged_in list
+	$self->set_logged_in( [] );
+	for my $block ( keys %$blocks ) {
+	    for my $act ( values %{ $blocks->{ $block } } ) {
+		$self->add_once_to_logged_in( $act->get_handle() );
+	    }
+	}
+    }
+    $five_min_container->{ $acct->{ID} } = $acct;
+    $self->add_once_to_logged_in( $acct->get_handle() );
+
+    print STDERR Data::Dumper->Dump(["ADDING REG",$self->get_logged_in()]);
+
+} #_register_account
+
+#
+# The updating UI should check the last message time and hold on to it to know if the message board should be refreshed
+#
+sub message {
+    my( $self, $data, $acct ) = @_;
+    if( $acct ) {
+	my $time = time();
+	$self->set_last_msg( $time );
+	unshift( @{ $self->get_lobby_messages() },
+		 {
+		     author  => $acct->get_login()->get_handle(),
+		     time    => $time,
+		     message => $data 
+		 } );
+
+	# pop off messages older than 5 mins if there are more than 50 messages
+	if( @{ $self->get_lobby_messages() } > 50 ) {
+	    while( @{ $self->get_lobby_messages() } ) {
+		last if ( $time - $self->get_messages()->[ 0 ]->{time} ) < 300;
+		pop @{$self->get_lobby_messages()};
+	    }
+	}
+	return 1;
+    } #if there was an account
+    die "Must be logged in to message the lobby";
+} #message
+
+sub account {
+    my $self = shift;
+    my $acct = $self->SUPER::account( @_ );
+    
+    return $acct;
+}
+
 sub load_data {
     my( $self, $data, $acct ) = @_;
     if( $acct ) {
+	$self->_register_account( $acct );
 	return [
 	    $acct->get_active_games(),
 	    @{ $acct->get_active_games() },
