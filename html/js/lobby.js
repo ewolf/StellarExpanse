@@ -1,5 +1,10 @@
 if( ! window[ 'se' ] ) { se = {}; }
 
+se.msg = function( m ) {
+    $( '#msg_div' ).empty().append( '<div class="panel">' + m + '</div>' );
+}
+
+
 se.refresh_chat = function() {
     var li = se_app.get_logged_in();
     var buf = "Who's logged in <ul>";	
@@ -39,10 +44,41 @@ se.refresh_chat = function() {
     
 } //se.refresh_chat
 
+function make_create_screen(msg) {
+
+    var buf = '<div class="panel core" id="create_acct_div">' +
+	'<P><input type="text" id="username" placeholder="Name"><BR>' + 
+	'<P><input type="text" id="email" placeholder="Email"><BR>' + 
+	'<input type="password" placeholder="Password" id="pw"><BR>' + 
+	'<BUTTON type="BUTTON" id="create_acct_b">Create</BUTTON></P><BR>' +
+	'<A id="create_account_b" class="linkbutton" href="#">Create an Account</A>' + 
+	'</div>';
+
+    $( '#main_div' ).empty().append( buf );
+
+    $.yote.util.button_actions( {
+	button : '#create_account_b',
+	texts  : [ '#username', '#email', '#pw' ],
+	action : function() {
+	    $.yote.create_login( $( '#username' ).val(),
+				 $( '#email' ).val(),
+				 $( '#pw' ).val(),
+				 function( succ ) {
+				     se.splash_screen( succ );
+				 },
+				 function( err ) {
+				     se.msg( err );
+				 }				     
+			       );
+	}
+    } );
+
+} //make_create_screen
+
 /* SPLASH SCREEN ... entry point */
-se.splash_screen = function( msg, first_time ) {
+se.splash_screen = function( ms, first_time ) {
     $( '#header_bar' ).empty().append( "Welcome to Stellar Expanse" );
-    var buf = '';
+    var buf = '<div id="msg_div"></div>';
     if( $.yote.is_logged_in() ) {
 	se_app.sync_lobby();
 	$( '#main_div' ).removeClass( 'logged_out_div' );
@@ -68,18 +104,23 @@ se.splash_screen = function( msg, first_time ) {
 	$( '#main_div' ).removeClass( 'logged_in_div' );
 	buf += '<div class="panel core" id="create_acct_div">' +
 	    '<P><input type="text" id="username" placeholder="Name"><input type="password" placeholder="Password" id="pw"> <BUTTON type="BUTTON" id="log_in_b">Log In</BUTTON></P><BR>' +
-	    'Create an Account' + 
+	    '<A id="create_account_b" class="linkbutton" href="#">Create an Account</A>' + 
 	    '</div>';
 	// start w/ being cleaned, coming to as if passed out, then flashback to revenge scene
     }
     
     $( '#main_div' ).empty().append( buf );
 
+    se.msg( ms );
+
     if( $.yote.is_logged_in() ) {
 	se.refresh_chat();
 	var acct = se_app.account();
 	se.to_game_login( acct.get_login(), acct, '', first_time );
     } else {
+	$( '#create_account_b' ).click(function() {
+	    make_create_screen();
+	} );
 	$.yote.util.button_actions( {
 	    button : '#log_in_b',
 	    texts   : [ '#username', '#pw' ],

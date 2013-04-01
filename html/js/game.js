@@ -724,6 +724,7 @@ se.play_game = function ( game, acct ) {
 	var n = map.get( s_id );
 	if( s_id in my_sector_ids ) {
 	    (function (sec,nod) {
+		console.log("n1", sec, nod);
 		$( '#node_' + nod.id ).click( function() {
 		    show_sector( sec, nod, player, nodeid2ships[ nod.id ] || { my : [], enemy : [] } );
 		} )
@@ -735,6 +736,7 @@ se.play_game = function ( game, acct ) {
 	else {
 	    if( node.get_discovered() == '1' ) {
 		(function (node) {
+   	  	    console.log("n2", node);
 		    $( '#node_' + node.id ).click( function() {
 			show_sector( false, node, player, nodeid2ships[ node.id ] || { my : [], enemy : [] } );
 		    } );

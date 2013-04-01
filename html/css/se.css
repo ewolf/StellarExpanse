@@ -36,11 +36,11 @@ table { text-align: center;  }
 .splash { 
     background-color: wheat; 
 }
-.even-row .even-col { background-color:AD9CD5 }
-.odd-row  .even-col { background-color:B7ABD5  }
+.even-row .even-col { background-color:#AD9CD5 }
+.odd-row  .even-col { background-color:#B7ABD5  }
 
-.even-row .odd-col  { background-color:9CA9D4  }
-.odd-row  .odd-col  { background-color:ABB4D4}
+.even-row .odd-col  { background-color:#9CA9D4  }
+.odd-row  .odd-col  { background-color:#ABB4D4}
 //#canvas {background-color:rgba(80,140,200,0.6);}
 .core { 
     width: 100% 
@@ -103,4 +103,10 @@ table { text-align: center;  }
    text-align:center;
    font-size:x-large;
    vertical-align: middle;
+}
+.linkbutton { display: inline-block; vertical-align: bottom; text-decoration: none; }
+.linkbutton:hover   { color:#DADADA }
+
+#msg_div {
+    
 }
