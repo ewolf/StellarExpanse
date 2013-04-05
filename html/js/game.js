@@ -53,7 +53,7 @@ se.play_game = function ( game, acct ) {
    <BUTTON class="not_ready" type="BUTTON" id="set_ready">Not Ready</BUTTON>\
   </DIV>\
  </div>\
- <div id="system_panel" class="column debug">\
+ <div id="system_panel" class="column debug panel">\
     </div>\
 </div>\
     ';
@@ -652,7 +652,7 @@ se.play_game = function ( game, acct ) {
 	    }
 	}
 
-	var p = se.gameboard.draw( 350, 35, 800, 800 );
+	var p = se.gameboard.draw( 350, 35, 800, 400 );
 
 	// now need to make some 'shopping cart' logic that holds onto build and other orders
 
@@ -695,7 +695,7 @@ se.play_game = function ( game, acct ) {
 		turn  : on_turn,
 		ready : 1,
 	    } );	    
-	    if( false && turn_now > on_turn ) {
+	    if( turn_now > on_turn ) {
 		se.play_game( game, acct ); 
 	    } else {
 		$( this ).addClass( 'ready' );

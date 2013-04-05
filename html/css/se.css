@@ -49,6 +49,9 @@ table { text-align: center;  }
 	 margin-top:5px;
 	 padding:5px;
        }
+.msg_panel {
+    background-color:rgba(80,140,200,0.6);
+}
 #lobby_div {
     width: 430px;
 }
@@ -106,6 +109,11 @@ table { text-align: center;  }
 }
 .linkbutton { display: inline-block; vertical-align: bottom; text-decoration: none; }
 .linkbutton:hover   { color:#DADADA }
+
+#system_panel{
+    width: 825px;
+    height: 425px;
+}
 
 #msg_div {
     

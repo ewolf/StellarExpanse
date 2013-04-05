@@ -1,7 +1,10 @@
 if( ! window[ 'se' ] ) { se = {}; }
 
 se.msg = function( m ) {
-    $( '#msg_div' ).empty().append( '<div class="panel">' + m + '</div>' );
+    $( '#msg_div' ).empty();
+    if( m.match( /\S/ ) ) {
+	$( '#msg_div' ).append( '<div class="msg panel">' + m + '</div>' );
+    } 
 }
 
 
@@ -46,7 +49,9 @@ se.refresh_chat = function() {
 
 function make_create_screen(msg) {
 
-    var buf = '<div class="panel core" id="create_acct_div">' +
+    var buf = 
+	'<div class="panel core" id="create_acct_div">' +
+	'<div id="msg_div"></div>' + 
 	'<P><input type="text" id="username" placeholder="Name"><BR>' + 
 	'<P><input type="text" id="email" placeholder="Email"><BR>' + 
 	'<input type="password" placeholder="Password" id="pw"><BR>' + 
@@ -61,8 +66,8 @@ function make_create_screen(msg) {
 	texts  : [ '#username', '#email', '#pw' ],
 	action : function() {
 	    $.yote.create_login( $( '#username' ).val(),
-				 $( '#email' ).val(),
 				 $( '#pw' ).val(),
+				 $( '#email' ).val(),
 				 function( succ ) {
 				     se.splash_screen( succ );
 				 },
@@ -98,6 +103,7 @@ se.splash_screen = function( ms, first_time ) {
 	    $.yote.logout();
 	    $( '#header_bar' ).empty();
 	    se.splash_screen( 'Logged Out');
+	    $( '#logged_in_status' ).empty();
 	} );
     } else {
 	$( '#main_div' ).addClass( 'logged_out_div' );
@@ -146,7 +152,7 @@ se.to_game_login = function( login, acct, message, first_time ) {
     var active_games  = acct.get_active_games();
     var pending_games = acct.get_pending_games();
     var avail_games   = se_app.available_games();
-    msg( message );
+    se.msg( message );
     var update_text = '<div class="panel">';
 
     if( active_games.length() > 0 ) {
@@ -196,7 +202,7 @@ se.to_game_login = function( login, acct, message, first_time ) {
     for( var i=0 ; i < avail_games.length() ; i ++ ) {
 	var g = avail_games.get( i );
 	$( '#join_' + g.id ).click( (function( game, login, acct ) { return function() {
-	    game.add_player( '', function(m) { se.to_game_login( login, acct, m ) },function(e){msg( e ) } );
+	    game.add_player( '', function(m) { se.to_game_login( login, acct, m ) },function(e){ se.msg( e ) } );
 	} } )( g, login, acct ) );
     }
 
@@ -211,7 +217,7 @@ se.to_game_login = function( login, acct, message, first_time ) {
 	for( var i=0 ; i < pending_games.length() ; i ++ ) {
 	    var g = pending_games.get( i );
 	    $( '#leave_' + g.id ).click( (function( game, login, acct ) { return function() {
-		game.remove_player('',function(m){ se.to_game_login( login, acct, m ) },function(e){ msg( e ) });
+		game.remove_player('',function(m){ se.to_game_login( login, acct, m ) },function(e){ se.msg( e ) });
 	    } } )( g, login, acct ) );
 	}
     }
@@ -277,7 +283,7 @@ se.to_game_login = function( login, acct, message, first_time ) {
 		    se.to_game_login( login, acct, msg );
 		},
 		function( err ) {
-		    msg( err );
+		    se.msg( err );
 		}
 	    );
 	} );
