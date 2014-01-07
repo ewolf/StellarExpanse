@@ -2,10 +2,11 @@ package StellarExpanse::App;
 
 use strict;
 
+use StellarExpanse::Comm;
 use StellarExpanse::Flavor;
 use StellarExpanse::Game;
+
 use Yote::ObjProvider;
-use Yote::Util::MessageBoard;
 
 use base 'Yote::AppRoot';
 
@@ -13,43 +14,34 @@ sub _init {
     my $self = shift;
     my $flav = $self->new_flavor();
     $flav->set_name( "primary flavor" );
-    $self->set_messageboard( new Yote::Util::MessageBoard() );
+    $self->set_messageboard( new Yote::Obj() );
     $self->set__games({});
-    $self->set_pending_games([]);
-    $self->set_logged_in([]);
-    $self->set_lobby_messages([]);
+    $self->set_pending_games( new Yote::Obj() );
+    $self->set_logged_in( new Yote::Obj() );
+    $self->set_lobby_messages( new Yote::Obj() );
 }
 
-sub _load {
-    my $self = shift;
-    $self->get_logged_in([]);
-    $self->get_lobby_messages([]);
-}
-
+#
+# When accounts are created here. The comm hashes actt id to converstaion objects.
+#
 sub _init_account {
     my( $self, $acct ) = @_;
-    $acct->set_active_games([]);
-    $acct->set_pending_games([]);
-    $acct->set_handle( $acct->get_login()->get_handle() );
-    $acct->set_Last_played( undef );
-    $acct->set_last_msg( time() )
+    $acct->set_comm( new StellarExpanse::Comm( { _creator => $acct } ) );
+    $acct->set_last_msg( time() );
 }
 
-
-sub RESET {
-    my( $self, $data, $acct ) = @_;
-    die "Access Denied" unless $acct->get_login()->get__is_root();
-    $self->set_messageboard( new Yote::Util::MessageBoard() );
-    $self->set__account_roots({});
-    $self->set__games({});
-    $self->set_pending_games([]);
-}
-
+#
+# Checks the lobby for messages and stuff.
+#
 sub sync_lobby {
     my( $self, $data, $acct ) = @_;
     $self->_register_account( $acct );
 } #sync_lobby 
 
+#
+# Keeps tracked of 'who is logged in'. People are on
+# the list of those logged in in the last 5 minutes.
+#
 sub _register_account {
     my( $self, $acct ) = @_;
     
@@ -79,43 +71,7 @@ sub _register_account {
     $five_min_container->{ $acct->{ID} } = $acct;
     $self->add_once_to_logged_in( $acct->get_handle() );
 
-    print STDERR Data::Dumper->Dump(["ADDING REG",$self->get_logged_in()]);
-
 } #_register_account
-
-#
-# The updating UI should check the last message time and hold on to it to know if the message board should be refreshed
-#
-sub message {
-    my( $self, $data, $acct ) = @_;
-    if( $acct ) {
-	my $time = time();
-	$self->set_last_msg( $time );
-	unshift( @{ $self->get_lobby_messages() },
-		 {
-		     author  => $acct->get_login()->get_handle(),
-		     time    => $time,
-		     message => $data 
-		 } );
-
-	# pop off messages older than 5 mins if there are more than 50 messages
-	if( @{ $self->get_lobby_messages() } > 50 ) {
-	    while( @{ $self->get_lobby_messages() } ) {
-		last if ( $time - $self->get_messages()->[ 0 ]->{time} ) < 300;
-		pop @{$self->get_lobby_messages()};
-	    }
-	}
-	return 1;
-    } #if there was an account
-    die "Must be logged in to message the lobby";
-} #message
-
-sub account {
-    my $self = shift;
-    my $acct = $self->SUPER::account( @_ );
-    
-    return $acct;
-}
 
 sub load_data {
     my( $self, $data, $acct ) = @_;

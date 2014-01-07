@@ -2,15 +2,16 @@
 <html>
   <head>
     <title>Stellar Expanse</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="/yote/js/jquery-latest.js"></script>
-    <script src="/yote/js/jquery.dumper.js"></script>
     <script src="/yote/js/jquery.cookie.js"></script>
     <script src="/yote/js/jquery.base64.min.js"></script>
     <script src="/yote/js/json2.js"></script>
+
+
+    <script src="/js/main.js"></script>
     <script src="/yote/js/yote.js"></script>
     <script src="/yote/js/yote.util.js"></script>
-    <script src="/yote/js/yote.system.util.js"></script>
 
     <script src="js/game.js"></script>
     <script src="js/lobby.js"></script>
@@ -21,22 +22,94 @@
     <link href="css/se.css" rel="stylesheet" type="text/css" media="all" />
 
     <SCRIPT>
-    var renderer, se_app, game_check_interval;
-
     $().ready(function(){
-
         $.yote.debug = true;
 	$.yote.init();
 
 	se_app = $.yote.fetch_app( 'StellarExpanse::App' );
-	//se_app.RESET();
 
-	se.splash_screen('',true);
+	$.yote.util.register_items( {
+	    chat : se_app.get_messageboard()
+	} );
+
+	attach_login( {
+	    attachpoint : '#logged_in_status',
+	    message_attachpoint : '#msg_div',
+	    app                 : se_app,
+	    after_login         : function() { refresh( true ) },
+	    after_logout        : function() { refresh( false ) }
+	} );
+	
+	function refresh( logged_in ) {
+	    $( '#comm_div' ).empty();
+	    $.yote.util.refresh_ui();
+	    if( logged_in ) {
+		$( '#comm_div' ).append( '<h3>Comm</h3><input type="text" placeholder="connect to" id="connector"> <button id="c_go">connect</button><div id="comm_msg"></div><hr>' );
+		$.yote.util.button_actions( {
+		    button : '#c_go',
+		    texts  : [ '#connector' ],
+		    action : function() {
+			
+		    }
+		} );
+		var my_comm = se_app.account().get_comm();
+		var items = my_comm.paginate( { 
+		    name : '_convos_with',
+		    return_hash : true,
+		    sort_fields : [ 'with_name' ],
+		    limit : 100
+		} );
+     
+		var ihash = items.to_hash();
+		for( var i in ihash ) {
+		    var item = ihash[ i ];
+		    convo( item.get_with(), item );
+		}
+	    }
+
+	} //refresh
     });
+     function convo( target_account, convo ) {
+	 var cid     = target_account.id;
+	 var my_acct = se_app.account();
+	 if( typeof $( '#conv_panel_wrapper_' + cid ).val() == 'undefined' ) {
+	     $( '#comm_div' ).append( '<DIV id="conv_panel_wrapper_' + cid + '"></div>' );
+	 } else {
+	     $( '#conv_panel_wrapper_' + cid ).empty();
+	 }
+	 // create a conversation and attach to the two recipients
+	 var conv = convo || my_acct.get_comm().open_channel( target_account.get_handle() );
+ 
+         // create a panel for the conversatoin on the UI
+         var ri_hash = {};
+         ri_hash['conv_' + cid] = conv;
+         $.yote.util.register_items( ri_hash );
+         var buf = '<DIV id="conv_panel_' + cid + '">\
+                    <button type="Button" id="close_' + cid + '">X</BUTTON>\
+                    Conversation with ' + target_account.get_handle() + '<BR>\
+                    <div id="conv_msg_' + cid + '"></div>\
+                    <div id="conv_div_' + cid + '" class="control_table" item="$conv_' + cid + '" plimit="15"\
+                         container_name="conversations" container_type="hash" show_count="false"\
+                         columns="[function(item,is_prep){if(is_prep){return item.get_message()+' +
+                                          "'['+item.get_creator().get_handle()+'] ('+new Date(1000*item.get_created_on()).toLocaleString()+')'}}]" + '"\
+                         new_button="say" new_attachpoint="#conv_msg_' + cid + '"\
+                         paginate_order="reverse" new_columns="[' + "'message'" + ']"\
+                         new_column_placeholders="[' + "'message'" + ']"\
+                         after_new_function="*function(item){item.set(' + "'created_on',Math.round(new Date().getTime()/1000));item.set('creator',se_app.account());" + '\
+		         this.item.add_to( { name : ' + "'converstaions'" + ', items : [ item ] } ) }"\
+                    >\
+                    </DIV>';
+         $( '#conv_panel_wrapper_' + cid ).append( buf );
+         $( '#close_' + cid ).click( function() { $( '#conv_panel_wrapper_' + cid ).remove() } );
+         $.yote.util.init_ui();
+     } //convo
     </script>
     <style>
       .emp   { font-family:"Lucida Console",monospace;  }
       .bordered { border: 1px solid black;padding:5px; margin: 5px;}
+      #comm_div { margin:10px;border: 3px solid black;background-color:rgba(200,150,30,.4) }
+      #chat_panel { margin:10px;border: 3px solid black;background-color:rgba(150,200,30,.4) }
+      #side_panel { float: left; }
     </style>
   </head>
 
@@ -44,10 +117,51 @@
     <DIV class="header" id="top_header">
       <img class="left" src="se.png">
       <SPAN id="header_bar"></SPAN>
+      <UL id="top_nav" class="nav"></UL>
       <DIV class="login logged_in" id="logged_in_status"></DIV>
+      <DIV id="msg_div"></DIV>
     </DIV>
 
-    <DIV id="main_div" class="main_div"></DIV>
-    <script src="/js/local.js"></script>
+    <DIV id="side_panel">
+      <DIV id="chat_panel">
+        <h3>Chat</h3>
+        <div id="chat_mgs"></div>
+        <DIV id="chat_div" class="control_table" item="$chat" plimit="15"
+             container_name="chatter" show_count="false" include_remove="*$.yote.is_root()"
+             columns="[function(item,is_prep){
+                          var cr=item.get_creator();
+                          if(is_prep){
+                          return item.get_message()+'[<a href=# id=chat_with_' + cr.id + ' >'+cr.get_handle()+'</a>] ('+
+                                 new Date(1000*item.get_created_on()).toLocaleString()+')'
+                             }else{
+                              $('#chat_with_'+cr.id).click(function(){convo(cr)});
+                          }}]"
+             after_new_function="*function(item){
+                                       item.set('created_on',Math.round(new Date().getTime()/1000));
+                                       item.set('creator',se_app.account());
+                                  }"
+              new_button="say" new_attachpoint="#chat_mgs"
+             paginate_order="reverse"
+             new_columns="['message']"
+             new_column_placeholders="['message']"
+             ></div>
+      </DIV>
+
+      <DIV id="comm_div"></div>
+    </DIV>
+    <!-- Panel for talking directly to an other. Only when logged in with account 
+ 	 the conversation is between two accounts, so
+	    account A -> comm -> {converstaions} :  account B id -> conversation_obj_AB
+	    account B -> comm -> {converstaions} :  account A id -> conversation_obj_AB
+	 this is for conversations with only two participants. There could be more, but would have a different container type
+      -->
+
+    <DIV id="main_div" class="main_div">
+      <h1>Stellar Expanse</h1>
+      <!-- Control table for games -->
+      <DIV id="games_panel">
+      </DIV>
+    </div>
+
   </BODY>
 </html>

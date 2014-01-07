@@ -9,7 +9,6 @@ use StellarExpanse::Sector;
 use StellarExpanse::StarChart;
 use StellarExpanse::Turn;
 use StellarExpanse::Player;
-use Yote::Util::MessageBoard;
 
 use base 'Yote::Obj';
 
