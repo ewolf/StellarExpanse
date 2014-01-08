@@ -49,10 +49,17 @@
 		    button : '#c_go',
 		    texts  : [ '#connector' ],
 		    action : function() {
-			
+			$( '#comm_msg' ).empty();
+			var conv = my_acct.get_comm().open_channel( $('#connector').val() );
+			if( conv ) {
+			    convo( conv.get_with(), conv );
+			} else {
+			    $( '#comm_msg' ).append( $('#connector').val() + ' not found' );
+			}
 		    }
 		} );
-		var my_comm = se_app.account().get_comm();
+		var my_acct = se_app.account();
+		var my_comm = my_acct.get_comm();
 		var items = my_comm.paginate( { 
 		    name : '_convos_with',
 		    return_hash : true,
@@ -63,7 +70,8 @@
 		var ihash = items.to_hash();
 		for( var i in ihash ) {
 		    var item = ihash[ i ];
-		    convo( item.get_with(), item );
+		    if( my_acct.get( 'closed_' + item.id ) != 'true' )
+			convo( item.get_with(), item );
 		}
 	    }
 
@@ -79,7 +87,7 @@
 	 }
 	 // create a conversation and attach to the two recipients
 	 var conv = convo || my_acct.get_comm().open_channel( target_account.get_handle() );
- 
+ 	 my_acct.set( 'closed_' + conv.id, 'false' );
          // create a panel for the conversatoin on the UI
          var ri_hash = {};
          ri_hash['conv_' + cid] = conv;
@@ -100,7 +108,10 @@
                     >\
                     </DIV>';
          $( '#conv_panel_wrapper_' + cid ).append( buf );
-         $( '#close_' + cid ).click( function() { $( '#conv_panel_wrapper_' + cid ).remove() } );
+         $( '#close_' + cid ).click( (function(c) { return function() { 
+	     $( '#conv_panel_wrapper_' + cid ).remove();
+	     my_acct.set( 'closed_' + c.id, 'true' );
+	 } } )( conv ) );
          $.yote.util.init_ui();
      } //convo
     </script>
