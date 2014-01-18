@@ -2,26 +2,24 @@
   <head>
     <title>Stellar Exapnse Admin</title>
 
-<script src="/yote/js/jquery-2.1.0.js"></script>
-<script src="/yote/js/jquery.base64.min.js"></script>
-<script src="/yote/js/jquery.cookie.js"></script>
-<script src="/yote/js/json2.js"></script>
-<script src="/yote/js/yote.js"></script>
-<script src="/yote/js/yote.util.js"></script>
-<!--    <script src="/yote/js"></script>  
-    <script src="/yote/_js/maxi.js"></script> -->
+    <script src="/yote/js/jquery-2.1.0.js"></script>
+    <script src="/yote/js/jquery.base64.min.js"></script>
+    <script src="/yote/js/jquery.cookie.js"></script>
+    <script src="/yote/js/json2.js"></script>
+    <script src="/yote/js/yote.js"></script>
+    <script src="/yote/js/yote.util.js"></script>
 
     <script src="/templates/default_templates.js"></script>
 
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
     <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
 
-    <script type="text/template" class="yote_template_definition" template_name="FlavorEditorMain">
-
-    </script>
+    <style>
+      td { text-align : center }
+      td div { text-align : left }
+    </style>
 
     <script>
-
       $().ready(function(){
 	  $.yote.debug = false;
 	  $.yote.include_templates( '/templates/default_templates.html' );
@@ -30,85 +28,28 @@
 	  var app = $.yote.init( 'StellarExpanse::App' );
 	  $.yote.util.register_item( 'app', app );
 
-	  $.yote.util.register_functions( {
-	      ref : function( args ) {
-		  return args[ 'default_var' ][ 'class' ];
-	      },
-	      admin_body:function( args ) {
-		  return $.yote.is_root() ? '<$$ AdminBody $$>' : '';
-	      },
-	      setup_new_flavor:function( args ) {
-		  var name_id = args[ 'controls' ][ 'new_flavor_name' ];
-		  var button_id = args[ 'controls' ][ 'new_flavor_go' ];
-		  $.yote.util.button_actions( {
-		      button : button_id,
-		      texts : [ name_id ],
-		      action : function() {
-			  var newflav = app.new_flavor( { name : $(name_id).val() } );
-			  app.add_to( { name : 'flavors', items : [ newflav ] } );
-			  newflav.precache();
-			  refresh_all();
-		      }
-		  } );
-	      }
-	  } );
-	  function refresh_all() {
-	      if( $.yote.reinit() ) {
-		  $( '#mainbody' ).empty().append( $.yote.util.fill_template( { template_name : 'AdminBody', default_var : app } ) );
-	      }
-	      else if( $.yote.is_root() && ! $.yote._is_in_cache( app._get_id( 'flavors' ) ) ) {
-		  app.precache();
-	      }
-	      $.yote.util.refresh_ui();
-	      if( $.yote.is_root() ) {
-		  $( '#errpanel' ).hide();
-		  $( '#mainpanel' ).show();
-	      }
-	      else {
-		  $( '#errpanel' ).show();
-		  $( '#mainpanel' ).hide();
- 	      }
-	      //adjust widths
-	      for( var i=1; i<15; i++ ) {
-		  $.yote.util.match_widths( '.col' + i );
-	      }
-	  }//refresh_all
-	  $.yote.util.register_function( 'refresh_all', refresh_all );
-
-	  refresh_all();
+	  $.yote.util.register_function( 'refresh_all', 	  
+					 function() {
+					     if( $.yote.reinit() ) {
+						 $( '#mainbody' ).empty().append( $.yote.util.fill_template( { template_name : 'AdminBody', default_var : app } ) );
+					     }
+					     else if( $.yote.is_root() && ! $.yote._is_in_cache( app._get_id( 'flavors' ) ) ) {
+						 app.precache();
+					     }
+					     for( var i=1; i<15; i++ ) {
+						 $.yote.util.match_widths( '.col' + i );
+					     }
+					 }//refresh_all
+				       );
+	  $.yote.util.refresh_ui();
       } );
    </script>
 
-    <style>
-      td { text-align : center }
-      td div { text-align : left }
-    </style>
-
-    <script type="text/template" class="yote_template_definition" template_name="MainBody">
-      <DIV id="errpanel" class="err">
-	Must be logged in with a root account to view this page.
-      </DIV>
-      <?? admin_body ??>
-    </script>
-
-
-    <script type="text/template" class="yote_template_definition" template_name="AdminBody">
-      <DIV class="mainpanel" id="mainpanel">
-        <$@ Flavors app flavors Empty @$>
-      </DIV>
-      <DIV>
-        <$$ NewFlavor $$>
-      </DIV>
-    </script>
 
     <script type="text/template" class="yote_template_definition" template_name="Empty">
       No Flavs
     </script>
 
-    <script type="text/template" class="yote_template_definition" template_name="Flavors">
-      <@ Flavor 1 @>
-      <$$ Paginator $$>
-    </script>
 
     <script type="text/template" class="yote_template_definition" template_name="Flavor">
       <div>
@@ -131,7 +72,21 @@
     <script type="text/template" class="yote_template_definition" template_name="NewFlavor">
         Name : <$$$ control new_flavor_name <input type="text"> $$$> <BR>
 	<$$$ control new_flavor_go <button type="BUTTON">Create New Flavor</button> $$$>
-	<? setup_new_flavor ?>
+	<? function( args ) {
+		  var name_id = args[ 'controls' ][ 'new_flavor_name' ];
+		  var button_id = args[ 'controls' ][ 'new_flavor_go' ];
+		  $.yote.util.button_actions( {
+		      button : button_id,
+		      texts : [ name_id ],
+		      action : function() {
+			  var app = args.default_var;
+			  var newflav = app.new_flavor( { name : $(name_id).val() } );
+			  app.add_to( { name : 'flavors', items : [ newflav ] } );
+			  newflav.precache();
+			  $.yote.util.refresh_ui();
+		      }
+		  } );
+	      } ?>
     </script>
   </head>
 
@@ -149,6 +104,21 @@
         <td><$ switch _ self_destruct col9 $></td><td><$ edit _ attack_beams col10 $></td><td><$ edit _ defense col11 $></td>
 	<td><$ edit _ size col12 $></td><td><$ edit _ racksize col13 $></td><td><$ edit _ type col14 $></td><td><$ list_remove_button _ ships $></td></tr>
   </script>
+
+
+    <script type="text/template" class="yote_template_definition" template_name="Flavors">
+    Flavors  
+      <@ Flavor 1 @>
+      <$$ Paginator $$>
+    </script>
+
+    <script type="text/template" class="yote_template_definition" template_name="MainBody">
+      <??? function() { 
+	   if( ! $.yote.is_root() ) return '<DIV id="errpanel" class="err">Must be logged in with a root account to view this page.</DIV>';
+	   return '<DIV class="mainpanel" id="mainpanel"> <$@ Flavors app flavors Empty @$> </DIV> <DIV> <$$ NewFlavor $$> </DIV>';
+      }
+      ???>
+    </script>
 
   <body>
 

@@ -82,13 +82,15 @@ sub add_player {
         $player->set_game( $self );
         $player->set_account( $acct );
         $player->set_name( $login->get_handle() );
+
         $players->{$login->get_handle()} = $player;
 	$self->set_needs_players( $self->get_number_players() - keys %{$self->_current_turn()->get_players()} );
         if( $self->needs_players() ) {
 	    $acct->add_once_to_pending_games( $self );
             return "added to game";
         } else {
-	    $acct->get_app()->remove_all_from_pending_games( $self );
+	    $acct->get_app()->remove_all_from_available_games( $self );
+	    $acct->get_app()->add_to_in_progress_games( $self );
             $self->_start();
  	    my $all_players = $self->_players();
 	    for my $p (@$all_players) {

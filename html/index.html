@@ -3,255 +3,30 @@
   <head>
     <title>Stellar Expanse</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script src="/yote/js/jquery-latest.js"></script>
-    <script src="/yote/js/jquery.cookie.js"></script>
-    <script src="/yote/js/jquery.base64.min.js"></script>
-    <script src="/yote/js/json2.js"></script>
 
-    <script src="/js/main.js"></script>
+    <script src="/yote/js/jquery-2.1.0.js"></script>
+    <script src="/yote/js/jquery.base64.min.js"></script>
+    <script src="/yote/js/jquery.cookie.js"></script>
+    <script src="/yote/js/json2.js"></script>
     <script src="/yote/js/yote.js"></script>
     <script src="/yote/js/yote.util.js"></script>
 
-    <script src="js/game.js"></script>
-    <script src="js/lobby.js"></script>
-    <script src="js/graph.js"></script>
-    <script src="/js/raphael-min.js"></script>
-
+    <script src="/templates/default_templates.js"></script>
+    <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
     <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
-    <link href="css/se.css" rel="stylesheet" type="text/css" media="all" />
 
     <SCRIPT>
-      <!--
-    <?YOTE_PRECACHE StellarExpanse::App ?>
-    var c = {};
     $().ready(function(){
-        $.yote.debug = true;
-	$.yote.init();
+	$.yote.debug = false;
+	$.yote.include_templates( '/templates/default_templates.html' );
+	$.yote.util.register_functions( base_templates );
 
-	// a data structure to store apps, and fetch_app looks there
-	// before doing the fetch
-	se_app = $.yote.fetch_app( 'StellarExpanse::App' );
+	var app = $.yote.init( 'StellarExpanse::App' );
+	$.yote.util.register_item( 'app', app );
 
-	$.yote.util.register_items( {
-	    chat : se_app.get_messageboard(),
-	    app  : se_app
-	} );
+	$.yote.util.refresh_ui();
+    } );
 
-	attach_login( {
-	    attachpoint : '#logged_in_status',
-	    message_attachpoint : '#msg_div',
-	    app                 : se_app,
-	    after_login         : function() { refresh( true ) },
-	    after_logout        : function() { refresh( false ) }
-	} );
-
-	function play_game( game ) {
-	    var player = game.my_player();
-	    player.load_data();
-	    current_game = game;
-	    current_turn = game.get_turn_number();
-
-	    $( '#lobby' ).hide();
-	    $( '#flavor_editor_panel' ).hide();
-	    $( '#game_panel' ).attr( 'disabled', 'false' );
-
-	    $.yote.util.register_item( 'game', game );
-	    $.yote.util.register_item( 'player', player );
-	    c['game'] = game;
-	    c['player'] = player;
-	    //sectors
-
-
-	    $( '#game' ).show();
-	    if( my_acct.get( 'showing_sector' ) )
-		show_sector( my_acct.get_showing_sector() );
-	    $.yote.util.refresh_ui();
-	    my_acct.set( 'in_game', game );
-	} //play_game
-
-	function refresh( logged_in ) {
-	    $( '#comm_div' ).empty();
-
-	    if( $.yote.is_root() ) {
-		$( 'flavor_editor_panel' ).show();
-		$.yote.util.register_items( {
-		    flavor_ed : [
-			'~<h2>Flavor Name</h2><DIV class="yote_panel" item="$$$" field="name"></DIV>', // flavor name
-			'~<H2>Ships</H2><div id="flav_$$" item="$$$" class="control_table" plimit="10" ' +
-			    ' container_name="ships" new_object_type="root" ' +
-			    ' paginate_override="true" ' +
-			    ' columns="' + "['*name','*ship_class','*tech_level','*damage_control','*jumps','*cost','*targets','*self_destruct','*attack_beams','*defense','*size','*racksize','*type']" + '" ' +
-			    ' column_headers="' + "['Name','Class','Tech Req','Damage Control','Jumps','Cost','Targets','Self Destruct','Attack Beams','Defense','Size','Racksize','Type']" + '" ' +
-			    ' new_columns="' + "['name','ship_class','tech_level','damage_control','jumps','cost','targets','self_destruct','attack_beams','defense','size','racksize','type']" + '" ' +
-			    ' new_column_placeholders="' + "['Name','Class','Tech','Damage Control','Jump Range','Cost','Targets','Self Destruct','Attack Beams','Defense','Size','Rack Size','Type']" + '"' +
-			    ' new_button="Add Ship" new_attachpoint="#flav_newship_$$" ' +
-			    ' new_columns="[' + "'name','ship_class'" + ']" new_column_placeholders="[' + "'name','ship class'" + ']" ' + 
-			    '></DIV><DIV id="flav_newship_$$"></DIV>',
-			'~<h2>Universe Configuration</h2><div class="yote_panel" item="$$$" field="universe_config"/>',
-			'*empire_config',
-			'*game_config',
-			'*base_config',
-			'~<h2>Sector Names</h2>One name to a line. May contain spaces.<br><DIV class="yote_panel" item="$$$" field="sector_names"></div>',
-		    ]
-		} );
-	    } else {
-		$( '#flavor_editor_panel' ).hide();
-	    }
-
-	    if( logged_in ) {
-		my_acct = $.yote.fetch_account();
-		$.yote.util.register_items( {
-		    active_columns : ['name',
-				      function(item,is_prep){ if(is_prep){ return item.current_players().to_list().map(function(it){it.get_name()}).join(',');} },
-				      function(item,is_prep){ if(is_prep){ return item.get_needs_players() } },
-				      function(item,is_prep){ if(is_prep)return item.get_created_by().get_handle();},
-				      'turn_number',
-				      function(item,is_prep){if(is_prep){return '<button type="BUTTON" id="play_' + item.id + '">Play</button>'}
-							     else{
-								 $( '#play_' + item.id ).click(function() {
-								     play_game( item );
-								 } );
-							     }
-							    }
-				     ],
-		    pending_columns : ['name',
-				       function(item,is_prep){ if(is_prep){ return item.current_players().to_list().map(function(it){it.get_name()}).join(',');} },
-				       function(item,is_prep){ if(is_prep){ return item.get_needs_players() } },
-				       function(item,is_prep){ if(is_prep)return item.get_created_by().get_handle();},
-				       function(item,is_prep){if(is_prep){return '<button type="BUTTON" id="leave_' + item.id + '">Leave</button>'}
-							      else{
-								  $( '#leave_' + item.id ).click(function() {
-								      item.remove_player();
-								      item.sync_changed();
-								      $.yote.util.refresh_ui();
-								  } );
-							      }
-							     }
-				      ],
-		    avail_columns : ['name',
-				     function(item,is_prep){ if(is_prep){ return item.current_players().to_list().map(function(it){it.get_name()}).join(',');} },
-				     function(item,is_prep){ if(is_prep){ return item.get_needs_players() } },
-				     function(item,is_prep){ if(is_prep)return item.get_created_by().get_handle();},
-				     function(item,is_prep){if(is_prep){return '<button type="BUTTON" id="join_' + item.id + '">Join</button>'}
-							    else{
-								$( '#join_' + item.id ).click(function() {
-								    item.add_player();
-								    item.sync_changed();
-								    $.yote.util.refresh_ui();
-								} );
-							    }
-							   }
-				    ],
-		    acct : my_acct,
-		    ship_rows : [
-			'name',
-			'~<DIV class="control_table" item="$$$" container_name="pending_orders" paginate_override="true" '+
-			    ' columns="[]" ' + 
-			    ' new_columns="[]" ' +
-			    ' new_column_headres="[] ' + 
-			    ' new_button="Add order" new_attachpoint="#ship_order_$$" ' +
-			    '></DIV>'
-		    ],
-		} );
-
-		//check to see if in lobby or a game
-		if( my_acct.get( 'in_game' ) ) {
-		    play_game( my_acct.get_in_game() );
-		}
-		else {
-
-		    $( '#user_games_panel' ).show();
-		    se_app.sync_lobby( my_acct );
-		}
-		$( '#comm_div' ).append( '<h3>Comm</h3><input type="text" placeholder="connect to" id="connector"> <button id="c_go">connect</button><div id="comm_msg"></div><hr>' );
-		$.yote.util.button_actions( {
-		    button : '#c_go',
-		    texts  : [ '#connector' ],
-		    action : function() {
-			$( '#comm_msg' ).empty();
-			try {
-			    convo( $('#connector').val() );
-			} catch(err) {
-			    $( '#comm_msg' ).append( $('#connector').val() + ' not found' );
-			}
-		    }
-		} );
-		var my_comm = my_acct.get_comm();
-		var items = my_comm.paginate( { 
-		    name : '_convos_with',
-		    return_hash : true,
-		    sort_fields : [ 'with_name' ],
-		    limit : 100
-		} );
-     
-		var ihash = items.to_hash();
-		for( var i in ihash ) {
-		    var conv = ihash[ i ];
-		    if( my_acct.get( 'closed_' + conv.id ) != 'true' )
-			convo( i );
-		}
-	    } //if logged in
-	    else {
-		$( '#user_games_panel' ).hide();
-	    }
-	    $.yote.util.refresh_ui();
-	} //refresh
-	$( '#back_to_lobby' ).click(function() {
-	    my_acct.set( 'in_game', '' );
-	    $( '#game' ).hide();
-	    $( '#game_panel' ).attr( 'disabled', 'true' );
-	    $( '#lobby' ).show();
-	    $( '#user_games_panel' ).show();
-	    $.yote.util.refresh_ui();
-	} );
-	$.yote.util.init_ui();
-    });
-     function convo( target_handle ) {
-	 var conv = my_acct.get_comm().open_channel( target_handle );
-	 var cid     = conv.id;
-	 if( typeof $( '#conv_panel_wrapper_' + cid ).val() == 'undefined' ) {
-	     $( '#comm_div' ).append( '<DIV id="conv_panel_wrapper_' + cid + '"></div>' );
-	 } else {
-	     $( '#conv_panel_wrapper_' + cid ).empty();
-	 }
-	 // create a conversation and attach to the two recipients
- 	 my_acct.set( 'closed_' + conv.id, 'false' );
-         // create a panel for the conversatoin on the UI
-         var ri_hash = { app : se_app };
-         ri_hash['conv_' + cid] = conv;
-         $.yote.util.register_items( ri_hash );
-         var buf = '<DIV id="conv_panel_' + cid + '">\
-                    <button type="Button" id="close_' + cid + '">X</BUTTON>\
-                    Conversation with ' + target_handle + '<BR>\
-                    <div id="conv_msg_' + cid + '"></div>\
-                    <div class="control_table" item="$conv_' + cid + '" plimit="15"\
-                         container_name="conversations" container_type="hash" show_count="false"\
-                         columns="[function(item,is_prep){if(is_prep){return item.get(\'message\')+' +
-                                          "'['+item.get_creator().get_handle()+'] ('+new Date(1000*item.get_created_on()).toLocaleString()+')'}}]" + '"\
-                         new_button="say" new_attachpoint="#conv_msg_' + cid + '"\
-                         paginate_order="reverse" new_columns="[' + "'message'" + ']"\
-                         new_column_placeholders="[' + "'message'" + ']"\
-                         after_new_function="*function(item){item.set(' + "'created_on',Math.round(new Date().getTime()/1000));item.set('creator',my_acct);" + '\
-		         this.item.add_to( { name : ' + "'converstaions'" + ', items : [ item ] } ) }"\
-                    >\
-                    </DIV>';
-         $( '#conv_panel_wrapper_' + cid ).append( buf );
-         $( '#close_' + cid ).click( (function(c) { return function() { 
-	     $( '#conv_panel_wrapper_' + cid ).remove();
-	     my_acct.set( 'closed_' + c.id, 'true' );
-	 } } )( conv ) );
-	 $.yote.util.init_ui();
-     } //convo
-     function show_sector( sector ) {
-	 $( '#sector_view' ).show();
-	 
-	 $.yote.util.register_item( 'sector', sector );
-	 c[ 'sector' ] = sector;
-	 $.yote.util.refresh_ui( '#sector_view .yote_panel,#sector_view .control_table' );
-	 my_acct.set( 'showing_sector', sector );
-     }
-
-		    -->
     </script>
     <style>
       .emp   { font-family:"Lucida Console",monospace;  }
@@ -262,161 +37,596 @@
       #side_panel { float: left; }
       #flavor_editor_panel { background-color:rgba(150,150,100,.4) }
       #game { background-color:#8A9 }
+      .not_ready { background-color:#FDD }
+      .ready { background-color:#DFD }
     </style>
   </head>
 
-  <BODY>
-    <DIV class="header" id="top_header">
-      <img class="left" src="se.png">
-      <SPAN id="header_bar"></SPAN>
-      <UL id="top_nav" class="nav"></UL>
-      <DIV class="login logged_in" id="logged_in_status"></DIV>
-      <DIV id="msg_div"></DIV>
-    </DIV>
+  <script type="text/template" class="yote_template_definition" template_name="MoveOrder">
+    <# takes ship as the default #>
+    <$ show _.to name $>
+    <???
+    function( ctx ) {
+	var arry = ctx.default_parent;
+	var idx = ctx.hash_key_or_index;
+	var ord = ctx.default_var;
 
-    <DIV id="side_panel">
-      <DIV id="chat_panel">
-        <h3>Chat</h3>
-        <div id="chat_mgs"></div>
-        <DIV class="control_table" item="$chat" plimit="15" paginate_overridea="true"
-             container_name="chatter" show_count="false" include_remove="*$.yote.is_root()"
-             columns="[function(item,is_prep){
-                      var cr=item.get_creator();
-                      if(is_prep){
-                      return item.get('message')+'[<a href=# id=chat_with_' + cr.id + '>'+cr.get_handle()+'</a>] ('+
-                      new Date(1000*item.get_created_on()).toLocaleString()+')'
-                      }else{
-                      $('#chat_with_'+cr.id ).click(function(){convo(cr.get_handle())});
-                      }}]"
-             after_new_function="*function(item){
-                                 item.set('created_on',Math.round(new Date().getTime()/1000));
-                                 item.set('creator',my_acct);
-                                 }"
-             new_button="say" new_attachpoint="#chat_mgs"
-             paginate_order="reverse"
-             new_columns="['message']"
-             new_column_placeholders="['message']"
-             ></div>
-      </DIV>
+	if( idx == ( arry.full_size() - 1 ) ) { // last destination
+	    return '<$$$ control remove <button type="button">remove</button> $$$><br>';
+	}
+	return '';
+    } ???>
+    <?
+    function( ctx ) {
+	var arry = ctx.default_parent;
+	var idx = ctx.hash_key_or_index;
+	var ord = ctx.default_var;
+	if( idx == ( arry.full_size() - 1 ) ) { // last destination
+	    $( ctx.controls.remove ).click( function() {
+		arry.remove( idx );
+		$.yote.util.refresh_ui();
+	    } );
+	}
+    }
+    ?>
+  </script>
 
-      <DIV id="comm_div">
-	<!-- Panel for talking directly to an other. Only when logged in with account 
- 	     the conversation is between two accounts, so
-	     account A -> comm -> {converstaions} :  account B id -> conversation_obj_AB
-	     account B -> comm -> {converstaions} :  account A id -> conversation_obj_AB
-	     this is for conversations with only two participants. 
-	     There could be more, but would have a different container type.
-	     This will be populated with all conversations that have not been closed.
-	  -->
-      </div>
-      <DIV id="whos_panel">
-	<h3>Who is logged in</h3>
-	<DIV class="control_table" paginate_override="true"
-	     item="$app" plimit="15" container_name="logged_in" show_count="false"
-	     columns="[function(acct,is_prep){if(is_prep){return '<a href=# id=chat_with_online_' + acct.id + ' >' + acct.get_handle() + '</a>'; } else { $( '#chat_with_online_' + acct.id ).click((function(a){return function(){convo(a.get_handle());}})(acct))}}]"
-	     >
-	</div>
-      </div>
+  <script type="text/template" class="yote_template_definition" template_name="NewMoveOrder">
+    <# takes ship as the default #>
+    <???
+       function( ctx ) {
+	   var map = ctx.getvar( 'map' );
+	   var ship = ctx.default_var;
+	   var from_sector = ctx.getvar( 'move_to' ) || ctx.getvar( 'show_sector' );
+	   var from_links = from_sector.get_links();
 
-      
-    </DIV> <!-- side_panel -->
-    <DIV id="lobby">
+	   //only a scout can move if this is not a known location
+	   if( 1*map.get( from_sector.id ).get_discovered() == 0 && ship.get_ship_class() != 'Scout' ) {
+	       ctx.addvar( 'move_left', 0 );
+	       return 'No Move Left';
+	   }
+	   return ctx.getvar( 'move_left' ) + ' jumps left<br><$$$ control new_destination <select><option value=""> Select Destination </option></select> $$$>';
+       }
+    ???>
 
-      <DIV id="main_div" class="main_div">
-	<h1>Stellar Expanse</h1>
+    <? function( ctx ) {
+	if( ctx.getvar( 'move_left' )*1 == 0 ) return;
 
-	<!-- Control table for games -->
-	<DIV id="games_panel" >
-          <div id="user_games_panel">
-            <h3>Active Games</h3>
-            <DIV class="control_table" paginate_override="true" plimit="10"
-		 item="$acct" container_name="active_games"
-		 column_headers="['Game','Number of Players', 'Open Slots','Created By','On Turn','Play']"
-		 columns="$active_columns"
-		 ></DIV>
-	    <HR>
-	    <h3>Pending Games</h3>
-	    <DIV class="control_table" paginate_override="true" plimit="10"
-		 item="$acct" container_name="pending_games"
-		 column_headers="['Game','Joined Players', 'Open Slots', 'Created By','Leave']"
-		 columns="$pending_columns"
-		 ></DIV>
-	  </DIV>
-	</DIV>
-	<HR>
-        <DIV style="background-color:rgba(100,100,100,.8);display:inline-block">
-	  <h3>Available Games</h3>
-	  <DIV class="control_table" paginate_override="true" plimit="10"
-	       column_headers="['Game','Joined Players', 'Open Slots', 'Created By','Join']"
-               item="$app" container_name="pending_games"
-               columns="$avail_columns"
-               new_function="*function(){return null;}"
-               after_new_function="*function(dummy,data){var fs = se_app.get_flavors(); if(fs.length() == 1) data['flavor'] = fs.get(0);var game = se_app.create_game(data);}"
-               new_button="New Game" new_attachpoint="#new_game_panel"
-               new_columns="!function(){ var arry = ['name','number_players','starting_tech_level','starting_resources'];
-			    if( se_app.get_flavors().length() > 1 ) arry[arry.length] = {on_create:function(newitem,id){newitem.set('flavor',$('#'+id).val());},field:'flavor',render:function(ctrl_idx){return '<select id=ctrl_idx>' + se_app.get_flavors().to_list().map(function(it){return '<option value='+it.id+'>'+it.get_name()+'</option>'}).join('') + '</select>';}}; return arry;}"
-               new_column_placeholders="['Game Name','Number of Players','Starting Tech Level','Starting Resources','Flavor']"
-	       
-	       >
-	  </DIV>
-          <DIV id="new_game_panel"></DIV>
-	</DIV>
-      </DIV>
-    </div>
+	var map = ctx.getvar( 'map' );
+	var ship = ctx.default_var;
+	var from_sector = ctx.getvar( 'move_to' ) || ctx.getvar( 'show_sector' );
+	var from_links = from_sector.get_links();
+	var link_keys = from_links.keys();
 
-    <DIV id="flavor_editor_panel">
-      <h2>Flavor Editor</h2>
-      <DIV item="$app" requires_root="true" include_remove="true" class="control_table" plimit="12"
-	   paginate_override="true"
-           container_name="flavors"
-	   columns="$flavor_ed" column_headers="['Name','Ships','Univ Sector Config','Empire Sector Config','Game Sector Config','Base Sector Config','Sector Names']"
-           suppress_table="true" 
-           new_button="Add Flavor" new_attachpoint="#new_flavor_div" new_object_type="root"
-           new_columns="['name']" new_column_placeholders="['Name']"
-           new_function="*function(){return se_app.new_flavor();}"
-	   >
-      </DIV>
-      <DIV id="new_flavor_div"></DIV>
-    </DIV>
-</DIV>
+	var l_opt = '';
+	for( var i=0; i < link_keys.length; i++ ) {
+	    var link_sector = from_links.get( link_keys[ i ] );
+	    //if here isn't in the chart, can't move anywhere not in the chart
+	    if( 1*map.get( from_sector.id ).get_discovered() || ( map.get( link_sector.id ) && 1*map.get( link_sector.id ).get_discovered() ) )
+		l_opt += '<option value="' + i + '">' + link_sector.get_name()  + '</option>';
+	}
 
-<DIV id="game" style="display:none">
-  <h1>Games and stuff</h1>
-  <a id="back_to_lobby" href="#">Back to Lobby</a>
-  <DIV id="game_panel" disabled="true">
-    <DIV id="stats_panel">
-      <table>
-	<tr><th>Game</th><td><span class="yote_panel" item="$game" field="name" no_edit="true"></span></td></tr>
-	<tr><th>On Turn</th><td><span class="yote_panel" item="$game" field="turn_number" no_edit="true"></span></td></tr>
-        <tr><th>Resources</th><td><DIV class="yote_panel" item="$player" field="resources" no_edit="true"></td></tr>
-        <tr><th>Tech Level</th><td><DIV class="yote_panel" item="$player" field="tech_level" no_edit="true"></td></tr>
-        <tr><th>Ready for next turn</th><td><DIV class="yote_panel" item="$player" field="ready" use_checkbox="true" after_edit_function="*function(arg,plyr){plyr.mark_as_ready({ready:arg,turn:current_turn});if(current_turn!=current_game.get_turn_number()){$.yote.util.refresh_ui();current_turn=current_game.get_turn_number();}}"></td></tr>
+	$( ctx.controls.new_destination ).append( l_opt ).change( function() {
+	    ship.new_order( {
+		order : 'move',
+		turn  : ctx.scratch.current_turn,
+		from  : from_sector,
+		to    : from_links.get( link_keys[ $( ctx.controls.new_destination ).val() ] )
+	    } );
+	    $.yote.util.refresh_ui();
+	} );
+    }
+    ?>
+  </script>
+
+
+  <script type="text/template" class="yote_template_definition" template_name="Ship">
+    <tr> <td><$ show _ name $></td>
+         <td><$ show _ cost $></td>
+         <td><$ show _ jumps $></td>
+         <td><$ show _ size $></td>
+         <td><$ show _ defense $></td>
+         <td><$ show _ attack_beams $></td>
+         <td>
+           <??? function( ctx ) {
+	       // a bit more complicated now. go through the ships orders and see if it has any move
+	       // left. Tally the move. Only put a new move orders box if there is any move of the ship left.
+	       var ship = ctx.default_var;
+	       var move_left = 1*ship.get_jumps();
+	       if( move_left == 0 ) return 'n/a';
+
+	       var move_orders = ship.get_pending_orders();
+	       var last_moved = ctx.getvar( 'show_sector' );
+	       for( var i=0; i<move_orders.length(); i++ ) {
+		   var mo = move_orders.get( i );
+		   if( mo.get_order() == 'move' ) {
+		       if( i == 0 ) ctx.addvar( 'original_sector' );
+		       move_left--;
+		       last_moved = mo.get_to();
+		   }
+	       }
+ 	       ctx.addvar( 'move_left', move_left );
+ 	       ctx.addvar( 'move_to', last_moved );
+	       if( ! ctx.scratch.ship_move_left ) ctx.scratch.ship_move_left = {};
+	       ctx.addvar( 'move_left', move_left );
+	       var map = ctx.getvar( 'map' );
+	       //only scouts can move from an unexplored sector
+	       if( move_left > 0 && ( ship.get_ship_class() == 'Scout' || map.get( last_moved.id ) ) ) return '<@ MoveOrder _ pending_orders 12 @><$$ NewMoveOrder $$>';
+	       return '<@ MoveOrder _ pending_orders 12 @>';
+	   }
+          ???></td>
+    </tr>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Ships">
+    <#  --------------------- default var is a ships container ------------------- #>
+<??? function(c){console.log( [ "SHIPS", c.default_var ] ); return ''; }???>
+    <h3>Ships</h3>
+    <table> <tr> <th>Quantity</th> <th>Name</th> <th>Cost</th> <th>Jumps</th> <th>Size</th> <th>Defense</th> <th>Beams</th> <th>Move Orders</th> </tr>
+     <@ Ship 10 @>
+    </table>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="SectorProd">
+    <#  --------------------- default var is sector ------------------- #>
+    <???
+       function( ctx ) {
+	   var ords = ctx.default_var.get_pending_orders();
+	   var player = ctx.getvar( 'player' );
+	   var unspent_resources = player.get_resources();
+	   for( var i=0; i<ords.length(); i++ ) {
+	       var o = ords.get( i );
+	       unspent_resources -= o.get_quantity() * o.get_ship().get_cost();
+	   }
+	   ctx.scratch.unspent_resources = unspent_resources;
+	   return '';
+       }
+       ???>
+       <$@ BuildOrders _ pending_orders @$>
+       <$$ NewProdOrder $$>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="NewProdOrder">
+    <# takes sector as the default #>
+    <p>
+      <$$$ control new_quan <select></select> $$$>
+      <$$$ control new_type <select><option value="">-</option></select> $$$>
+      <$$$ control new_ord <button type="button">New Order</button> $$$>
+    </p>
+    <? function( ctx ) {
+	/*       set up item select and set up click handler on listener */
+	var game   = ctx.getvar( 'game' );
+console.log( [ 'GAME', game ] );
+	var player = ctx.getvar( 'player' );
+	var sector = ctx.getvar( 'show_sector' );
+	var avail = game.get_flavor().get_ships();
+	var opts = '';
+
+	// ships
+	var min_cost = 0;
+	for( var i=0; i<avail.length(); i++ ) {
+	    var it = avail.get( i );
+	    var cost = 1 * it.get_cost();
+	    min_cost = min_cost == 0 || min_cost > cost ? min_cost : cost;
+	    var max_can_buy = cost > 0 ? Math.floor( ctx.scratch.unspent_resources / cost ) : 0;
+	    opts += '<option value="' + i + '" ' + ( max_can_buy > 0 ? '' : 'disabled="disabled"' ) + '>'
+		+ it.get_name() + '</option>';
+	}
+	$( ctx.controls.new_type ).append( opts );
+
+	// quantities
+	var max_quan = min_cost ? Math.floor( ctx.scratch.unspent_resources / min_cost ) : 0;
+	if( max_quan > 0 ) {
+	    var quan_opts = '';
+	    for( var j=1; j <= max_quan; j++ ) {
+		quan_opts += '<option value="' + j + '">' + j + '</option>';
+	    }
+	    $( ctx.controls.new_quan ).append( quan_opts );
+	} else {
+	    $( ctx.controls.new_quan ).append( '<option value="0">0</option>' );
+	}
+
+	// quantities change when select changes
+	$( ctx.controls.new_type ).change(function() {
+	    var idx = $( this ).val();
+	    var sel_ship = avail.get( idx );
+	    var ship_cost = 1*sel_ship.get_cost();
+	    max_quan = ship_cost ? Math.floor( ctx.scratch.unspent_resources / ship_cost ) : 0;
+	    var quan_opts = '';
+	    for( var j=1; j <= max_quan; j++ ) {
+		quan_opts += '<option value="' + j + '">' + j + '</option>';
+	    }
+	    $( ctx.controls.new_quan ).empty().append( quan_opts );
+	} );
+
+
+	$( ctx.controls.new_ord ).click( function() {
+	    var ship_idx = $( ctx.controls.new_type ).val();
+	    var ship = avail.get( ship_idx );
+	    var ord = sector.new_order( { order : 'build',
+					  turn  : ctx.scratch.current_turn,
+					  ship  : ship,
+					  quantity : $( ctx.controls.new_quan ).val()
+					},
+					function( msg ) {
+					    alert( 'make new ' + ship.get_name() + ' for sector ' + sector.get_name() +
+						   ' and turn ' + ctx.scratch.current_turn );
+					},
+					function( err ) {
+					    alert( err );
+					}
+				      );
+            $.yote.util.refresh_ui();
+	} );
+    } ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="BuildOrders">
+    <# takes sector as the default #>
+Make the entries not the can build items, but the orders
+<h3>Build Orders</h3>
+    <table> <tr> <th>Quantity</th> <th>Name</th> <th>Cost</th> <th>Jumps</th> <th>Size</th> <th>Defense</th> <th>Beams</th> <th>Delete</th> </tr>
+       <@ BuildItem 10 @>
+    </table>
+       Resources avail : <$ show player resources $>
+
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="BuildItem">
+    <tr> <td><$$$ control quan_edit <select></select> $$$></td>
+         <td><$ show _.ship name $></td>
+         <td><$ show _.ship cost $></td>
+         <td><$ show _.ship jumps $></td>
+         <td><$ show _.ship size $></td>
+         <td><$ show _.ship defense $></td>
+         <td><$ show _.ship attack_beams $></td>
+         <td><$$$ control del_ord <button type="button">Remove</button>  $$$></td>
+    </tr>
+    <?
+        function( ctx ) {
+	    var cur_quan = 1 * ctx.default_var.get_quantity();
+	    var ship = ctx.default_var.get_ship();
+	    var ship_cost = 1*ship.get_cost();
+	    var max_quan = ship_cost ? Math.floor( ctx.scratch.unspent_resources / ship_cost ) : 0;
+	    var quan_opts = '';
+	    for( var j=1; j <= ( cur_quan + max_quan ); j++ ) {
+		quan_opts += '<option value="' + j + '" ' + ( j==cur_quan ? ' selected' : '') + '>' + j + '</option>';
+	    }
+	    $( ctx.controls.quan_edit ).append( quan_opts );
+	    $( ctx.controls.quan_edit ).change( function() {
+		ctx.default_var.set_quantity( $( this ).val() );
+		$.yote.util.refresh_ui();
+	    } );
+
+	    $( ctx.controls.del_ord ).click( function() {
+		ctx.default_parent.host_obj.remove_from( { name : ctx.collection_name,
+							   items : [ ctx.default_var ] } );
+		$.yote.util.refresh_ui();
+	    } );
+	}
+     ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="ActiveSector">
+    <# Default var is a sector #>
+    <h3>Active Sector</h3>
+    Detail for <b><$ show _ name $></b><br>
+    <P>Production : <$ show _ currprod $> / <$ show _ maxprod $>
+       Build Capacity <$ show _ buildcap $> </P>
+    Links : <% Link _ links 10 %> <P>
+    <$@ Ships _ ships @$>
+    <$$ SectorProd $$>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Link">
+    <??? function( ctx ) {
+	var nm = ctx.default_var.get_name().replace( /^\s*([^\s]+)/, '&$1; ' );
+	return '<$$$ control link <A HREF="#">' + nm + '</A>$$$>';
+    } ???>
+    <? function( ctx ) {
+	$( ctx.controls.link ).click(function() {
+	    alert( ctx.default_var.get_name() );
+	} );
+    }
+    ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Links">
+    <% Link 10 %>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Note">
+    <??? function(ctx){console.log( ctx.default_var ); return '' } ???>
+    <$ show _ msg $>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="SectorNode">
+    <$$$ aliasresult ships function( ctx ) {
+	var l2s = ctx.getvar( 'loc2ships' );
+	var ships = l2s[ ctx.default_var.id ] || [];
+console.log( [ "FINDING", ships ] );
+	return $.yote.wrap_native_list( { list : ships,
+					  field_key : 'faroff_ships',
+					  cache_key : args.template_path,
+					  wrap_key : ctx.default_var.id } );
+    } $$$>
+    <tr>
+      <td><$ val _.name $></td>
+      <td><$ val _.owner.name $></td>
+      <td><$ show _ seen_currprod $>/<$ show _ seen_max_production $></td>
+      <td><$ show _.links $></td>
+      <td><??? function(ctx) { return ctx.default_var.get( 'notes' ) ? '<@ Note _ notes 10 @>' : 'unexplored'; } ???> </td>
+      <td><$@ Ships ships @$></td>
+     </tr>
+  </script>
+    
+  <script type="text/template" class="yote_template_definition" template_name="OtherSectors">
+    <hr>
+    <h3>Destinations</h3>
+    Last known data <br>
+      <table><tr> <th>Name</th> <th>Owner</th> <th>Build Capacity</th> <th>Links</th> <th>Notes</th> <th>Ships</th> </tr>
+        <@ SectorNode 12 @>
       </table>
-    </DIV>
+    <hr>
+  </script>
 
-    <DIV id="sectors" class="control_table"
-         item="$player" plimit="15" paginate_override="true" container_name="sectors"
-         column_headers="['Sector']" columns="[function(item,is_render){if(is_render){ return '<a href=# id=show_sector_' + item.id + '>' + item.get_name() + '</a>';}else{$('#show_sector_'+item.id).click(function(){show_sector(item);});}}]"
-    >
-    </DIV>
+  <script type="text/template" class="yote_template_definition" template_name="MySector">
+    <tr>
+      <td><$$$ control sec_link <a href="#">$$$><$ val _.name $></a></td>
+      <td><$ show _ currprod $>/<$ show _ maxprod $></td>
+      <td><$ show _ buildcap $></td>
+      <td><$ show _.owner name $></td>
+      <td><$% Links _ links %$></td>
+     </tr>
+    <?
+    function( ctx ) {
+	$( ctx.controls.sec_link ).click( function() {
+	    args.getvar( 'player' ).set( 'cur_sector', ctx.default_var );
+	    $.yote.util.refresh_ui();
+	} );
+    }
+     ?>
+  </script>
 
-    <DIV id="sector_view" style="display:none">
-      Sector name : <span class="yote_panel" show="c['sector'].get_name()"></span><br>
-      Owner : <span class="yote_panel" show="c['sector'].get_owner().get_name();"></span><br>
-      Production : <span class="yote_panel" show="c['sector'].get_currprod()"></span> / <span class="yote_panel" show="c['sector'].get_maxprod()"></span><br>
-      <DIV class="control_table" id="sector_orders" item="$sector" container_name="pending_orders" include_remove="true" plimit="20"
-           columns="[$.yote.util.select_obj_edit('ship',c['game'].get_flavor().get_ships(),'name'),'*quantity']" column_headers="['building','quantity']"
-           new_attachpoint="#new_build_order" new_function="*function(){return c['sector'].new_order({order:'build',turn:current_turn}); }"
-           new_column_headers="['quantity','build item']" new_addto_function="*function(){}" remove_function="*function(it,idx){c['sector'].remove_order(it);}"
-           new_columns="['quantity',{field:'build_item',on_create:function(newit,id){newit.set('ship',$.yote.get_by_id($('#'+id).val()))},render:function(id){return $.yote.util.build_select_text({id:id,items:c['game'].get_flavor().get_ships(),val:function(it,idx){return it.id;},text:function(it){return it.get_name()}})}}]"
-      ></DIV>
-      <DIV id="new_build_order"></DIV>
-      <DIV class="control_table" id="sector_ship" item="$sector" container_name="ships" plimit="20"
-           columns="['name',]" column_headers="['ship name','Orders']"
-      ></DIV>
-    </DIV>
-  </DIV>
-</DIV>
+  <script type="text/template" class="yote_template_definition" template_name="MySectors">
+    <hr>
+    <h3>Owned Sectors</h3>
+    <table><tr> <th>Name</th> <th>Prod</th> <th>Build Capacity</th> <th>Owner</th> <th>Links</th> </tr>
+      <@ MySector 12 @>
+    </table>
+    <hr>
+  </script>
 
-</BODY>
+  <script type="text/template" class="yote_template_definition" template_name="InGame">
+    <#  -------------------DECLARATIONS--------------------------- #>
+    <???
+    function( args ) {
+	var acct = $.yote.fetch_account();
+	var player = acct.get( 'current_player' );
+	if( ! player ) {
+	    player = args.getvar( 'game' ).my_player();
+	    args.addvar( 'player', player );
+	}
+	var ships = player.get_ships();
+	var loc2ships = {};
+	for( var i=0; i < ships.length(); i++ ) {
+	    var ship = ships.get( i );
+	    var loc = loc2ships[ ship.get_location().id ];
+	    if( ! loc ) {
+		loc = [];
+		loc2ships[ ship.get_location().id ] = loc;
+	    }
+	    loc[ loc.length ] = ship;
+	}
+	args.addvar( 'loc2ships', loc2ships );
+	args.addvar( 'map', player.get_starchart().get_map() );
+	var cur_sec = player.get( 'cur_sector' );
+	if( ! cur_sec ) {
+	    cur_sec = player.get_sectors().get(0);
+	    player.set( 'cur_sector', cur_sec );
+	}
+	args.addvar( 'show_sector', cur_sec );
+	return '';
+    } ???>
+    <$$$ aliasresult unowned_nodes function( args ) {
+	     var player = args.getvar( 'player' );
+	     var sectors = player.get_sectors();
+	     var known_sectors = {};
+	     for( var i=0; i< sectors.length(); i++ ) {
+		 var s = sectors.get( i );
+		 known_sectors[ s.id ] = s;
+	     }
+	     var map = player.get_starchart().get_map(); // sector id --> node
+	     var unowned = [];
+	     var map_keys = map.keys();
+
+	     for( var i in map_keys ) {
+		 var s_id = map_keys[ i ];
+		 if( ! known_sectors[ s_id ] ) {
+		     unowned[ unowned.length ] = map.get( s_id  );
+		 }
+             }
+	     return $.yote.wrap_native_list( { list : unowned, wrap_key : player.id,cache_key : args.template_path, field_key : 'unowned'  } );
+	} $$$>
+
+    <#  -------------------  HTML  --------------------------- #>
+    <$$$ control backlink <a href='#'>Back To Lobby</a> $$$><br>
+    Player is <$ show player name$><br>
+    Game is <$ show game name $><br>
+    Resources : <$ show player resources $><br>
+    Tech Level : <$ show player tech_level $><br>
+    On Turn : <?? function( ctx ) { return ctx.scratch.current_turn; } ??>
+    <$$$ control ready_div <label class="not_ready"> $$$>
+        Ready for next turn <$$$ control ready_check <input class="not-ready" type="checkbox"> $$$>
+        </label>
+
+
+    <$@ MySectors player sectors @$>
+    <$@ OtherSectors unowned_nodes @$>
+    <$$ ActiveSector show_sector  $$>
+
+    <#  -------------------  AFTER RENDER  --------------------------- #>
+    <?
+       function( ctx ) {
+	   $( ctx.controls.ready_check ).click( function() {
+	       var is_ready = $( ctx.controls.ready_check ).is( ':checked' );
+	       if( is_ready ) {
+		   $( ctx.controls.ready_div ).addClass( 'ready' );
+		   $( ctx.controls.ready_div ).removeClass( 'not-ready' );
+	       } else {
+		   $( ctx.controls.ready_div ).addClass( 'not-ready' );
+		   $( ctx.controls.ready_div ).removeClass( 'ready' );
+	       }
+	       ctx.getvar( 'player' ).mark_as_ready( {
+		   turn  : ctx.scratch.current_turn,
+		   ready : is_ready
+	       }, function() {
+		   if( is_ready ) $.yote.util.refresh_ui();
+	       } );
+	   } );
+
+	   $( ctx.controls.backlink ).click( function() {
+	       $.yote.fetch_account().set( 'current_game', '' );
+	       $.yote.util.refresh_ui();
+	   } );
+       }
+    ?>
+  </script>
+
+
+  <script type="text/template" class="yote_template_definition" template_name="PendingGames">
+    <h3>Pending Games</h3>
+    <@ PendGames 3 @>
+  </script>
+
+
+  <script type="text/template" class="yote_template_definition" template_name="PendGame">
+    <br>
+    <b><$ show _ name $></b> : for <$ show _ number_players $> players.
+       Start at tech level <$ show _ starting_tech_level $> with <$ show _ starting_resources $> RUs.
+    Created by <$ show _.created_by handle $>. <$$$ control leave_game <button type="button">Leave</button> $$$>
+    <? function( args ) {
+	 $( args.controls.go_game ).click( function() { alert( 'gonna leave ' + args.default_var.get_name() ); } );
+       }
+    ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="CreateGame">
+    <div>
+    Create a new game
+    <$$$ control newgamename <input type="text" placeholder="game name"> $$$>
+    <$$$ control start_players <input type="number" placeholder="number of players"> $$$>
+    <$$$ control start_res <input type="number" placeholder="starting resources"> $$$>
+    <$$$ control start_tech <input type="number" placeholder="starting tech level"> $$$>
+    <$$$ control newgamego <button type="button">Create</button> $$$>
+    </div>
+    <? function( args ) {
+        $.yote.util.button_actions( {
+	    button : args.controls.newgamego,
+	    texts  : [ args.controls.newgamename, args.controls.start_players, args.controls.start_res ],
+	    action : function() {
+		var game = args.default_var.create_game( {
+		    name : $( args.controls.newgamename ).val(),
+		    number_players : $( args.controls.start_players ).val(),
+		    starting_resources : $( args.controls.start_res ).val(),
+		    starting_tech_level : $( args.controls.start_tech ).val(),
+		    flavor : args.default_var.get_flavors().get(0)
+		});
+		$.yote.util.refresh_ui();
+            }
+        } );
+    } ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="ActGame">
+    <br>
+    <b><$ show _ name $></b> : for <$ show _ number_players $> players.
+       Start at tech level <$ show _ starting_tech_level $> with <$ show _ starting_resources $> RUs.
+    Created by <$ show _.created_by handle $>. <$$$ control go_game <button type="button">Play</button> $$$>
+      <$$$ control del_game <button type="button">Delete Game</button> $$$>
+    <? function( args ) {
+	 $( args.controls.go_game ).click( function() {
+	     var acct = $.yote.fetch_account();
+	     if( ! acct.get_current_game() || acct.get_current_game().id != args.default_var.id ) {
+		 acct.set( 'current_game', args.default_var );
+		 acct.set( 'current_player', args.default_var.my_player() );
+	     }
+	     $.yote.util.refresh_ui();
+	 } );
+	 $( args.controls.del_game ).click( function() {
+	     if( confirm( 'Really delete game ' + args.default_var.get_name() + '?' ) ) {
+		 $.yote.util.refresh_ui();
+	     }
+	 } );
+       }
+    ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="AvailGame">
+    <br>
+    <b><$ show _ name $></b> : for <$ show _ number_players $> players.
+       Start at tech level <$ show _ starting_tech_level $> with <$ show _ starting_resources $> RUs.
+    Created by <$ show _.created_by handle $>. <$$$ control join_game <button type="button">Join</button> $$$>
+    <? function( args ) {
+	 $( args.controls.join_game ).click( function() { alert( args.default_var.add_player() ); $.yote.util.refresh_ui(); } );
+       }
+    ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="AvailableGames">
+    <div>
+     <h3>Available Games</h3>
+     <@ AvailGame 3 @>
+    </div>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="ActiveGames">
+    <h3>Active Games</h3>
+    <@ ActGame 3 @>
+    <$$ Paginator $$>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Lobby">
+    Logged In
+    <$@ ActiveGames _acct_ active_games   @$>
+    <$@ AvailableGames _ available_games  @$>
+    <$@ PendingGames _acct_ pending_games @$>
+    <$$ CreateGame $$>
+  </script>
+
+
+  <script type="text/template" class="yote_template_definition" template_name="LoggedIn">
+    <$$$ alias game _acct_.current_game $$$>
+    <?? function(args) {
+	var cur_game = args.getvar( 'game');
+	if( cur_game )
+	    args.scratch.current_turn = 1*cur_game.get_turn_number();
+	if( args.scratch.current_turn == 0 ) {
+	    args.scratch.user_acknowledged_turn_change = true;
+	}
+	if( cur_game ) {
+	    return '<$$ InGame $$>';
+	}
+	else {
+	    return '<$$ Lobby $$>';
+	}
+    }
+	    ??>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Splash">
+    Join the incredible Stellar Expanse and w00t things.
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="MainBody">
+    <?? function() { return $.yote.is_logged_in() ? '<$$ LoggedIn $$>' : '<$$ Splash $$>'; } ??>
+  </script>
+
+
+  <BODY>
+    <DIV class="yote_template" template="YoteHeader"></div>
+
+    <DIV class="yote_template" template="MainBody" default_variable="app"></div>
+  </BODY>
+
 </html>

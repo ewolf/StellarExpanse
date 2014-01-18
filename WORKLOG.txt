@@ -1,0 +1,20 @@
+Immediate Stack
+
+break the sectors a player knows about into 3 categories :
+
+* unexplored
+* owned
+* explored not owned
+
+data sources :
+  - player starmap has a hash of sector id --> node
+  - player sector list
+
+* a node is unexplored when the discovered value is 0
+* a node is owned when in the player sector list
+* a node is explored not owned when it is not unexplored and not in 
+   the player sector list
+
+* <@  and <% with new forms to allow a list to be specified right there?
+
+make a current sector area in the UI

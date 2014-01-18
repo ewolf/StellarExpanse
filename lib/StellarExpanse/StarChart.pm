@@ -30,13 +30,9 @@ sub _update {
                 }
             }
         }
-	$node->set_seen_production( $sector->get_currprod() );
-	$node->set_seen_max_production( $sector->get_maxprod() );
-	$node->set_seen_owner( $sector->get_owner() );
-	$node->set__seen_ships( $ships_here );
 
         if( $different_ships || $node->get_seen_production() != $sector->get_currprod() || ( $node->get_seen_owner() && ( ! $node->get_seen_owner()->_is( $node->get_seen_owner() ) ) ) || $node->get_seen_owner() ) {
-            $node->add_to_notes( { msg        => "Updated",
+            $node->add_to_notes( { msg        => "Updated on turn " . $self->get_game()->get_turn_number(),
                                    turn       => $self->get_game()->get_turn_number(),
                                    owner      => $sector->get_owner(),
                                    production => $sector->get_currprod(),
@@ -53,6 +49,9 @@ sub _update {
 	$node->set_name( $sector->get_name() );
 	my $sector_links = $sector->get_links();
 	my $node_links = $node->get_links( {} );
+
+	# make nodes for links from thie sector unles there is a node for them already
+
 	for my $other_sector_id (keys %$sector_links) {
 	    my $other_sector = Yote::ObjProvider::fetch( $other_sector_id );
 	    my $other_node   = $map->{ $other_sector_id };
@@ -66,7 +65,7 @@ sub _update {
 	}
 
         $map->{$sector->{ID}} ||= $node;
-        $node->add_to_notes( { msg        => "Discovered",
+        $node->add_to_notes( { msg        => "Discovered on turn " . $self->get_game()->get_turn_number(),
                                turn       => $self->get_game()->get_turn_number(),
                                owner      => $sector->get_owner(),
                                production => $sector->get_currprod(),

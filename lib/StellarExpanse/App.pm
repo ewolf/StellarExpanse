@@ -25,7 +25,10 @@ sub _init {
 
     $self->set_pending_games( [] );
 
+    $self->set_available_games( [] );
+
 } #_init
+
 
 #
 # When accounts are created here. The comm hashes actt id to converstaion objects.
@@ -111,6 +114,8 @@ sub _register_account {
 sub create_game {
     my( $self, $data, $acct ) = @_;
 
+    die "Access Error" unless $acct;
+
     my $game = new StellarExpanse::Game();
 
     $game->set_name( $data->{name} );
@@ -121,10 +126,27 @@ sub create_game {
     $game->set_flavor( $data->{flavor} );
     $game->set_app( $self );
     $game->set_needs_players( $data->{number_players} );
-    my $id = Yote::ObjProvider::get_id( $game );
-    $self->add_to_pending_games( $game );
+
+    $self->add_to_available_games( $game );
     return $game;
 } #create_game
+
+sub remove_game {
+    my( $self, $game, $acct ) = @_;
+
+    if( $acct && $acct->_is( $game->get_created_by() ) ) {
+	my $players = $game->_current_turn()->get_players({});
+	for my $player ( values %$players ) {
+	    $player->get_account()->remove_all_from_pending_games( $game );
+	    $player->get_account()->remove_all_from_active_games( $game );
+	}
+	$self->remove_all_from_available_games( $game );
+	
+	return "Removed";
+    }
+    die "Unable to remove game";
+    
+} #remove_game
 
 # ----  FLAVS -------
 
