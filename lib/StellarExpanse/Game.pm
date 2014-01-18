@@ -54,7 +54,7 @@ sub my_player {
 sub _find_player {
     my( $self, $acct ) = @_;
     return undef unless $acct;
-    return $self->_current_turn()->get_players()->{$acct->get_login()->get_handle()};
+    return $self->_current_turn()->get_players({})->{$acct->get_login()->get_handle()};
 } #_find_player
 
 #
@@ -87,17 +87,17 @@ sub add_player {
         $players->{$login->get_handle()} = $player;
         $self->set_needs_players( $self->get_number_players() - keys %{$self->_current_turn()->get_players()} );
         if( $self->needs_players() ) {
-	    $acct->add_once_to_pending_games( $self );
+            $acct->add_once_to_pending_games( $self );
             return "added to game";
         } else {
-	    $acct->get_app()->remove_all_from_available_games( $self );
-	    $acct->get_app()->add_to_in_progress_games( $self );
+            $acct->get_app()->remove_all_from_available_games( $self );
+            $acct->get_app()->add_to_in_progress_games( $self );
             $self->_start();
- 	    my $all_players = $self->_players();
-	    for my $p (@$all_players) {
-		$p->get_account()->add_once_to_active_games( $self );
-		$p->get_account()->remove_all_from_pending_games( $self );
-	    }
+            my $all_players = $self->_players();
+            for my $p (@$all_players) {
+                $p->get_account()->add_once_to_active_games( $self );
+                $p->get_account()->remove_all_from_pending_games( $self );
+            }
             return "added to game, which is now starting";
         }
     }
@@ -186,19 +186,19 @@ sub _start {
     my @words = split( /[\n\r]+/, $flav->get_sector_names() );
     unless( @words ) {
         # use random dictionary words
-	my( $dictfile ) = grep { -f $_ } qw! /etc/dictionaries-common/words /usr/share/dict/words !;
-	if( $dictfile ) {
-	    open( IN, $dictfile );
+        my( $dictfile ) = grep { -f $_ } qw! /etc/dictionaries-common/words /usr/share/dict/words !;
+        if( $dictfile ) {
+            open( IN, $dictfile );
 
-	    my $dcount = 0;        # < for testing only > #
-	    while( <IN> ) {
-		chomp;
-		next unless /^[a-z]+$/ && length( $_ ) > 2;
-		push @words, $_;
+            my $dcount = 0;        # < for testing only > #
+            while( <IN> ) {
+                chomp;
+                next unless /^[a-z]+$/ && length( $_ ) > 2;
+                push @words, $_;
 #		last if ++$dcount > 200;        # < for testing only > #
-	    }
-	    close( IN );
-	}
+            }
+            close( IN );
+        }
     }
 
     #
@@ -416,7 +416,6 @@ sub _make_random_group {
         if( $owner && $sectors->{$key}{owner} != -1 ) {
             $newsector->set_owner( $owner );
             $newsector->set___creator( $owner->get_account() );
-            print STDERR Data::Dumper->Dump([$newsector," CREATED "]);
             $owner->add_to_sectors( $newsector );
             $maxprod = $sector_template->{maxprod};
             my $curprod = $sector_template->{currprod};

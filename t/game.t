@@ -149,9 +149,15 @@ sub test_suite {
     test_error( sub { $game->add_player( {}, $barny_acct ); }, qr/is full/, "added a player when game is full" );
     is( $game->active_player_count(), 2, "two players after failed to add one" );
     
-    my( $amy, $fred ) = @{$game->_players()};
-    $amy->set_acct( $amy_acct );
-    $fred->set_acct( $fred_acct );
+    my $players = $game->_current_turn()->get_players();
+
+    my $amy = $players->{ root };
+    my $fred = $players->{ fred };
+
+    $amy->set_account( $amy_acct );
+    $amy->set_name( 'amy' );
+    $fred->set_account( $fred_acct );
+    $fred->set_name( 'fred' );
 
     is( $amy->get_resources(), 100, 'set up with correct starting resources');
     is( $amy->get_tech_level(), 1, 'set up with correct tech level');
@@ -218,8 +224,10 @@ sub test_suite {
     is_deeply( $fred_chart->enemy_ships( $amy_sector->{ID} ), [], "no enemies known by fred in amys sector" );
     
     is( scalar( @{$amy->get_pending_orders()} ), 0, "No orders yet" );
-    
+#    print STDERR ">>> [fred] : (".$fred->get_name().":".$fred->get_owner()->get_name().":".$fred->get_owner()->get_account()->get_name().")\n";
     my $o1 = pass_order( $amy, { order => 'give_resources', amount => 1, recipient => $fred, turn => $turn->get_turn_number() }, 'give 1 to fred' );
+#    print STDERR Data::Dumper->Dump([$o1,$turn]);
+
     is( scalar( @{$amy->get_pending_orders()} ), 1, "first order" );
 
     my $o2 = pass_order( $amy, { order => 'give_resources', amount => 3, recipient => $fred, turn => $turn->get_turn_number() }, 'give 3 to fred' );
@@ -243,9 +251,9 @@ sub test_suite {
     is( $turn->get_turn_number(), 2, "turn number is 2" );
     is( $game->get_turn_number(), 2, "game turn number is 2" );
     is( scalar( @{$game->get__turns()} ), 3, "Number of stored turns" );
-    my $completed = $game->get__turns()->[2]->_players()->[0]->get_completed_orders()->[2];
+    my $completed = $amy->get_completed_orders()->[2];
     is( scalar( @$completed ), 2, "orders completed on this turn" );
-    my $completed = $game->_current_turn()->_players()->[0]->get_completed_orders()->[2];
+    my $completed = $amy->get_completed_orders()->[2];
     is( scalar( @$completed ), 2, "orders completed on this turn" );
     is( $o1, $completed->[0], "first order ok" );
     is( $o2, $completed->[1], "2nd order ok" );
@@ -253,9 +261,7 @@ sub test_suite {
     ok( $o1->get_resolution(), "success giving 3" );
     like( $o1->get_resolution_message(), qr/^gave 1 /i, 'gave correct amount 1' );
     like( $o2->get_resolution_message(), qr/^gave 3 /i, 'gave correct amount 3' );
-    is( scalar( @{$game->get__turns()->[2]->_players()->[0]->get_pending_orders()} ), 0, "orders pending for this turn" );
-    is( scalar( @{$game->get__turns()->[1]->_players()->[0]->get_pending_orders()} ), 2, "last turn pending" );
-
+    is( scalar( @{$amy->get_pending_orders()} ), 0, "orders pending for this turn" );
     is( scalar( @{$amy->get_completed_orders()->[2]} ), 2, "order reset with turn" );
     is( scalar( @{$amy->get_pending_orders()} ), 0, "order reset with turn" );
 
@@ -280,8 +286,8 @@ sub test_suite {
     is( $fred->get_resources(), 108, "Freds resources" );
     is( $turn->get_turn_number(), 3, "turn number is 3" );
     is( $game->get_turn_number(), 3, "game turn number is 3" );
-    my $completed = $game->_current_turn()->_players()->[1]->get_sectors()->[0]->get_completed_orders()->[3];
-    my $pending = $game->_current_turn()->_players()->[1]->get_sectors()->[0]->get_pending_orders();
+    my $completed = $fred->get_sectors()->[0]->get_completed_orders()->[3];
+    my $pending = $fred->get_sectors()->[0]->get_pending_orders();
     is( scalar( @$completed ), 3, "build orders completed on this turn" );
     is( scalar( @$pending ), 0, "no pending orders after turn advance" );
     ok( $b1_o->get_resolution(), "build scout ok" );
@@ -445,13 +451,15 @@ sub test_suite {
     my $turn_n = $cruiser2->get_game()->_current_turn()->get_turn_number();
     my $cruiz_load_o = pass_order( $cruiser2, { order=>'load', carrier => $carrier, turn =>  $turn_n }, "Load cruiser onto carrier" );
     my $scout2_load_o = pass_order( $scout2, { order=>'load',carrier => $carrier, turn => $turn_n }, "Load scout onto carrier" );
-    my $scout3_load_o = pass_order( $scout3, { order=>'unload',carrier => $carrier, turn => $turn_n }, "Unload scout from carrier its not yet on" );
+    my $scout3_unload_o = pass_order( $scout3, { order=>'unload',carrier => $carrier, turn => $turn_n }, "Unload scout from carrier its not yet on" );
+#    print STDERR Data::Dumper->Dump([$scout3,'a4']);
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
+#    print STDERR Data::Dumper->Dump([$scout3,'ar']);
 
     ok( ! $cruiz_load_o->get_resolution(), "Could not load cruizer" );
     ok( $scout2_load_o->get_resolution(), "Could load scout" );
-    ok( ! $scout3_load_o->get_resolution(), "Could not unload not loaded scout" );
+    ok( ! $scout3_unload_o->get_resolution(), "Could not unload not loaded scout" );
 
     # amy : cruizer, carrier, cruiser2, scout3
     is( scalar( @{$amy_sector->get_ships()}), 4, '4 ships now in amy sector since one loaded' );
@@ -465,17 +473,26 @@ sub test_suite {
 
     ok( ! $smo->get_resolution(), "Could not move loaded ship" );
 
+
     # OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
     my $o1 = move_order( $cruiser2, $amy_sector, $links->[0], "cruizer move order" );
     my $o2 = move_order( $carrier, $amy_sector, $links->[0], "carrier move order" );
-    my $o3 = move_order( $scout3, $amy_sector, $links->[0], "scout 3 move order" );
+
+    print STDERR "------------------------------------------------------\n";
+    my $o3 = move_order( $scout3, $amy_sector, $links->[0], "scout3 move order", 1 );
+    print STDERR "------------------------------------------------------\n";
+    print STDERR Data::Dumper->Dump(["SCOUT3 " . $scout3->{ID} . ' @ ' . ( $scout3->get_location() ? $scout3->get_location()->{ID} : '?' ), $scout3, $o3 ]);
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
+print STDERR Data::Dumper->Dump(["SCOUT3 " . $scout3->{ID} . ' @ ' . ( $scout3->get_location() ? $scout3->get_location()->{ID} : '?' ), $o3 ]);
 
     ok( $o1->get_resolution(), "cruizer2 can move" );
     ok( $o2->get_resolution(), "carrier can move" );
+    print STDERR Data::Dumper->Dump([$o3,$o3->get_subject()]);
+#    print STDERR Data::Dumper->Dump([$scout3,$scout3->get_location()]);
     ok( $o3->get_resolution(), "scout 3  can move" );
+print STDERR Data::Dumper->Dump(["SCOUT3 " . $scout3->{ID} . ' @ ' . ( $scout3->get_location() ? $scout3->get_location()->{ID} : '?' ) ]);
 
     # amy : cruiser2, carrier, scout 3
     # fred : battleship, boat
@@ -605,17 +622,10 @@ sub test_suite {
     # check rewind
     $game->rewind_to( $turn->get_turn_number() - 1 );
     
-    my $hits = $Yote::ObjProvider::CACHE->{hits};
-    my $misses = $Yote::ObjProvider::CACHE->{misses};
-    my $total = $hits + $misses;
-    if( $total ) {
-        my $hit_ratio = $hits / $total;
-        print STDERR Data::Dumper->Dump(["Hit Ratio : $hit_ratio of $total"]);
-    } else { 	print STDERR Data::Dumper->Dump(["NO cache data"]); }
 } #test_suite
 
 sub move_order {
-    my( $ship, $from, $to, $msg ) = @_;
+    my( $ship, $from, $to, $msg, $debug ) = @_;
     return pass_order( $ship,
                        {
                            from  => $from,
@@ -623,7 +633,7 @@ sub move_order {
                            turn  => $ship->get_game()->_current_turn()->get_turn_number(),
                            order => 'move'
                        },
-                       $msg );
+                       $msg, $debug );
 }
 
 sub fire_order {
@@ -658,16 +668,19 @@ sub advance_turn {
         $p->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() } );
     }
     my $turns = $turn->get_game()->get__turns();
-
+    Yote::ObjProvider::stow_all();
 } #advance_turn
 
 sub pass_order {
-    my( $obj, $ord, $msg ) = @_;
+    my( $obj, $ord, $msg, $debug ) = @_;
+
     my $res;
     eval {
-        $res = $obj->new_order( $ord, $obj->get_owner()->get_acct() );
+        $res = $obj->new_order( $ord, $obj->get_owner()->get_account() );
         ok( 1, $msg || 'made order' );
     };
+    print STDERR Data::Dumper->Dump([$@,"POE"]) if $@;
+    print STDERR Data::Dumper->Dump(["PO",$ord,$obj,$msg,$res]) if $debug;
     ok( 0, $msg || 'made order' ) unless $res;
     return $res;
 }
@@ -675,5 +688,5 @@ sub pass_order {
 sub fail_order {
     my( $obj, $ord, $fail_regex, $msg ) = @_;
     
-    test_error( sub { $obj->new_order( $ord, $obj->get_owner()->get_acct() ) }, $fail_regex, $msg );
+    test_error( sub { $obj->new_order( $ord, $obj->get_owner()->get_account() ) }, $fail_regex, $msg );
 }

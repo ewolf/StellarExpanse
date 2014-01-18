@@ -12,6 +12,10 @@ use base 'StellarExpanse::TakesOrders';
 #    can_build   - list of StellarExpanse::Ships
 #    resources   - int
 #    pending_orders - list of StellarExpanse::Order
+#    all_completed_orders - list of turn to list of StellarExpanse::Order
+#    sectors     - [ StellarExpanse::Sector ] : owned sectors
+#    notifications - [ list of string messages ]
+#    ships       - [ StellarExpanse::Ship ] : owned ships
 
 sub _init {
     my $self = shift;
@@ -56,7 +60,7 @@ sub load_data {
 	     @{[ map { $_->get_notes(), @{ $_->get_notes() || [] } } values %{$chart->get_map()} ] },
 	     @{[ map { values %{$_->get_links()||{}} } values %{$chart->get_map()} ] },
 	];
-}
+} #load_data
 
 sub mark_as_ready {
     my( $self, $data, $acct ) = @_;

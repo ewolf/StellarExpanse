@@ -57,17 +57,17 @@ sub sync_changed {
 sub precache {
     my( $self, $data, $acct ) = @_;
     my $ret = [ $self->get_pending_games(),
-		@{$self->get_pending_games()},
-		$self->get_messageboard(),
-		@{$self->get_messageboard()->get_chatter()},
-		$self->get_logged_in(),
-		@{$self->get_logged_in()},
-	];
+                @{$self->get_pending_games()},
+                $self->get_messageboard(),
+                @{$self->get_messageboard()->get_chatter()},
+                $self->get_logged_in(),
+                @{$self->get_logged_in()},
+        ];
     if( $acct ) { 
-	push @$ret, $acct->get_active_games(), @{$acct->get_active_games()}, $acct->get_pending_games(), @{$acct->get_pending_games()}, $acct->get_comm();
-	if( $acct->is_root() ) {
-	    push @$ret, map { $_, $_->precache() } @{$self->get_flavors()};
-	}
+        push @$ret, $acct->get_active_games(), @{$acct->get_active_games()}, $acct->get_pending_games(), @{$acct->get_pending_games()}, $acct->get_comm();
+        if( $acct->is_root() ) {
+            push @$ret, map { $_, $_->precache() } @{$self->get_flavors()};
+        }
     }
     return $ret;
 } #precache
@@ -85,24 +85,24 @@ sub _register_account {
     my $five_min_block = int( $now / 300 );
     my $five_min_container = $blocks->{ $five_min_block };
     unless( $five_min_container ) {
-	$five_min_container = {};
-	$blocks->{ $five_min_block } = $five_min_container;
-	# check here to remove containers older than 10 mins
-	my $too_old = $five_min_block - 1;
-	for my $block ( keys %$blocks ) {
-	    if( $block < $too_old ) {
-		delete $blocks->{ $block };
-	    }
-	}
-	# refresh get_logged_in list
-	$self->set_logged_in( [] );
-	for my $block ( keys %$blocks ) {
-	    for my $acts ( values %{ $blocks->{ $block } } ) {
-		for my $act (@$acts) {
-		    $self->add_once_to_logged_in( $act );
-		}
-	    }
-	}
+        $five_min_container = {};
+        $blocks->{ $five_min_block } = $five_min_container;
+        # check here to remove containers older than 10 mins
+        my $too_old = $five_min_block - 1;
+        for my $block ( keys %$blocks ) {
+            if( $block < $too_old ) {
+                delete $blocks->{ $block };
+            }
+        }
+        # refresh get_logged_in list
+        $self->set_logged_in( [] );
+        for my $block ( keys %$blocks ) {
+            for my $acts ( values %{ $blocks->{ $block } } ) {
+                for my $act (@$acts) {
+                    $self->add_once_to_logged_in( $act );
+                }
+            }
+        }
     }
     $five_min_container->{ $acct->{ID} } = $acct;
     $self->add_once_to_logged_in( $acct );
@@ -135,14 +135,14 @@ sub remove_game {
     my( $self, $game, $acct ) = @_;
 
     if( $acct && $acct->_is( $game->get_created_by() ) ) {
-	my $players = $game->_current_turn()->get_players({});
-	for my $player ( values %$players ) {
-	    $player->get_account()->remove_all_from_pending_games( $game );
-	    $player->get_account()->remove_all_from_active_games( $game );
-	}
-	$self->remove_all_from_available_games( $game );
-	
-	return "Removed";
+        my $players = $game->_current_turn()->get_players({});
+        for my $player ( values %$players ) {
+            $player->get_account()->remove_all_from_pending_games( $game );
+            $player->get_account()->remove_all_from_active_games( $game );
+        }
+        $self->remove_all_from_available_games( $game );
+        
+        return "Removed";
     }
     die "Unable to remove game";
     

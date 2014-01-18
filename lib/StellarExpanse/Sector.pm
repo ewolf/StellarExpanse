@@ -146,11 +146,10 @@ sub _build {
                 if( $self->get_buildcap() >= $prototype->get_size() ) {
                     if( $cost <= $player->get_resources() ) {
                         if( $prototype->get_type() eq 'SHIP' || $prototype->get_type() eq 'OIND' ) {
-                            my $new_ship = Yote::ObjProvider::power_clone($prototype);
+                            my $new_ship = $prototype->_clone();
                             $new_ship->set_home_sector( $self );
                             $new_ship->set_origin_sector( $self );
                             $new_ship->set_owner( $player );
-                            print STDERR Data::Dumper->Dump(["CReATING SHIP for",$player,$player->get_account()]);
                             $new_ship->set___creator( $player->get_account() );
                             $new_ship->set_game( $self->get_game() );
                             $new_ship->set_hitpoints( $new_ship->get_defense() );
@@ -232,6 +231,7 @@ sub _build {
 sub _produce {
     my $self = shift;
     my $owner = $self->get_owner();
+
     if( $owner ) {
         $owner->set_resources( $owner->get_resources() + $self->get_currprod() );
     }
@@ -243,7 +243,9 @@ sub _produce {
 __END__
 
 
-=head1 AUTHOR
+=head1 AUTHOR" . $self->get_name() . " with res " . $self->get_resources() . " GIVE $give to " . $to->get_name() . " with " . $to-get_\
+resources() . "\n";
+
 
 Eric Wolf
 

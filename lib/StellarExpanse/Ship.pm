@@ -10,6 +10,13 @@ sub _init {
     $self->set_carried( [] );
 }
 
+sub _clone {
+    my $self = shift;
+    my $clone = $self->new;
+    $clone->{ DATA } = { %{$self->{DATA}} };
+    return $clone;
+} #_clone
+
 sub _load {
     my $self = shift;
     $self->SUPER::_load();
@@ -28,23 +35,29 @@ sub _unload {
     my $self = shift;
     my $orders  = $self->get_pending_orders();
     my $carrier = $self->get_carrier();
-    if( $carrier ) {
-        if( grep { $_->get_order() eq 'unload' } @$orders) {
+
+    my( @unloads ) = ( grep { $_->get_order() eq 'unload' } @$orders );
+    return unless @unloads;
+
+    my $had_carrier;
+    for my $ord ( @unloads ) {
+        if( $carrier ) {
             my $loc = $carrier->get_location();
             $self->set_location( $loc );
             $self->set_carrier( undef );
             $loc->add_to_ships( $self );
             $carrier->remove_from_carried( $self );
             $carrier->set_free_rack( $carrier->get_free_rack() + $self->get_size() );
-            # TODO : find a good method to report back status of orders, attached to ship and player
-            for my $order (grep { $_->get_order() eq 'unload' } @$orders) {
-                $order->_resolve("Unloaded from " . $carrier->get_name(), 1);
-            }
-        }
+            $ord->_resolve("Unloaded from " . $carrier->get_name(), 1);
+            undef $carrier;
+            $had_carrier = 1;
+        } elsif( $had_carrier ) {
+            $ord->_resolve("Already unloaded from carrier.");
+        } else {
+            $ord->_resolve("Can't unload. Not loaded on a carrier.");
+        }        
     }
-    for my $order (grep { $_->get_order() eq 'unload' } @$orders) {
-        $order->_resolve("Can't unload. Not loaded on a carrier.");
-    }
+
 } #_unload
 
 #
@@ -58,7 +71,6 @@ sub _load_onto_carrier {
         eval {
             my $loc = $self->get_location();
             my $carrier = $ord->get_carrier();
-            print STDERR Data::Dumper->Dump(["LOADING ONTO CARRIER",$loc,$carrier,$self]);
             die "Unable to load onto carrier. Carrier not owned by you" unless $carrier && $carrier->get_owner()->_is( $self->get_owner() );
             die "Cannot load self" unless ! $carrier->_is( $self );
             die "Already on a carrier. Must unload before moving to an other" if $self->get_carrier();
@@ -189,9 +201,11 @@ sub _move {
     my $move = $self->get_jumps();
     my $orders = $self->get_pending_orders();
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
+    print STDERR Data::Dumper->Dump([$self->get_name() . ':' . $self->get_type() . ':' . $self->{ID},\@move_orders,"MOVECHECK"]);
     for my $ord (@move_orders) {
         eval {
             my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
+            unless( $loc ) { print STDERR Data::Dumper->Dump(["MOVE ORDER",$ord,$self,$self->get_location()]); }
             die "Not in any location" unless $loc;
             die "Not in " . $loc->get_name() unless $loc->_is( $from );
             die $from->get_name() . " does not link to " . $to->get_name() unless $from->_valid_link( $to );
