@@ -32,6 +32,7 @@ sub _unload {
         if( grep { $_->get_order() eq 'unload' } @$orders) {
             my $loc = $carrier->get_location();
             $self->set_location( $loc );
+            $self->set_carrier( undef );
             $loc->add_to_ships( $self );
             $carrier->remove_from_carried( $self );
             $carrier->set_free_rack( $carrier->get_free_rack() + $self->get_size() );
@@ -57,6 +58,7 @@ sub _load_onto_carrier {
         eval {
             my $loc = $self->get_location();
             my $carrier = $ord->get_carrier();
+            print STDERR Data::Dumper->Dump(["LOADING ONTO CARRIER",$loc,$carrier,$self]);
             die "Unable to load onto carrier. Carrier not owned by you" unless $carrier && $carrier->get_owner()->_is( $self->get_owner() );
             die "Cannot load self" unless ! $carrier->_is( $self );
             die "Already on a carrier. Must unload before moving to an other" if $self->get_carrier();

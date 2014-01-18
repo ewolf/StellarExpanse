@@ -153,17 +153,150 @@
             '<td><$$ ShipAttackOrders $$></td>' : 
             '<td>n/a</td>' : '';
        } ??>
+    <??? function( ctx ) {
+        var myship = ctx.vars._;
+        var buf = '';
+
+        var td_shown = false;
+
+        if( myship.get_racksize() > 0 ) {
+            //unloads 
+            buf += '<td>';
+            td_shown = true;
+            var carried = myship.get( 'carried' );
+            if( carried && carried.length() > 0 ) {
+                for( i=0; i < carried.length(); i++ ) {
+                    var cship = carried.get( i );
+                    ctx.vars.unloader = cship;
+                    // check to see if it has an unload order
+                    var ords = cship.get( 'pending_orders' );
+                    var has_unload_order = false;
+                    for( var j=0; j < ords.length(); j++ ) {
+                        var ord = ords.get( j );
+                        has_unload_order = has_unload_order || ord.get_order() == 'unload';
+                        // TODO : ships that have an unload order should potentially be able to move and/or fire
+                    }
+                    if( has_unload_order )
+                        buf += '<$$$ control cancel_unload_' + i + ' <button type="button">$$$>cancel unload ' + cship.get_name() + '</button><BR>';
+                    else
+                        buf += '<$$$ control unload_' + i + ' <button type="button">$$$>unload ' + cship.get_name() + '</button><BR>';
+                }
+            } //if there are things loaded onto this carrier
+        } //if a carrier
+        
+        //loads onto a carrier
+        // check if already has load order
+
+        var load_target;
+        ords = myship.get( 'pending_orders' );
+console.log( [ 'MYSHIP',myship.get_name(), ords ? ords.to_list() : undefined ] );
+        for( var j=0; j < ords.length(); j++ ) {
+            var ord = ords.get( j );
+            if( ord.get_order() == 'load' ) {
+console.log( " LOAD ORDER " );
+                load_target = ord.get_carrier();
+                ctx.vars.load_target_order = ord;
+            }
+        }
+
+        var carriers = ctx.vars.carriers;
+        if( carriers.length > 0 ) {
+            var can_load = false;
+            for( var i=0; i < carriers.length; i++ ) {
+                var carrier = carriers[ i ];
+                if( carrier.get_free_rack()*1 >= 1* myship.get_size() && ! myship.is( carrier ) ) {
+                    if( can_load == false ) {
+                        if( ! td_shown ) { 
+                            buf += '<td>';
+                            td_shown = true;
+                        }
+                        buf += '<$$$ control load_onto <select> $$$><option value="">-</option>';
+                        can_load = true;
+                    }                    
+                    // show load or cancel load or nothing
+console.log( [ 'CHECK', carrier.get_name(), load_target ] );
+                    buf += '<option value="' + i + '" ' + ( carrier.is( load_target ) ? ' selected' : '') + '>' + carrier.get_name() + '</option>';
+                }
+            } //var i
+            buf += '</select>';
+        } // if there are avail carriers to transport this
+
+        if( td_shown )
+            return buf + '</td>';
+        return buf;
+       } ???>
     </tr>
+    <? 
+    function( ctx ) {
+        var myship = ctx.vars._;
+        var carried = myship.get( 'carried' );
+        if( carried && carried.length() > 0 ) {
+            for( i=0; i < carried.length(); i++ ) {
+                var cd = carried.get( i );
+                $( ctx.controls[ 'cancel_unload_' + i ] ).click( function() {
+                    var ords = cd.get( 'pending_orders' );
+                    var has_unload_order = false;
+                    for( var j=0; j < ords.length(); j++ ) {
+                        var ord = ords.get( j );
+                        if( ord.get_order() == 'unload' ) {
+                            cd.remove_from( { name : 'pending_orders', items : [ ord ] } );
+                        }
+                    }
+                    refresh();
+                } );
+                $( ctx.controls[ 'unload_' + i ] ).click( function() {
+                    cd.new_order( {
+                        order :  'unload',
+                        turn  : ctx.scratch.current_turn
+                    } );
+                    refresh();
+                } );
+            }
+        } //if carried
+        $( ctx.controls.load_onto ).change( function() {
+console.log( ["load onto chnage", ctx.vars.load_target_order ] );
+            var selval = $( this ).val();
+            if( selval == '' ) {
+                if( ctx.vars.load_target_order ) {
+                    //remove order
+                    ctx.vars._.remove_from( { name : 'pending_orders', items : [ ctx.vars.load_target_order ] } );
+                }
+            }
+            else {
+                var carrier = ctx.vars.carriers[ 1 * selval ];
+                if( carrier ) {
+                    if( ctx.vars.load_target_order ) {
+                        //change order
+                        ctx.vars.load_target_order.set_carrier( carrier );
+                    }
+                    else {
+                        //make order
+console.log( [ 'make load order for ' + ctx.vars._.get_name(), carrier ] );
+                        ctx.vars._.new_order( { order :  'load',
+                                                carrier : carrier,
+                                                turn  : ctx.scratch.current_turn
+                                              } );
+                    }
+                } else {
+                    console.log( "Error : value of '" + val + "' selected to load onto when that doesnt make sense." );
+                }
+            }
+        } );
+    } ?>
     <# Ship #>
   </script>
     
+  <script type="text/template" class="yote_template_definition" template_name="Unload">
+    
+  </script>
+
   <script type="text/template" class="yote_template_definition" template_name="MakeAttackOrder">
     <tr> <td> <$$$ control targ <select> $$$><$ enemytargets $></select>  </td> 
     <td> <$$$ control bms <select> $$$> 
     <?? function( ctx ) {
                  var max = ctx.scratch.beams_remaining[ ctx.vars._.id ];
                  var buf = '<option value="0">0</option>';
-                 for( var i=1; i < max; i++ ) {
+                 for( var i=1; i <= max; i++ ) {
                      buf += '<option value="' + i + '">' + i + '</option>';
                  }
                  return buf;
@@ -181,7 +314,7 @@
                 ship.new_order( { order :  'fire',
                                   Target : targ,
                                   Beams : bms,
-                                  turn  : ctx.scratch.current_turn,                                  
+                                  turn  : ctx.scratch.current_turn
                                 },
                                 function( msg ) {
                                     ctx.scratch.message += ship.get_name() + ' firing on ' + targ.get_name() + " owned by " +
@@ -207,7 +340,7 @@
       <?? function( ctx ) {
             var max = ctx.scratch.beams_remaining[ ctx.vars.ship.id ];
             var buf = '<option value="0">0</option>';
-            for( var i=1; i < max; i++ ) {
+            for( var i=1; i <= (max + 1 * ctx.vars._.get_Beams()); i++ ) {
                 buf += '<option value="' + i + '" ' + ( i == ctx.vars._.get_Beams() * 1 ? ' selected' : '' ) + '>' + i + '</option>';
             }
             return buf;
@@ -323,12 +456,12 @@
 
   <script type="text/template" class="yote_template_definition" template_name="ShortShips">
     <table> <tr> <th>Name</th> <th>Move Orders</th> </tr>
-     <@ ShortShip @ships 10 @>
+     <@ ShortShip @myships 10 @>
     </table>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="EnemyShip">
-    <tr> <td> <$ _.owner.name $> </td> <td> <$ _.name $> </td> <td> <$ _.size $> </td> <td> <$ _.attack_beams $> </td> <td> <$ _.defense $> </td> </tr>
+    <tr> <td> <$ _.owner.name $> </td> <td> <$ _.name $> </td> <td> <$ _.size $> </td> <td> <$ _.attack_beams $> </td> <td> <$ _.hitpoints $> /  <$ _.defense $> </td> </tr>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="EnemyShips">
@@ -340,13 +473,36 @@
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="Ships">
-    <h3>Ships</h3>
+    <h3>My Ships</h3>
     <table> <tr> <th>Name</th> <th>Jumps</th> <th>Size</th> <th>Defense</th> <th>Targets</td> <th>Beams</th> <th>Move Orders</th> 
        <?? function( ctx ) {
            ctx.scratch.beams_remaining = [];
-           return ctx.vars.has_enemy_ships ? '<th>Attack Orders</th>' : '';
+           
+           var buff =  ctx.vars.has_enemy_ships ? '<th>Attack Orders</th>' : '';
+
+           var myships = ctx.vars.myships;
+           var can_unload = false;
+           var min_size = 0;
+           var max_free = 0;
+
+           var carriers = [];
+
+           for( var i=0; i<myships.length; i++ ) {
+               var ms = myships[ i ];
+var c = ms.get('carried') ? ms.get_carried().to_list() : [];
+console.log( [ 'carried ' + ms.get_name(), ms, c ] );
+               can_unload = can_unload || ( ms.get( 'carried' ) && ms.get_carried().length() > 0 );
+               min_size = min_size == 0 || min_size > ms.get_size()*1 ? ms.get_size() : min_size;
+               if( ms.get_racksize() > 0 ) {
+                   max_free = max_free >= ms.get_free_rack() * 1 ? max_free : ms.get_free_rack();
+                   carriers.push( ms );
+               }
+           }
+           ctx.vars.carriers = carriers;
+           ctx.vars.has_transport = max_free >= min_size || can_unload;
+           return buff + ( ctx.vars.has_transport ? '<th>Transport</th>' : '' );
        } ??></tr>
-     <@ Ship @ships 10 @>
+     <@ Ship @myships 10 @>
     </table>
   </script>
 
@@ -360,14 +516,14 @@
        var player = ctx.vars.player;
        ctx.scratch.max_tech_ordered = player.get_tech_level() * 1;
        var unspent_resources = player.get_resources();
-       var build_cap_left = 1*sect.get( 'buildcap' );
+       var build_cap_left = sect.get( 'buildcap' );
        if( ords ) {
            for( var i=0; i<ords.length(); i++ ) {
            var o = ords.get( i );
            var s = o.get_ship();
            if( s.get_ship_class().match( /^Tech_Level_/ ) ) {
                if( 1*s.get_provides_tech() > ctx.scratch.max_tech_ordered ) {
-               ctx.scratch.max_tech_ordered = 1*s.get_provides_tech();
+                   ctx.scratch.max_tech_ordered = 1*s.get_provides_tech();
                }
            }
            unspent_resources -= o.get_quantity() * s.get_cost();
@@ -382,10 +538,10 @@
        }
        ???>
        <?? function( ctx ) { 
-         var pend = ctx.vars.my_sector.get( 'pending_orders' );
-         ctx.vars.pending_build_orders = pend ;
-             return pend && pend.length() ?  '<$$ BuildOrders $$>' : '';
-           } 
+           var pend = ctx.vars.my_sector.get( 'pending_orders' );
+           ctx.vars.pending_build_orders = pend ;
+           return pend && pend.length() ?  '<$$ BuildOrders $$>' : '';
+       } 
        ??>
        <$$ NewProdOrder $$>
     <# SectorProd #>
@@ -428,7 +584,7 @@
 
 
         max_can_buy = max_can_buy > max_by_size ? max_by_size : max_can_buy;
-        if( it.get_tech_level()*1 > ctx.scratch.max_tech_ordered || ( it.get_ship_class().match( /^Tech_Level_/ ) && it.get_provides_tech()*1 <= ctx.scratch.max_tech_ordered ) ) {
+        if( it.get_tech_level()*1 > ctx.scratch.max_tech_ordered || ( it.get_ship_class().match( /^Tech_Level_/ ) && it.get( 'provides_tech' )*1 <= ctx.scratch.max_tech_ordered ) ) {
             max_can_buy = 0;
         }
 
@@ -561,7 +717,8 @@ Make the entries not the can build items, but the orders
     <??? function( ctx ) {
        ctx.vars.in_sector = ctx.vars.sectors_with_my_ships[ ctx.vars.cur_node.get_sector_id() ] || ctx.vars.known_node_map[ ctx.vars.cur_node.get_sector_id() ];
     } ???>
-    <$ in_sector.name $>
+    <h3><$ in_sector.name $></h3>
+    Notes for sector <$$ edit cur_node node_notes $$> <BR>
     <?? function( ctx ) { return ctx.vars.in_sector.get( 'owner' ) ? 'Owner : ' + ctx.vars.in_sector.get_owner().get_name() : '' } ??>
     <P>current production : <$  in_sector.currprod 0 $> / <$  in_sector.maxprod 0 $>
     <p>Links : <% NodeLink cur_node%links 10 %> </P>
@@ -573,7 +730,7 @@ Make the entries not the can build items, but the orders
     <??? function( ctx ) { 
        var my_sector = ctx.vars.my_id2sec_map[ ctx.vars.cur_node.get( 'sector_id' ) ];
        ctx.vars.my_sector = my_sector ;
-       ctx.vars.ships = ctx.vars.sectors_2_ships[ my_sector.id ] ;
+       ctx.vars.myships = ctx.vars.sectors_2_myships[ my_sector.id ];
     } ???>
     <div class="owned">My Sector <$$ edit cur_node name $$><BR></div>
     <p>Details<ul><li>Production : <$  my_sector.currprod $> / <$  my_sector.maxprod $> </li>
@@ -600,18 +757,21 @@ Make the entries not the can build items, but the orders
         '<$$ SectorDetails $$>' : '';
     } ??>
     <?? function( ctx ) {
-       var ships = ctx.vars.sectors_2_ships[ ctx.vars.cur_node.get_sector_id() ] || [];
-       ctx.vars.ships = ships ;
+       var myships = ctx.vars.sectors_2_myships[ ctx.vars.cur_node.get_sector_id() ] || [];
+       ctx.vars.myships = myships ;
 
-       if( ships.length > 0 ) {
-           var sec = ships[0].get_location();
+       if( myships.length > 0 || ctx.vars.my_id2sec_map[ ctx.vars.cur_node.get( 'sector_id' ) ] ) {
+           var sec = ctx.vars.my_id2sec_map[ ctx.vars.cur_node.get( 'sector_id' ) ] || myships[0].get_location();
            var all_ships_in_sec = sec.get_ships();
            var enemyships = {};
            var enemytargets = '<option value="">-</option>';
            var has_enemy_ships = false;
+           var has_own_ships = false;
            for( var i=0; i < all_ships_in_sec.length(); i++ ) {
                var s = all_ships_in_sec.get( i );
-               if( ! s.get_owner().is( ctx.vars.player ) ) {
+               if( s.get_owner().is( ctx.vars.player ) ) {
+                   has_own_ships = true;
+               } else {
                    enemyships[ s.id + '' ] = s;
                    enemytargets += '<option value="' + s.id + '">' + s.get_name() + '</option>';
                    has_enemy_ships = true;
@@ -620,7 +780,7 @@ Make the entries not the can build items, but the orders
            ctx.vars.enemyships = enemyships;
            ctx.vars.enemytargets = enemytargets;
            ctx.vars.has_enemy_ships = has_enemy_ships;
-           return '<p>My Ships<$$ Ships $$></p>' + ( has_enemy_ships ? '<$$ EnemyShips $$>' : '' );
+           return ( myships.length > 0 ? '<p><$$ Ships $$></p>' : '' ) + ( has_enemy_ships ? '<p><$$ EnemyShips $$></p>' : '' );
        }
     return '';
     } ??>
@@ -670,15 +830,6 @@ Make the entries not the can build items, but the orders
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="SectorNode">
-    <$$$ aliasresult ships function( ctx ) {
-    var l2s = ctx.vars.sectors_2_ships;
-    var ships = l2s[ ctx.vars._.id ] || [];
-    ctx.vars.ships = ships ;
-    return $.yote.wrap_native_list( { list : ships,
-                      field_key : 'faroff_ships',
-                      cache_key : ctx.template_path,
-                      wrap_key : ctx.vars._.id } );
-    } $$$>
     <tr class="row">
       <td><$$$ control sec_link <a href="#">$$$><$  _.name $></a></td>
       <td><?? function( ctx ) { 
@@ -698,7 +849,10 @@ Make the entries not the can build items, but the orders
       return buf;
       } ??></td>
       <td><% NodeLink _%links 10%></td>
-      <td><?? function( ctx ) { var ships = ctx.vars.sectors_2_ships[ ctx.vars._.get_sector_id() ]; ctx.vars.ships = ships || [] ;return ships ? '<$$ ShortShips $$>' : 'nada'; } ??></td>
+      <td><?? function( ctx ) { 
+          var myships = ctx.vars.sectors_2_myships[ ctx.vars._.get_sector_id() ]; 
+          ctx.vars.myships = myships || [] ;
+          return myships ? '<$$ ShortShips $$>' : 'nada'; } ??></td>
      </tr>
     <?
     function( ctx ) {
@@ -795,22 +949,24 @@ Make the entries not the can build items, but the orders
         ctx.vars.known_node_map = known_node_map ;
 
         // SECTORS WHERE MY SHIPS ARE
-        var ships = player.get_ships();
+        var myships = player.get_ships();
         var sectors_with_my_ships = {};
-        var sectors_2_ships = {};
-        for( var i=0; i < ships.length(); i++ ) {
-            var ship = ships.get( i );
-            var loc = sectors_2_ships[ ship.get_location().id ];
-            if( ! loc ) {
-                loc = [];
-                sectors_2_ships[ ship.get_location().id ] = loc;
+        var sectors_2_myships = {};
+        for( var i=0; i < myships.length(); i++ ) {
+            var myship = myships.get( i );
+            var sec = myship.get_location();
+            if( sec ) {
+                var loc = sectors_2_myships[ sec.id ];
+                if( ! loc ) {
+                    loc = [];
+                    sectors_2_myships[ sec.id ] = loc;
+                }
+                sectors_with_my_ships[ sec.id ] = sec;
+                loc.push( myship );
             }
-            loc[ loc.length ] = ship;
-            var sec = ship.get_location();
-            sectors_with_my_ships[ sec.id ] = sec;
         }
         ctx.vars.sectors_with_my_ships = sectors_with_my_ships;
-        ctx.vars.sectors_2_ships = sectors_2_ships;
+        ctx.vars.sectors_2_myships = sectors_2_myships;
 
         
         // SECTOR IM LOOKING AT RIGHT NOW
@@ -913,13 +1069,14 @@ Make the entries not the can build items, but the orders
            
            ctx.scratch.set_message( ctx.scratch.message || '' );
            
-           setInterval( function() {  console.log( 'checking' ); player.sync_all('',function(succ) {
-               console.log( [ "FROM ", ctx.scratch.current_turn, 'to',player.get_game().get_turn_number() ] );
+           setInterval( function() {  player.sync_all('',function(succ) {
                if( ctx.scratch.current_turn *1 != player.get_game().get_turn_number() * 1 ) {
+                   $.yote.debug = true;
                    refresh();
+                   $.yote.debug = false;
                    $( '#turnspan' ).addClass( 'emph' );
                }
-           } );} , 10000 );
+           },function(err){},true );} , 10000 );
        }
     ?>
     <# InGame #>
