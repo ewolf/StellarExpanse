@@ -8,8 +8,7 @@
     <script src="/yote/js/json2.js"></script>
     <script src="/yote/js/yote.js"></script>
     <script src="/yote/js/yote.util.js"></script>
-
-    <script src="/templates/default_templates.js"></script>
+    <script src="/yote/js/yote.templates.js"></script>
 
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
     <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
@@ -20,28 +19,13 @@
     </style>
 
     <script>
+      var app;
       $().ready(function(){
 	  $.yote.debug = false;
-	  $.yote.include_templates( '/templates/default_templates.html' );
-	  $.yote.util.register_functions( base_templates );
-
-	  var app = $.yote.init( 'StellarExpanse::App' );
-	  $.yote.util.register_item( 'app', app );
-
-	  $.yote.util.register_function( 'refresh_all', 	  
-					 function() {
-					     if( $.yote.reinit() ) {
-						 $( '#mainbody' ).empty().append( $.yote.util.fill_template( { template_name : 'AdminBody', default_var : app } ) );
-					     }
-					     else if( $.yote.is_root() && ! $.yote._is_in_cache( app._get_id( 'flavors' ) ) ) {
-						 app.precache();
-					     }
-					     for( var i=1; i<15; i++ ) {
-						 $.yote.util.match_widths( '.col' + i );
-					     }
-					 }//refresh_all
-				       );
-	  $.yote.util.refresh_ui();
+	  $.yote.templates.import_templates( '/templates/default_templates.html' );
+	  $.yote.init( 'StellarExpanse::App' );
+	  $.yote.templates.init();
+	  $.yote.templates.refresh();
       } );
    </script>
 
@@ -53,69 +37,63 @@
 
     <script type="text/template" class="yote_template_definition" template_name="Flavor">
       <div>
-        <label>Flavor<$ edit _ name $></label>
+        <label>Flavor<$$ edit _ 'name' $$></label> <$$ list_remove_ask $$><BR>  
+      <$$ Paginator __ $$>
+     
         <div>
-          <$@ Ships _ ships @$>
+           <table><tr><th>Name</th><th>Class</th><th>Tech Level</th><th>Damage Control</th><th>Jumps</th><th>Design ID</th><th>Cost</th><th>Targets</th><th>Self Destruct</th>
+                    <th>Attack Beams</th><th>Defense</th><th>Size</th><th>Rack Size</th><th>Type</th><th>Delete</th></tr>
+              <@ Ship _@ships 10 @>
+           </table>
+           <$$ Paginator _@ships $$>
         </div>
         <div>
 	  <h3>Sector Names</h3>
-	  <$ edit _ sector_names $>
+	  <$$ edit _ "sector_names" $$>
         </div>
-        <DIV>Empire Config : <$ edit _ empire_config $> </DIV>
-        <DIV>Base Config : <$ edit _ base_config $> </DIV>
-        <DIV>Game Config : <$ edit _ game_config $> </DIV>
-        <DIV>Universe Config : <$ edit _ universe_config $> </DIV>
-        <$ list_remove_button _ flavors $>
+        <DIV>Empire Config : <$$ edit _ 'empire_config' $$> </DIV>
+        <DIV>Base Config : <$$ edit _ 'base_config' $$> </DIV>
+        <DIV>Game Config : <$$ edit _ 'game_config' $$> </DIV>
+        <DIV>Universe Config : <$$ edit _ 'universe_config' $$> </DIV>
       </div>
     </script>
 
     <script type="text/template" class="yote_template_definition" template_name="NewFlavor">
         Name : <$$$ control new_flavor_name <input type="text"> $$$> <BR>
 	<$$$ control new_flavor_go <button type="BUTTON">Create New Flavor</button> $$$>
-	<? function( args ) {
-		  var name_id = args[ 'controls' ][ 'new_flavor_name' ];
-		  var button_id = args[ 'controls' ][ 'new_flavor_go' ];
-		  $.yote.util.button_actions( {
-		      button : button_id,
-		      texts : [ name_id ],
-		      action : function() {
-			  var app = args.default_var;
-			  var newflav = app.new_flavor( { name : $(name_id).val() } );
-			  app.add_to( { name : 'flavors', items : [ newflav ] } );
-			  newflav.precache();
-			  $.yote.util.refresh_ui();
-		      }
+	<? function( ctx ) {
+	    $.yote.util.button_actions( {
+		button : ctx.controls.new_flavor_go,
+		texts : [ ctx.controls.new_flavor_name ],
+		action : function() {
+		    var app = $.yote.fetch_default_app();
+		    var newflav = app.new_flavor( { name : $( ctx.controls.new_flavor_name ).val() } );
+		    app.add_to( { name : 'flavors', items : [ newflav ] } );
+		    newflav.precache();
+		    $.yote.templates.refresh();
+		}
 		  } );
-	      } ?>
+	} ?>
     </script>
   </head>
 
-  <script type="text/template" class="yote_template_definition" template_name="Ships">
-    <table><tr><th>Name</th><th>Class</th><th>Tech Level</th><th>Damage Control</th><th>Jumps</th><th>Design ID</th><th>Cost</th><th>Targets</th><th>Self Destruct</th>
-          <th>Attack Beams</th><th>Defense</th><th>Size</th><th>Rack Size</th><th>Type</th><th>Delete</th></tr>
-    <@ Ship 10 @>
-    </table>
-    <$$ Paginator $$>
-  </script>
-
   <script type="text/template" class="yote_template_definition" template_name="Ship">
-      <tr><td><$ edit _ name col1 $></td><td><$ edit _ ship_class col2 $></td><td><$ edit _ tech_level col3 $></td><td><$ edit _ damage_control col4 $>
-	</td><td><$ edit _ jumps col5 $></td><td><$ edit _ design_id  col6 $></td><td><$ edit _ cost col7 $></td><td><$ edit _ targets col8 $></td>
-        <td><$ switch _ self_destruct col9 $></td><td><$ edit _ attack_beams col10 $></td><td><$ edit _ defense col11 $></td>
-	<td><$ edit _ size col12 $></td><td><$ edit _ racksize col13 $></td><td><$ edit _ type col14 $></td><td><$ list_remove_button _ ships $></td></tr>
+      <tr><td><$$ edit _ 'name' 'col1' $$></td><td><$$ edit _ 'ship_class' 'col2' $$></td><td><$$ edit _ 'tech_level' 'col3' $$></td><td><$$ edit _ 'damage_control' 'col4' $$>
+	</td><td><$$ edit _ 'jumps' 'col5' $$></td><td><$$ edit _ 'design_id'  'col6' $$></td><td><$$ edit _ 'cost' 'col7' $$></td><td><$$ edit _ 'targets' 'col8' $$></td>
+        <td><$$ checkbox _ 'self_destruct' $$></td><td><$$ edit _ 'attack_beams' 'col10' $$></td><td><$$ edit _ 'defense' 'col11' $$></td>
+	<td><$$ edit _ 'size' 'col12' $$></td><td><$$ edit _ 'racksize' 'col13' $$></td><td><$$ edit _ 'type' 'col14' $$></td><td><$$ list_remove_button $$></td></tr>
   </script>
 
 
     <script type="text/template" class="yote_template_definition" template_name="Flavors">
     Flavors  
-      <@ Flavor 1 @>
-      <$$ Paginator $$>
+      <@ Flavor _app_@flavors 1 @>
+      <$$ NewFlavor $$>
     </script>
 
     <script type="text/template" class="yote_template_definition" template_name="MainBody">
-      <??? function() { 
-	   if( ! $.yote.is_root() ) return '<DIV id="errpanel" class="err">Must be logged in with a root account to view this page.</DIV>';
-	   return '<DIV class="mainpanel" id="mainpanel"> <$@ Flavors app flavors Empty @$> </DIV> <DIV> <$$ NewFlavor $$> </DIV>';
+      <??? function( ctx ) { 
+	   return $.yote.is_root() ? '<$$ Flavors $$>' : '<DIV id="errpanel" class="err">Must be logged in with a root account to view this page.</DIV>';
       }
       ???>
     </script>
@@ -124,7 +102,7 @@
 
     <DIV class="yote_template" template="YoteHeaderAdmin"></div>
 
-    <DIV class="yote_template" template="MainBody" default_variable="app"></div>
+    <DIV class="yote_template" template="MainBody"></div>
 
   </body>
 </html>
