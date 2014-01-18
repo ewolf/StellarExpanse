@@ -14,6 +14,8 @@ sub _clone {
     my $self = shift;
     my $clone = $self->new;
     $clone->{ DATA } = { %{$self->{DATA}} };
+    $clone->set_pending_orders([]);
+    $clone->set_carried([]);
     return $clone;
 } #_clone
 
@@ -201,16 +203,14 @@ sub _move {
     my $move = $self->get_jumps();
     my $orders = $self->get_pending_orders();
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
-    print STDERR Data::Dumper->Dump([$self->get_name() . ':' . $self->get_type() . ':' . $self->{ID},\@move_orders,"MOVECHECK"]);
+
     for my $ord (@move_orders) {
         eval {
             my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
-            unless( $loc ) { print STDERR Data::Dumper->Dump(["MOVE ORDER",$ord,$self,$self->get_location()]); }
             die "Not in any location" unless $loc;
             die "Not in " . $loc->get_name() unless $loc->_is( $from );
             die $from->get_name() . " does not link to " . $to->get_name() unless $from->_valid_link( $to );
             die "out of movement" unless $move > 0;
-
             $self->set_location ( $to );
             $to->add_to_ships( $self );
             $from->remove_from_ships( $self );

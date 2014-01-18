@@ -59,15 +59,19 @@ sub _clone {
 
     my $clone = $self->_glean( $self, $translate );
 
-    for my $thing ( $self->get_ships, map { $_, $_->get_pending_orders, @{ $_->get_pending_orders }, $_->get_carried } @{$self->get_ships([])} ) {
+#    for my $thing ( $self->get_ships, map { $_, $_->get_pending_orders, @{ $_->get_pending_orders }, $_->get_carried } @{$self->get_ships([])} ) {
+    for my $thing ( @{$self->get_ships([])}, $self->get_ships ) {
+        my $x = $self->_glean( $thing, $translate );
+#        print STDERR Data::Dumper->Dump([$thing,$x]);
+    }
+
+#    for my $thing ( $self->get_sectors, map { $_, $_->get_pending_orders, @{ $_->get_pending_orders } } @{$self->get_sectors([])} ) {
+    for my $thing ( $self->get_sectors, map { $_, $_->get_ships} @{$self->get_sectors([])} ) {
         $self->_glean( $thing, $translate );
     }
 
-    for my $thing ( $self->get_sectors, map { $_, $_->get_pending_orders, @{ $_->get_pending_orders } } @{$self->get_sectors([])} ) {
-        $self->_glean( $thing, $translate );
-    }
-
-    for my $thing ( map { $_, $_->get_pending_orders, @{ $_->get_pending_orders }, $_->get_ships, $_->get_can_build, $_->get_sectors, $_->get_notifications, } values %{$self->get_players()} ) {
+#    for my $thing ( map { $_, $_->get_pending_orders, @{ $_->get_pending_orders }, $_->get_ships, $_->get_can_build, $_->get_sectors, $_->get_notifications, } values %{$self->get_players()} ) {
+    for my $thing ( map { $_, $_->get_ships, $_->get_can_build, $_->get_sectors, $_->get_notifications } values %{$self->get_players()} ) {
         $self->_glean( $thing, $translate );
     }
 
@@ -116,6 +120,7 @@ sub _clone {
         $newp->{ $name } = $translate->{ $pl->{ ID } };
     }
     $clone->set_players( $newp );
+    $clone->set_ships( $translate->{ $self->_get_id( $self->get_ships() ) } );
 
     return $clone;
 } #_clone

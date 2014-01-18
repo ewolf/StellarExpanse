@@ -31,8 +31,6 @@ sub new_order {
     $ord->set___creator( $acct );
     $self->add_to_pending_orders( $ord );
     
-    print STDERR Data::Dumper->Dump(["ORDER $ord->{ID} FOR ".$self->{ID}.':'.$self->get_name]);
-    
     $self->get_owner()->add_to_all_pending_orders( $ord );
 
     return $ord;

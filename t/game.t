@@ -18,13 +18,13 @@ BEGIN {
     }
 }
 
-if( 0 ) {
+if( 1 ) {
     my( $fh, $name ) = mkstemp( "/tmp/SQLiteTest.XXXX" );
     $fh->close();
-    Yote::ObjProvider::init(
+    Yote::ObjProvider::init( {
         datastore      => 'Yote::SQLiteIO',
         sqlitefile     => $name,
-        );
+        } );
     $Yote::ObjProvider::DATASTORE->ensure_datastore();
 } else {
     use MongoDB;
@@ -224,9 +224,7 @@ sub test_suite {
     is_deeply( $fred_chart->enemy_ships( $amy_sector->{ID} ), [], "no enemies known by fred in amys sector" );
     
     is( scalar( @{$amy->get_pending_orders()} ), 0, "No orders yet" );
-#    print STDERR ">>> [fred] : (".$fred->get_name().":".$fred->get_owner()->get_name().":".$fred->get_owner()->get_account()->get_name().")\n";
     my $o1 = pass_order( $amy, { order => 'give_resources', amount => 1, recipient => $fred, turn => $turn->get_turn_number() }, 'give 1 to fred' );
-#    print STDERR Data::Dumper->Dump([$o1,$turn]);
 
     is( scalar( @{$amy->get_pending_orders()} ), 1, "first order" );
 
@@ -452,10 +450,8 @@ sub test_suite {
     my $cruiz_load_o = pass_order( $cruiser2, { order=>'load', carrier => $carrier, turn =>  $turn_n }, "Load cruiser onto carrier" );
     my $scout2_load_o = pass_order( $scout2, { order=>'load',carrier => $carrier, turn => $turn_n }, "Load scout onto carrier" );
     my $scout3_unload_o = pass_order( $scout3, { order=>'unload',carrier => $carrier, turn => $turn_n }, "Unload scout from carrier its not yet on" );
-#    print STDERR Data::Dumper->Dump([$scout3,'a4']);
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
-#    print STDERR Data::Dumper->Dump([$scout3,'ar']);
 
     ok( ! $cruiz_load_o->get_resolution(), "Could not load cruizer" );
     ok( $scout2_load_o->get_resolution(), "Could load scout" );
@@ -463,7 +459,6 @@ sub test_suite {
 
     # amy : cruizer, carrier, cruiser2, scout3
     is( scalar( @{$amy_sector->get_ships()}), 4, '4 ships now in amy sector since one loaded' );
-
     
     # OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
     my $smo = move_order( $scout2, $amy_sector, $links->[0], "scout move order" );
@@ -478,21 +473,16 @@ sub test_suite {
     my $o1 = move_order( $cruiser2, $amy_sector, $links->[0], "cruizer move order" );
     my $o2 = move_order( $carrier, $amy_sector, $links->[0], "carrier move order" );
 
-    print STDERR "------------------------------------------------------\n";
     my $o3 = move_order( $scout3, $amy_sector, $links->[0], "scout3 move order", 1 );
-    print STDERR "------------------------------------------------------\n";
-    print STDERR Data::Dumper->Dump(["SCOUT3 " . $scout3->{ID} . ' @ ' . ( $scout3->get_location() ? $scout3->get_location()->{ID} : '?' ), $scout3, $o3 ]);
 
-    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# the move order is attaching to the incorrect subject. The order itself.
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     advance_turn( $turn );
-print STDERR Data::Dumper->Dump(["SCOUT3 " . $scout3->{ID} . ' @ ' . ( $scout3->get_location() ? $scout3->get_location()->{ID} : '?' ), $o3 ]);
 
     ok( $o1->get_resolution(), "cruizer2 can move" );
     ok( $o2->get_resolution(), "carrier can move" );
-    print STDERR Data::Dumper->Dump([$o3,$o3->get_subject()]);
-#    print STDERR Data::Dumper->Dump([$scout3,$scout3->get_location()]);
     ok( $o3->get_resolution(), "scout 3  can move" );
-print STDERR Data::Dumper->Dump(["SCOUT3 " . $scout3->{ID} . ' @ ' . ( $scout3->get_location() ? $scout3->get_location()->{ID} : '?' ) ]);
 
     # amy : cruiser2, carrier, scout 3
     # fred : battleship, boat
@@ -667,7 +657,6 @@ sub advance_turn {
     for my $p (@$players) {
         $p->mark_as_ready( { ready => 1, turn => $turn->get_turn_number() } );
     }
-    my $turns = $turn->get_game()->get__turns();
     Yote::ObjProvider::stow_all();
 } #advance_turn
 
@@ -679,8 +668,6 @@ sub pass_order {
         $res = $obj->new_order( $ord, $obj->get_owner()->get_account() );
         ok( 1, $msg || 'made order' );
     };
-    print STDERR Data::Dumper->Dump([$@,"POE"]) if $@;
-    print STDERR Data::Dumper->Dump(["PO",$ord,$obj,$msg,$res]) if $debug;
     ok( 0, $msg || 'made order' ) unless $res;
     return $res;
 }
