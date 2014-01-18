@@ -54,34 +54,24 @@ sub _load_onto_carrier {
     my $orders = $self->get_pending_orders();
     my( $ord ) = grep { $_->get_order() eq 'load' } @$orders;
     if( $ord ) {
-        my $loc = $self->get_location();
-        my $carrier = $ord->get_carrier();
-        if( $carrier && $carrier->get_owner()->_is( $self->get_owner() ) ) {
-            if( ! $carrier->_is( $self ) ) {
-                #check for room
-                if( $self->get_carrier() ) {
-                    $ord->_resolve( "Already on a carrier. Must unload before moving to an other" );
-                }
-                elsif( $carrier->get_free_rack() >= $self->get_size() ) {
-                    $carrier->set_free_rack( $carrier->get_free_rack() - $self->get_size() );
-                    $carrier->add_to_carried( $self );
-                    $self->set_carrier( $carrier );
-                    $self->set_location( undef );
-                    $loc->remove_from_ships( $self );
-                    $ord->_resolve( "Loaded onto " . $carrier->get_name(), 1 );
-                } 
-                else {
-                    $ord->_resolve( "Not enough room on carrier" );
-                }
-            } 
-            else {
-                $ord->_resolve( "Cannot load self" );
-            }
-        } 
-        else {
-            $ord->_resolve( "Unable to load onto carrier. Carrier not owned by you" );
+        eval {
+            my $loc = $self->get_location();
+            my $carrier = $ord->get_carrier();
+            die "Unable to load onto carrier. Carrier not owned by you" unless $carrier && $carrier->get_owner()->_is( $self->get_owner() );
+            die "Cannot load self" unless ! $carrier->_is( $self );
+            die "Already on a carrier. Must unload before moving to an other" if $self->get_carrier();
+            die "Not enough room on carrier" unless $carrier->get_free_rack() >= $self->get_size();
+            $carrier->set_free_rack( $carrier->get_free_rack() - $self->get_size() );
+            $carrier->add_to_carried( $self );
+            $self->set_carrier( $carrier );
+            $self->set_location( undef );
+            $loc->remove_from_ships( $self );
+            $ord->_resolve( "Loaded onto " . $carrier->get_name(), 1 );
+        };
+        if( $@ ) {
+            $ord->_resolve( $@ );
         }
-    }
+    };
 } #_load_onto_carrier
 
 sub _death_check {
@@ -160,43 +150,36 @@ sub _fire {
     my $orders = $self->get_pending_orders();
     my( @fire_orders ) = grep { $_->get_order() eq 'fire' } @$orders;
     for my $ord ( @fire_orders ) {
-        my $targ = $ord->get_Target();
-        if( $targ ) {
+        eval {
+            my $targ = $ord->get_Target();
+            die "No target specified" unless $targ;
             my $loc = $self->get_location();
-            if( $loc->_is( $targ->get_location() ) ) {
-                if( ! $self->get_owner()->_is( $targ->get_owner() ) ) {
-                    if( $self->{targets} > 0 ) {
-                        if( $self->{beams} > 0 ) {
-                            my $beam_req = $ord->get_Beams();
-                            my $beams = $self->{beams} < $beam_req ? $self->{beams} : $beam_req;
-                            $self->{beams} -= $beams;
-                            $targ->set_hitpoints( $targ->get_hitpoints() - $beams );
-                            $ord->_resolve( "Attacked " . $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams.".( $targ->get_hitpoints() < 1 ? " Target was destroyed" : ''), 1 );
-                            $loc->_notify( $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) attacked ". $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams" );
-			    if( $self->get_self_destruct() ) {
-				$self->set_hitpoints( 0 );
-			    }
-                        }
-                        else {
-                            $ord->_resolve( "Out of Attack Power" );
-                        }
-                    } 
-                    else {
-                        $ord->_resolve( "Out of Attacks" );
-                    }
-                } 
-                else {
-                    $ord->_resolve( "Target cannot be owned by attacker." );
-                }                    
-            } 
-            else {
-                $ord->_resolve( "Target not found in this sector." );
+            die "Target not found in this sector." unless $loc->_is( $targ->get_location() );
+            die "Target cannot be owned by attacker." unless ! $self->get_owner()->_is( $targ->get_owner() );
+            die "Out of Attacks" unless $self->{targets} > 0;
+            die "Out of Attack Power" unless $self->{beams} > 0;
+            my $beam_req = $ord->get_Beams();
+            my $beams = $self->{beams} < $beam_req ? $self->{beams} : $beam_req;
+            $self->{beams} -= $beams;
+            $targ->set_hitpoints( $targ->get_hitpoints() - $beams );
+            $ord->_resolve( "Attacked " . $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams.".( $targ->get_hitpoints() < 1 ? " Target was destroyed" : ''), 1 );
+            $loc->_notify( $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) attacked ". $targ->get_name() . " (" . $targ->get_owner()->get_name() . " ) with $beams attack beams" );
+            
+            my $opponent = $targ->get_owner();
+            my $op_node = $opponent->get_starchart()->get_map()->{ $targ->get_location()->{ ID } };
+            if( $targ->get_hitpoints() < 1 ) {
+                $opponent->_notify( 'Your ship at ' . $op_node->get_name() . ' was attacked and destroyed by ' . $self->get_owner()->get_name() );
+            } else {
+                $opponent->_notify( $self->get_name() . " ( " . $self->get_owner()->get_name() . " ) attacked your ". $targ->get_name() . " at " . $targ->get_location()->get_name() . " with $beams attack beams" );
             }
-        } 
-        else {
-            $ord->_resolve( "No target specified" );
+            if( $self->get_self_destruct() ) {
+                $self->set_hitpoints( 0 );
+            }
+        };
+        if( $@ ) {
+            $ord->_resolve( $@ );
         }
-    }
+    } #each order
 } #_fire
 
 sub _move {
@@ -205,34 +188,33 @@ sub _move {
     my $orders = $self->get_pending_orders();
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
     for my $ord (@move_orders) {
-	eval {
-	    my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
-	    die "Not in any location" unless $loc;
-	    die "Not in " . $loc->get_name() unless $loc->_is( $from );
-	    die $from->get_name() . " does not link to " . $to->get_name() unless $from->_valid_link( $to );
-	    die "out of movement" unless $move > 0;
+        eval {
+            my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
+            die "Not in any location" unless $loc;
+            die "Not in " . $loc->get_name() unless $loc->_is( $from );
+            die $from->get_name() . " does not link to " . $to->get_name() unless $from->_valid_link( $to );
+            die "out of movement" unless $move > 0;
 
-	    $self->set_location ( $to );
-	    $to->add_to_ships( $self );
-	    $from->remove_from_ships( $self );
-	    $from->_notify( $self->get_name() . " jumped out of sector " . $loc->get_name() );
-	    $to->_notify( $self->get_name() . " jumped into sector " . $to->get_name() );
+            $self->set_location ( $to );
+            $to->add_to_ships( $self );
+            $from->remove_from_ships( $self );
+            $from->_notify( $self->get_name() . " jumped out of sector " . $loc->get_name() );
+            $to->_notify( $self->get_name() . " jumped into sector " . $to->get_name() );
 
-	    my $chart = $self->get_owner()->get_starchart();
-	    $move = ( $chart->_has_entry( $to ) || $self->get_ship_class() eq 'Scout' ) ? $move - 1 : 0;
+            my $chart = $self->get_owner()->get_starchart();
+            $move = ( $chart->_has_entry( $to ) || $self->get_ship_class() eq 'Scout' ) ? $move - 1 : 0;
 
-	    $chart->_update( $to );
-	    
-	    if( grep { ! $_->get_owner()->_is( $self->get_owner() ) } @{$to->get_ships()} ) {
-		$move = 0;
-	    }
-	    $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
-	};
-	if( $@ ) {
-	    $ord->_resolve( $@ );
-	}
-    }
-    
+            $chart->_update( $to );
+            
+            if( grep { ! $_->get_owner()->_is( $self->get_owner() ) } @{$to->get_ships()} ) {
+                $move = 0;
+            }
+            $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
+        };
+        if( $@ ) {
+            $ord->_resolve( $@ );
+        }
+    } #each order    
 } #_move
 
 1;
