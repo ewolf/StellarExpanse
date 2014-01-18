@@ -843,7 +843,7 @@ Make the entries not the can build items, but the orders
     Tech Level : <$  player.tech_level $><br>
     On Turn : <?? function( ctx ) { return ctx.scratch.current_turn; } ??><BR>
     <$$$ control ready_div <label class="not-ready"> $$$>
-        Ready for next turn <$$$ control ready_check <input class="not-ready" type="checkbox"> $$$>
+        <$$$ control ready_txt <span>$$$>Ready for next turn</span> <$$$ control ready_check <input class="not-ready" type="checkbox"> $$$>
         </label>
     <hr>
     <$$$ set completed_orders function( ctx ) {
@@ -868,10 +868,11 @@ Make the entries not the can build items, but the orders
            var player = ctx.vars.player;
            if( player.get( 'ready' ) == 'true' ) {
                $( ctx.controls.ready_check ).attr( 'checked', true );
-           }
-           if( player.get_ready()*1 ) {
-               $( ctx.controls.ready_div ).addClass( 'ready' );
+               $( ctx.controls.ready_check ).removeClass( 'not-ready' );
+               $( ctx.controls.ready_check ).addClass( 'ready' );
                $( ctx.controls.ready_div ).removeClass( 'not-ready' );
+               $( ctx.controls.ready_div ).addClass( 'ready' );
+               $( ctx.controls.ready_txt ).text( 'Ready for next turn' );
            }
            $( ctx.controls.ready_check ).click( function() {
                $( '#spinner' ).show();
@@ -879,17 +880,24 @@ Make the entries not the can build items, but the orders
                if( is_ready ) {
                    $( ctx.controls.ready_div ).addClass( 'ready' );
                    $( ctx.controls.ready_div ).removeClass( 'not-ready' );
+                   $( ctx.controls.ready_check ).addClass( 'ready' );
+                   $( ctx.controls.ready_check ).removeClass( 'not-ready' );
                    ctx.scratch.set_message( 'Ready for next turn' );
+                   $( ctx.controls.ready_txt ).text( 'Ready for next turn' );
                } else {
                    $( ctx.controls.ready_div ).addClass( 'not-ready' );
                    $( ctx.controls.ready_div ).removeClass( 'ready' );
+                   $( ctx.controls.ready_check ).addClass( 'not-ready' );
+                   $( ctx.controls.ready_check ).removeClass( 'ready' );
                    ctx.scratch.set_message( 'Not ready for next turn' );
+                   $( ctx.controls.ready_txt ).text( 'Not ready for next turn' );
                }
                player.mark_as_ready( {
                    turn  : ctx.scratch.current_turn,
                    ready : is_ready }, 
                                      function() {
                                          if( is_ready ) refresh();
+                                         $( '#spinner' ).hide();
                                      },
                                      function(err) {
                                          ctx.scratch.messages += err;
@@ -904,6 +912,12 @@ Make the entries not the can build items, but the orders
            
            ctx.scratch.set_message( ctx.scratch.message || '' );
            
+           setInterval( function() {  console.log( 'checking' ); player.sync_all('',function(succ) {
+               console.log( [ "FROM ", ctx.scratch.current_turn, 'to',player.get_game().get_turn_number() ] );
+               if( ctx.scratch.current_turn *1 != player.get_game().get_turn_number() * 1 ) {
+                   refresh();
+               }
+           } );} , 10000 );
        }
     ?>
     <# InGame #>
