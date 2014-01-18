@@ -31,6 +31,7 @@ sub load_data {
     my $self = shift;
     my $turn_number = $self->get_game()->get_turn_number();
     my $chart = $self->get_starchart();
+
     return [ $self->get_ships(),
 	     @{ $self->get_ships() },
 	     @{[map { @{$_->get_pending_orders()} } @{$self->get_ships() }]},
@@ -42,7 +43,7 @@ sub load_data {
 	     $self->get_Last_sector(),
 	     $self->get_sectors(),
 	     @{ $self->get_sectors() },
-	     @{[map { @{$_->get_pending_orders()} } @{$self->get_sectors() }]},
+	     @{[map { $_->get_pending_orders(), @{$_->get_pending_orders() || [] } } @{$self->get_sectors() }]},
 	     @{[ map { $_->get_links() } @{$self->get_sectors()} ]},
 	     @{[ map { values %{$_->get_links()} } @{$self->get_sectors()} ]},
 	     @{[ map { @{$_->get_ships()} } @{$self->get_sectors()}]},
@@ -52,6 +53,7 @@ sub load_data {
 	     $chart->get_map(),
 	     @{ [values %{$chart->get_map()}] },
 	     @{[ map { $_->get_links() } values %{$chart->get_map()} ] },
+	     @{[ map { $_->get_notes(), @{ $_->get_notes() || [] } } values %{$chart->get_map()} ] },
 	     @{[ map { values %{$_->get_links()||{}} } values %{$chart->get_map()} ] },
 	];
 }

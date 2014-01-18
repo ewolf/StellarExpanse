@@ -37,7 +37,7 @@
 
     <script type="text/template" class="yote_template_definition" template_name="Flavor">
       <div>
-        <label>Flavor<$$ edit _ 'name' $$></label> <$$ list_remove_ask $$><BR>  
+        <label>Flavor<$$ edit _ name $$></label> <$$ list_remove_ask $$><BR>  
       <$$ Paginator __ $$>
      
         <div>
@@ -51,10 +51,10 @@
 	  <h3>Sector Names</h3>
 	  <$$ edit _ "sector_names" $$>
         </div>
-        <DIV>Empire Config : <$$ edit _ 'empire_config' $$> </DIV>
-        <DIV>Base Config : <$$ edit _ 'base_config' $$> </DIV>
-        <DIV>Game Config : <$$ edit _ 'game_config' $$> </DIV>
-        <DIV>Universe Config : <$$ edit _ 'universe_config' $$> </DIV>
+        <DIV>Empire Config : <$$ edit _ empire_config $$> </DIV>
+        <DIV>Base Config : <$$ edit _ base_config $$> </DIV>
+        <DIV>Game Config : <$$ edit _ game_config $$> </DIV>
+        <DIV>Universe Config : <$$ edit _ universe_config $$> </DIV>
       </div>
     </script>
 
@@ -78,10 +78,23 @@
   </head>
 
   <script type="text/template" class="yote_template_definition" template_name="Ship">
-      <tr><td><$$ edit _ 'name' 'col1' $$></td><td><$$ edit _ 'ship_class' 'col2' $$></td><td><$$ edit _ 'tech_level' 'col3' $$></td><td><$$ edit _ 'damage_control' 'col4' $$>
-	</td><td><$$ edit _ 'jumps' 'col5' $$></td><td><$$ edit _ 'design_id'  'col6' $$></td><td><$$ edit _ 'cost' 'col7' $$></td><td><$$ edit _ 'targets' 'col8' $$></td>
-        <td><$$ checkbox _ 'self_destruct' $$></td><td><$$ edit _ 'attack_beams' 'col10' $$></td><td><$$ edit _ 'defense' 'col11' $$></td>
-	<td><$$ edit _ 'size' 'col12' $$></td><td><$$ edit _ 'racksize' 'col13' $$></td><td><$$ edit _ 'type' 'col14' $$></td><td><$$ list_remove_button $$></td></tr>
+      <tr>
+          <td class="col1"><$$ edit _ name $$></td>
+          <td clsas="col2"><$$ edit _ ship_class $$></td>
+	  <td class="col3"><$$ edit _ tech_level $$></td>
+	  <td class="col4"><$$ edit _ damage_control $$></td>
+	  <td class="col5"><$$ edit _ jumps $$></td>
+	  <td class="col6"><$$ edit _ design_id $$></td>
+	  <td class="col7"><$$ edit _ cost $$></td>
+	  <td class="col8"><$$ edit _ targets $$></td>
+          <td class="col9"><$$ checkbox _ self_destruct $$></td>
+	  <td class="col10"><$$ edit _ attack_beams $$></td>
+	  <td class="col11"><$$ edit _ defense $$></td>
+	  <td class="col12"><$$ edit _ size $$></td>
+	  <td class="col13"><$$ edit _ racksize $$></td>
+	  <td class="col14"><$$ edit _ type $$></td>
+	  <td class="col15"><$$ list_remove_button $$></td>
+      </tr>
   </script>
 
 

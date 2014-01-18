@@ -177,7 +177,6 @@ sub _start {
     #
     # Temporary variables used for building the sectors.
     # 
-    my @links;
     my $unclaimed_groups = [];
     my $empire_groups = [];
     my $sector_count = 0;

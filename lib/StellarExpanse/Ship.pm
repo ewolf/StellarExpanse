@@ -206,6 +206,7 @@ sub _move {
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
     for my $ord (@move_orders) {
         my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
+	print STDERR Data::Dumper->Dump(["START AT ",$loc, "Go from", $from, "Go to", $to]);
         if( $loc ) {
             if( $loc->_is( $from ) ) {
                 if( $from->_valid_link( $to ) ) {
@@ -239,7 +240,7 @@ sub _move {
                         if( grep { ! $_->get_owner()->_is( $self->get_owner() ) } @{$to->get_ships()} ) {
                             $move = 0;
                         }
-                        
+                        print STDERR Data::Dumper->Dump(["MOVED FROM ".$from->get_name()." to ".$to->get_name(),"AT",$self->get_location()]);
                         $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
                     } 
                     else {

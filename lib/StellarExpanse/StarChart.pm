@@ -31,7 +31,12 @@ sub _update {
             }
         }
 
-        if( $different_ships || $node->get_seen_production() != $sector->get_currprod() || ( $node->get_seen_owner() && ( ! $node->get_seen_owner()->_is( $node->get_seen_owner() ) ) ) || $node->get_seen_owner() ) {
+        if( ( $different_ships || $node->get_seen_production() != $sector->get_currprod()
+	    || ( $node->get_seen_owner() 
+		 && ( ! $node->get_seen_owner()->_is( $node->get_seen_owner() ) ) ) 
+	    || $node->get_seen_owner() )
+	    && $self->get_owner()->_is( $sector->get_owner() )
+	    ) {
             $node->add_to_notes( { msg        => "Updated on turn " . $self->get_game()->get_turn_number(),
                                    turn       => $self->get_game()->get_turn_number(),
                                    owner      => $sector->get_owner(),
@@ -43,6 +48,7 @@ sub _update {
     else {
 	$node ||= new Yote::Obj();
 	$node->set_discovered( 1 );
+	$node->set_sector_id( $sector->{ID} );
         $node->set_game( $self->get_game() );
 
 	# add connecting nodes maybe?
