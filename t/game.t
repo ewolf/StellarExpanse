@@ -9,6 +9,9 @@ use File::Spec::Functions qw( catdir updir );
 use Test::More;
 use Test::Pod;
 
+use Yote::ObjProvider;
+use Yote::YoteRoot;
+
 use Carp;
 $SIG{ __DIE__ } = sub { Carp::confess( @_ ) };
 
@@ -21,10 +24,10 @@ BEGIN {
 if( 0 ) {
     my( $fh, $name ) = mkstemp( "/tmp/SQLiteTest.XXXX" );
     $fh->close();
-    Yote::ObjProvider::init(
+    Yote::ObjProvider::init( {
 	datastore      => 'Yote::SQLiteIO',
 	sqlitefile     => $name,
-	);
+	} );
     $Yote::ObjProvider::DATASTORE->ensure_datastore();
 } else {
     use MongoDB;
@@ -37,14 +40,14 @@ if( 0 ) {
     my $db = $client->get_database( 'yote_test' );
     $db->drop();
     
-    Yote::ObjProvider::init(
+    Yote::ObjProvider::init( {
 	datastore      => 'Yote::MongoIO',
 	datahost       => $host,
 	dataport       => $port,
 	databasename   => 'yote_test',
-	);
+	} );
 }
-new Yote::YoteRoot();
+Yote::YoteRoot::fetch_root();
 Yote::ObjProvider::stow_all();
 
 test_suite();
