@@ -16,13 +16,20 @@
     <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
 
     <SCRIPT>
-    $().ready(function(){
-    $.yote.debug = false;
-    $.yote.templates.import_templates( '/templates/default_templates.html' );
+    function refresh() {
+        $( '#spinner' ).show();
+        $.yote.templates.refresh();
+        $( '#spinner' ).hide();
+    }
 
-    var app = $.yote.init( 'StellarExpanse::App' );
-    $.yote.templates.init();
-    $.yote.templates.refresh();
+    $().ready(function(){
+        $.yote.debug = false;
+        $.yote.templates.import_templates( '/templates/default_templates.html' );
+        
+        var app = $.yote.init( 'StellarExpanse::App' );
+        $.yote.templates.init();
+        $.yote.templates.refresh();
+        $( '#spinner' ).hide();
     } );
 
     </script>
@@ -51,25 +58,25 @@
     <$ _.to.name $>
     <???
     function( ctx ) {
-    var arry = ctx.vars.__;
-    var idx = ctx.hashkey_or_index;
-    var ord = ctx.vars._;
-    if( idx == ( arry.full_size() - 1 ) ) { // last destination
-        return '<$$$ control remove <button type="button">remove</button> $$$><br>';
-    }
-    return '';
+        var arry = ctx.vars.__;
+        var idx = ctx.hashkey_or_index;
+        var ord = ctx.vars._;
+        if( idx == ( arry.full_size() - 1 ) ) { // last destination
+            return '<$$$ control remove <button type="button">remove</button> $$$><br>';
+        }
+        return '';
     } ???>
     <?
     function( ctx ) {
-    var arry = ctx.vars.__;
-    var idx = ctx.hashkey_or_index;
-    var ord = ctx.vars._;
-    if( idx == ( arry.full_size() - 1 ) ) { // last destination
-        $( ctx.controls.remove ).click( function() {
-        arry.remove( idx );
-        $.yote.templates.refresh();
-        } );
-    }
+        var arry = ctx.vars.__;
+        var idx = ctx.hashkey_or_index;
+        var ord = ctx.vars._;
+        if( idx == ( arry.full_size() - 1 ) ) { // last destination
+            $( ctx.controls.remove ).click( function() {
+                arry.remove( idx );
+                refresh();
+            } );
+        }
     }
     ?>
     <# MoveOrder #>
@@ -79,52 +86,52 @@
     <# takes ship as the default #>
     <???
        function( ctx ) {
-       var ship = ctx.vars._;
-       var order_from_node = ctx.vars.order_from_node;
-       //only a scout can move if this is not a known location
-       if( 1*order_from_node.get_discovered() == 0 && ship.get_ship_class() != 'Scout' ) {
-           ctx.vars.move_left = 0;
-           return 'No Move Left';
-       }
-       return ctx.vars.move_left + ' jumps left<br><$$$ control new_destination <select><option value=""> Select Destination </option></select> $$$>';
+           var ship = ctx.vars._;
+           var order_from_node = ctx.vars.order_from_node;
+           //only a scout can move if this is not a known location
+           if( 1*order_from_node.get_discovered() == 0 && ship.get_ship_class() != 'Scout' ) {
+               ctx.vars.move_left = 0;
+               return 'No Move Left';
+           }
+           return ctx.vars.move_left + ' jumps left<br><$$$ control new_destination <select><option value=""> Select Destination </option></select> $$$>';
        }
     ???>
 
     <? function( ctx ) {
-    if( ctx.vars.move_left*1 == 0 ) return;
+        if( ctx.vars.move_left*1 == 0 ) return;
 
-    var map = ctx.vars.map;
-    var ship = ctx.vars._;
-    var order_from_sector = ctx.vars.order_from_sector;
-    var order_from_node = ctx.vars.order_from_node;
-    var from_node = ctx.vars.move_from;
-    var l_opt = '';
-    var links = [];
-    if( order_from_node.get_discovered()*1 ) {
-        var order_from_links = order_from_sector.get_links();
-        var link_keys = order_from_links.keys();
-        for( var i=0; i < link_keys.length; i++ ) {
-        var link_node = order_from_links.get( link_keys[ i ] );
-        links.push( link_node );
-        //if here isn't in the chart, can't move anywhere not in the chart
-        if( 1* order_from_node.get_discovered() || ( map.get( link_node.id ) && 1*map.get( link_node.id ).get_discovered() ) )
-            l_opt += '<option value="' + i + '">' + link_node.get_name()  + '</option>';
+        var map = ctx.vars.map;
+        var ship = ctx.vars._;
+        var order_from_sector = ctx.vars.order_from_sector;
+        var order_from_node = ctx.vars.order_from_node;
+        var from_node = ctx.vars.move_from;
+        var l_opt = '';
+        var links = [];
+        if( order_from_node.get_discovered()*1 ) {
+            var order_from_links = order_from_sector.get_links();
+            var link_keys = order_from_links.keys();
+            for( var i=0; i < link_keys.length; i++ ) {
+                var link_node = order_from_links.get( link_keys[ i ] );
+                links.push( link_node );
+                //if here isn't in the chart, can't move anywhere not in the chart
+                if( 1* order_from_node.get_discovered() || ( map.get( link_node.id ) && 1*map.get( link_node.id ).get_discovered() ) )
+                    l_opt += '<option value="' + i + '">' + link_node.get_name()  + '</option>';
+            }
+        } else {
+            var move_orders = ship.get( 'pending_orders' );
+            var penult_sect = move_orders && move_orders.length() > 1 ? move_orders.get( move_orders.length() - 2 ).get_from() : ship.get_location();
+            links.push( penult_sect );
+            l_opt = '<option value="0">' + penult_sect.get_name() + '</option>';
         }
-    } else {
-        var move_orders = ship.get( 'pending_orders' );
-        var penult_sect = move_orders && move_orders.length() > 1 ? move_orders.get( move_orders.length() - 2 ).get_from() : ship.get_location();
-        links.push( penult_sect );
-        l_opt = '<option value="0">' + penult_sect.get_name() + '</option>';
-    }
-    $( ctx.controls.new_destination ).append( l_opt ).change( function() {
-        ship.new_order( {
-        order : 'move',
-        turn  : ctx.scratch.current_turn,
-        from  : order_from_sector,
-        to    : links[ $( ctx.controls.new_destination ).val() ]
+        $( ctx.controls.new_destination ).append( l_opt ).change( function() {
+            ship.new_order( {
+                order : 'move',
+                turn  : ctx.scratch.current_turn,
+                from  : order_from_sector,
+                to    : links[ $( ctx.controls.new_destination ).val() ]
+            } );
+            refresh();
         } );
-        $.yote.templates.refresh();
-    } );
     }
     ?>
     <# NewMoveOrder #>
@@ -151,8 +158,8 @@
     
   <script type="text/template" class="yote_template_definition" template_name="MakeAttackOrder">
     <tr> <td> <$$$ control targ <select> $$$><$ enemytargets $></select>  </td> 
-              <td> <$$$ control bms <select> $$$> 
-          <?? function( ctx ) {
+    <td> <$$$ control bms <select> $$$> 
+    <?? function( ctx ) {
                  var max = ctx.scratch.beams_remaining[ ctx.vars._.id ];
                  var buf = '<option value="0">0</option>';
                  for( var i=1; i < max; i++ ) {
@@ -183,7 +190,7 @@
                                     ctx.scratch.message += err;
                                 }
                               );
-                $.yote.templates.refresh();
+                refresh();
             }
         };
         $( ctx.controls.targ + ',' + ctx.controls.bms ).change( check );
@@ -210,11 +217,10 @@
             var ship = ctx.vars.ship;
             if( $( ctx.controls.targ ).val() == '' || $( ctx.controls.bms ).val() * 1 == 0 ) {
                 //remove this
-                console.log( [ 'REMOVE ORDER ', ctx.vars._, 'from', ship ] );
                 ship.remove_from( { name : 'pending_orders', items : [ ctx.vars._ ] } );
                 ship.remove_from( { name : 'all_pending_orders', items : [ ctx.vars._] } );
                 ship.get_owner().remove_from( { name : 'all_pending_orders', item : ctx.vars._ } );
-                $.yote.templates.refresh();
+                refresh();
             }
             else {
                 //adjust this
@@ -226,7 +232,7 @@
                 var oldb = ctx.vars._.get_Beams()*1;
                 if( oldb != newb ) {
                     ctx.scratch.beams_remaining[ ctx.vars.ship.id ] += ( newb - oldb );
-                    $.yote.templates.refresh();
+                    refresh();
                 }
             }
         }
@@ -412,28 +418,28 @@
         var max_can_buy = cost > 0 ? Math.floor( ctx.scratch.unspent_resources / cost ) : 0;
 
         if( it.get_ship_class() == 'Planetary_Industry' ) {
-        var max_avail = sector.get_maxprod() - sector.get_currprod();
-        max_can_buy = max_avail > max_can_buy ? max_can_buy : max_avail;
+            var max_avail = sector.get_maxprod() - sector.get_currprod();
+            max_can_buy = max_avail > max_can_buy ? max_can_buy : max_avail;
         }
         else if( it.get_ship_class().match( /^Tech_Level_/ ) ) {
-        max_by_size = 1;
+            max_by_size = 1;
         }
 
 
         max_can_buy = max_can_buy > max_by_size ? max_by_size : max_can_buy;
         if( it.get_tech_level()*1 > ctx.scratch.max_tech_ordered || ( it.get_ship_class().match( /^Tech_Level_/ ) && it.get_provides_tech()*1 <= ctx.scratch.max_tech_ordered ) ) {
-        max_can_buy = 0;
+            max_can_buy = 0;
         }
 
         opts += '<option value="' + i + '" ' + ( (max_can_buy > 0 && (typeof max_by_size === 'undefined' || max_by_size > 0)) ? '' : 'disabled="disabled"' ) + '>'
-        + it.get_name() + '</option>';
+            + it.get_name() + '</option>';
         max_quan = max_quan > max_can_buy ? max_quan : max_can_buy;
     } // each available thing to build
     $( ctx.controls.new_type ).append( opts );
     if( max_quan > 0 ) {
         var quan_opts = '';
         for( var j=1; j <= max_quan; j++ ) {
-        quan_opts += '<option value="' + j + '">' + j + '</option>';
+            quan_opts += '<option value="' + j + '">' + j + '</option>';
         }
         $( ctx.controls.new_quan ).append( quan_opts );
     } else {
@@ -452,16 +458,16 @@
         var max_quan_size = ship_size ? Math.floor( ctx.scratch.build_cap_left / ship_size ) : undefined;
 
         if( sel_ship.get_ship_class() == 'Planetary_Industry' ) {
-        var max_avail = sector.get_maxprod() - sector.get_currprod();
-        max_quan = max_quan > max_avail ? max_avail : max_quan;
+            var max_avail = sector.get_maxprod() - sector.get_currprod();
+            max_quan = max_quan > max_avail ? max_avail : max_quan;
         }
         else if( sel_ship.get_ship_class().match( /^Tech_Level_/ ) ) {
-        max_quan = 1;
+            max_quan = 1;
         }
         
         var quan_opts = '';
         for( var j=1; j <= max_quan && (typeof max_quan_size === 'undefined' || j <= max_quan_size ); j++ ) {
-        quan_opts += '<option value="' + j + '">' + j + '</option>';
+            quan_opts += '<option value="' + j + '">' + j + '</option>';
         }
         $( ctx.controls.new_quan ).empty().append( quan_opts );
     } );
@@ -483,7 +489,7 @@
                         ctx.scratch.message += err;
                     }
                       );
-            $.yote.templates.refresh();
+            refresh();
     } );
     } ?>
     <# NewProdOrder #>
@@ -515,37 +521,37 @@ Make the entries not the can build items, but the orders
     </tr>
     <?
         function( ctx ) {
-        var ord = ctx.vars._;
-        var cur_quan = 1 * ord.get_quantity();
-        var ship = ord.get_ship();
-        $( ctx.controls.show_tech ).append( ship.get_tech_level() );
-        if( ship.get_tech_level() * 1 > ctx.scratch.max_tech_ordered ) {
-        $( ctx.controls.show_tech ).addClass( 'err' );
-        }
-        var ship_cost = 1*ship.get_cost();
-        var max_quan = ship_cost ? Math.floor( ctx.scratch.unspent_resources / ship_cost ) : 0;
-        var quan_opts = '';
-        if( ship.get_tech_level()* 1 <= ctx.scratch.max_tech_ordered ) {
-        for( var j=1; j <= ( cur_quan + max_quan ); j++ ) {
-            quan_opts += '<option value="' + j + '" ' + ( j==cur_quan ? ' selected' : '') + '>' + j + '</option>';
-        }
-        }
-        else {
-        ord.set_quantity( 0 );
-        quan_opts = '<option value="0">0</option>';
-        }
-        $( ctx.controls.quan_edit ).append( quan_opts );
-        $( ctx.controls.quan_edit ).change( function() {
-        ord.set_quantity( $( this ).val() );
-        $.yote.templates.refresh();
-        } );
+            var ord = ctx.vars._;
+            var cur_quan = 1 * ord.get_quantity();
+            var ship = ord.get_ship();
+            $( ctx.controls.show_tech ).append( ship.get_tech_level() );
+            if( ship.get_tech_level() * 1 > ctx.scratch.max_tech_ordered ) {
+                $( ctx.controls.show_tech ).addClass( 'err' );
+            }
+            var ship_cost = 1*ship.get_cost();
+            var max_quan = ship_cost ? Math.floor( ctx.scratch.unspent_resources / ship_cost ) : 0;
+            var quan_opts = '';
+            if( ship.get_tech_level()* 1 <= ctx.scratch.max_tech_ordered ) {
+                for( var j=1; j <= ( cur_quan + max_quan ); j++ ) {
+                    quan_opts += '<option value="' + j + '" ' + ( j==cur_quan ? ' selected' : '') + '>' + j + '</option>';
+                }
+            }
+            else {
+                ord.set_quantity( 0 );
+                quan_opts = '<option value="0">0</option>';
+            }
+            $( ctx.controls.quan_edit ).append( quan_opts );
+            $( ctx.controls.quan_edit ).change( function() {
+                ord.set_quantity( $( this ).val() );
+                refresh();
+            } );
 
-        var key = ctx.hashkey_or_index;
-        $( ctx.controls.del_ord ).click( function() {
-        ctx.vars.__.remove( key );
-        $.yote.templates.refresh();
-        } );
-    }
+            var key = ctx.hashkey_or_index;
+            $( ctx.controls.del_ord ).click( function() {
+                ctx.vars.__.remove( key );
+                refresh();
+            } );
+        }
      ?>
     <# BuildItem #>
   </script>
@@ -553,7 +559,6 @@ Make the entries not the can build items, but the orders
   <script type="text/template" class="yote_template_definition" template_name="SectorDetails">
     <??? function( ctx ) {
        ctx.vars.in_sector = ctx.vars.sectors_with_my_ships[ ctx.vars.cur_node.get_sector_id() ] || ctx.vars.known_node_map[ ctx.vars.cur_node.get_sector_id() ];
-       console.log( [ "NODEY DET", 'sectors with my ships', ctx.vars.sectors_with_my_ships, 'cur node', ctx.vars.cur_node, 'in sector', ctx.vars.in_sector,'sectors 2 ships',ctx.vars.sectors_2_ships, 'in sector', ctx.vars.in_sector ] );
     } ???>
     <$ in_sector.name $>
     <?? function( ctx ) { return ctx.vars.in_sector.get( 'owner' ) ? 'Owner : ' + ctx.vars.in_sector.get_owner().get_name() : '' } ??>
@@ -566,7 +571,6 @@ Make the entries not the can build items, but the orders
   <script type="text/template" class="yote_template_definition" template_name="MySectorDetails">
     <??? function( ctx ) { 
        var my_sector = ctx.vars.my_id2sec_map[ ctx.vars.cur_node.get( 'sector_id' ) ];
-       console.log( [ "SEC DET", "my sector",my_sector, "sectors 2 ships", ctx.vars.sectors_2_ships ] );
        ctx.vars.my_sector = my_sector ;
        ctx.vars.ships = ctx.vars.sectors_2_ships[ my_sector.id ] ;
     } ???>
@@ -589,7 +593,6 @@ Make the entries not the can build items, but the orders
         } $$$>
     <?? function( ctx ) { 
     var here_node = ctx.vars.cur_node;
-        console.log( [ 'map', ctx.vars.known_node_map, 'cur node', here_node, 'myid2sec', ctx.vars.my_id2sec_map ] );
     return ctx.vars.my_id2sec_map[ here_node.get( 'sector_id' ) ] ? 
         '<$$ MySectorDetails $$>' :
         ctx.vars.known_node_map[ here_node.get( 'sector_id' ) ] ? //known in the map
@@ -607,7 +610,6 @@ Make the entries not the can build items, but the orders
            var has_enemy_ships = false;
            for( var i=0; i < all_ships_in_sec.length(); i++ ) {
                var s = all_ships_in_sec.get( i );
-               console.log( [ 'ship owned by : ' + s.get_owner().get_name(), 'that is me ? ' + ( s.get_owner().is( ctx.vars.player ) ? 'yes' : ' no ' ) ] );
                if( ! s.get_owner().is( ctx.vars.player ) ) {
                    enemyships[ s.id + '' ] = s;
                    enemytargets += '<option value="' + s.id + '">' + s.get_name() + '</option>';
@@ -616,9 +618,7 @@ Make the entries not the can build items, but the orders
            }
            ctx.vars.enemyships = enemyships;
            ctx.vars.enemytargets = enemytargets;
-console.log( [ 'enny', enemyships, enemytargets ] );
            ctx.vars.has_enemy_ships = has_enemy_ships;
-           console.log( 'here'  );
            return '<p>My Ships<$$ Ships $$></p>' + ( has_enemy_ships ? '<$$ EnemyShips $$>' : '' );
        }
     return '';
@@ -629,17 +629,17 @@ console.log( [ 'enny', enemyships, enemytargets ] );
   <script type="text/template" class="yote_template_definition" template_name="NodeLink">
     <??? function( ctx ) {
         var link = ctx.vars._;
-    var nm = link.get_name().replace( /^\s*([^\s]+)/, '&$1; ' );
-    return link.get_discovered()*1 ?  '<$$$ control link <a href="#">' + nm + '</a>$$$>' : nm;
+        var nm = link.get_name().replace( /^\s*([^\s]+)/, '&$1; ' );
+        return link.get_discovered()*1 ?  '<$$$ control link <a href="#">' + nm + '</a>$$$>' : nm;
     } ???>
     <? function( ctx ) {
-    $( ctx.controls.link ).click(function() {
-        var node = ctx.vars._;
-        var player = ctx.vars.player;
-        player.set_cur_node( node );
-        ctx.vars.cur_node = node ;
-        $.yote.templates.refresh();
-    } );
+        $( ctx.controls.link ).click(function() {
+            var node = ctx.vars._;
+            var player = ctx.vars.player;
+            player.set_cur_node( node );
+            ctx.vars.cur_node = node ;
+            refresh();
+        } );
        } ?>
     <# NodeLink #>
   </script>
@@ -657,9 +657,8 @@ console.log( [ 'enny', enemyships, enemytargets ] );
         var map = ctx.vars.map;
         player.set_cur_node( map.get( node.id ) );
         ctx.vars.cur_node = map.get( node.id );
-        $.yote.templates.refresh();
+        refresh();
         setTimeout(function(){location.hash = '#active_sector'; }, 200);
-        // WOLF        
     } );
        } ?>
   <# SectorLink #>
@@ -707,9 +706,8 @@ console.log( [ 'enny', enemyships, enemytargets ] );
         var cur_node = ctx.vars._;
         ctx.vars.player.set( 'cur_node', cur_node );
         ctx.vars.cur_node = cur_node ;
-        $.yote.templates.refresh();
+        refresh();
         setTimeout(function(){location.hash = '#active_sector'; }, 200);
-        // WOLF
     } );
     }
      ?>
@@ -735,7 +733,7 @@ console.log( [ 'enny', enemyships, enemytargets ] );
             var map = ctx.vars.map;
             player.set_cur_node( map.get( to.id ) );
             ctx.vars.cur_node = map.get( to.id );
-            $.yote.templates.refresh();
+            refresh();
             setTimeout(function(){location.hash = '#active_sector'; }, 200);
         } );
         $( ctx.controls.fromlink ).click( function() { 
@@ -743,7 +741,7 @@ console.log( [ 'enny', enemyships, enemytargets ] );
             var map = ctx.vars.map;
             player.set_cur_node( map.get( from.id ) );
             ctx.vars.cur_node = map.get( from.id );
-            $.yote.templates.refresh();
+            refresh();
             setTimeout(function(){location.hash = '#active_sector'; }, 200);
         } );
     } )( ctx.vars._.get( 'to' ) || ctx.vars._.get( 'location' ), ctx.vars._.get( 'from' ) );
@@ -763,14 +761,14 @@ console.log( [ 'enny', enemyships, enemytargets ] );
             acct.set( 'player', player );
         }
         if( ctx.scratch.player_loaded != player.id  ) {
+            setTimeout( function() { $( '#spinner' ).show(); }, 10 );
             player.load_data();
             ctx.scratch.player_loaded = player.id;
         }
-        
-        ctx.vars.player = player ;
+        setTimeout( function() { $( '#spinner' ).hide(); }, 20 );
+        ctx.vars.player = player;
         
         var map = player.get_starchart().get_map();
-        console.log ( [ "MAP", map.to_hash(), map.length() ] );
         ctx.vars.map = map ;
         
         // SECTORS I OWN
@@ -819,19 +817,19 @@ console.log( [ 'enny', enemyships, enemytargets ] );
         if( ! cur_node ) {
             cur_node = map.get( player.get_sectors().get(0).id );
             player.set( 'cur_node',  cur_node );
-    }
-
-    ctx.vars.cur_node = cur_node;
-
-    // ORDERS LAST TURN
-    ctx.scratch.set_message = function( message ) {
-        if( message && message.length > 0 ) 
-        $( ctx.controls.messages ).empty().append( message ).show();
-        else
-        $( ctx.controls.messages ).hide();
-    }
-
-    return '';
+        }
+        
+        ctx.vars.cur_node = cur_node;
+        
+        // ORDERS LAST TURN
+        ctx.scratch.set_message = function( message ) {
+            if( message && message.length > 0 ) 
+                $( ctx.controls.messages ).empty().append( message ).show();
+            else
+                $( ctx.controls.messages ).hide();
+        }
+        
+        return '';
     } ???>
 
     <#  -------------------  HTML  --------------------------- #>
@@ -849,12 +847,12 @@ console.log( [ 'enny', enemyships, enemytargets ] );
         </label>
     <hr>
     <$$$ set completed_orders function( ctx ) {
-    var aco = ctx.parse( 'player.all_completed_orders' );
-    var ret =  aco.get( '' + ctx.scratch.current_turn ) || aco.get( 1*ctx.scratch.current_turn );
-    return ret ? ret.to_list() : [];
+        var aco = ctx.parse( 'player.all_completed_orders' );
+        var ret =  aco.get( '' + ctx.scratch.current_turn ) || aco.get( 1*ctx.scratch.current_turn );
+        return ret ? ret.to_list() : [];
     } $$$>
     <?? function( ctx ) { 
-    return ctx.scratch.current_turn > 0 ? 'Last Turn Orders<ul> <@ CompletedOrder @completed_orders 40 @> </ul><hr>' : '';
+        return ctx.scratch.current_turn > 0 ? 'Last Turn Orders<ul> <@ CompletedOrder @completed_orders 40 @> </ul><hr>' : '';
     } ??>
     <h3>Known Sectors</h3>
     <table><tr> <th>Name</th> <th>Owner</th> <th>Build Cap</th> <th>Links</th> <th>Ships</th> </tr>
@@ -867,39 +865,45 @@ console.log( [ 'enny', enemyships, enemytargets ] );
     <#  -------------------  AFTER RENDER  --------------------------- #>
     <?
        function( ctx ) {
-       var player = ctx.vars.player;
-       if( player.get( 'ready' ) == 'true' ) {
-           $( ctx.controls.ready_check ).attr( 'checked', true );
-       }
-       if( player.get_ready()*1 ) {
-           $( ctx.controls.ready_div ).addClass( 'ready' );
-           $( ctx.controls.ready_div ).removeClass( 'not-ready' );
-       }
-       $( ctx.controls.ready_check ).click( function() {
-           var is_ready = $( ctx.controls.ready_check ).is( ':checked' );
-           if( is_ready ) {
-           $( ctx.controls.ready_div ).addClass( 'ready' );
-           $( ctx.controls.ready_div ).removeClass( 'not-ready' );
-           ctx.scratch.set_message( 'Ready for next turn' );
-           } else {
-           $( ctx.controls.ready_div ).addClass( 'not-ready' );
-           $( ctx.controls.ready_div ).removeClass( 'ready' );
-           ctx.scratch.set_message( 'Not ready for next turn' );
+           var player = ctx.vars.player;
+           if( player.get( 'ready' ) == 'true' ) {
+               $( ctx.controls.ready_check ).attr( 'checked', true );
            }
-           player.mark_as_ready( {
-           turn  : ctx.scratch.current_turn,
-           ready : is_ready
-           }, function() {
-           if( is_ready ) $.yote.templates.refresh();
+           if( player.get_ready()*1 ) {
+               $( ctx.controls.ready_div ).addClass( 'ready' );
+               $( ctx.controls.ready_div ).removeClass( 'not-ready' );
+           }
+           $( ctx.controls.ready_check ).click( function() {
+               $( '#spinner' ).show();
+               var is_ready = $( ctx.controls.ready_check ).is( ':checked' );
+               if( is_ready ) {
+                   $( ctx.controls.ready_div ).addClass( 'ready' );
+                   $( ctx.controls.ready_div ).removeClass( 'not-ready' );
+                   ctx.scratch.set_message( 'Ready for next turn' );
+               } else {
+                   $( ctx.controls.ready_div ).addClass( 'not-ready' );
+                   $( ctx.controls.ready_div ).removeClass( 'ready' );
+                   ctx.scratch.set_message( 'Not ready for next turn' );
+               }
+               player.mark_as_ready( {
+                   turn  : ctx.scratch.current_turn,
+                   ready : is_ready }, 
+                                     function() {
+                                         if( is_ready ) refresh();
+                                     },
+                                     function(err) {
+                                         ctx.scratch.messages += err;
+                                     },
+                                     true );
            } );
-       } );
-
-       $( ctx.controls.backlink ).click( function() {
-           $.yote.fetch_account().set( 'current_game', '' );
-           $.yote.templates.refresh();
-       } );
-       
-       ctx.scratch.set_message( ctx.scratch.message || '' );
+           
+           $( ctx.controls.backlink ).click( function() {
+               $.yote.fetch_account().set( 'current_game', '' );
+               refresh();
+           } );
+           
+           ctx.scratch.set_message( ctx.scratch.message || '' );
+           
        }
     ?>
     <# InGame #>
@@ -915,7 +919,6 @@ console.log( [ 'enny', enemyships, enemytargets ] );
     <? function( ctx ) {
     var leave_idx = ctx.hashkey_or_index;
      $( ctx.controls.leave_game ).click( function() { 
-         alert( 'gonna leave ' + ctx.vars._.get_name() ); 
          ctx.vars.__.remove( leave_idx );
      } );
        }
@@ -944,7 +947,7 @@ console.log( [ 'enny', enemyships, enemytargets ] );
             starting_tech_level : $( ctx.controls.start_tech ).val(),
             flavor : ctx.get( '_app_' ).get_flavors().get(0)
         });
-        $.yote.templates.refresh();
+        refresh();
             }
         } );
     } ?>
@@ -961,16 +964,16 @@ console.log( [ 'enny', enemyships, enemytargets ] );
      $( ctx.controls.go_game ).click( function() {
          var acct = $.yote.fetch_account();
          if( ! acct.get( 'current_game' ) || acct.get_current_game().id != ctx.vars._.id ) {
-         acct.set( 'current_game', ctx.vars._ );
-         acct.set( 'player', ctx.vars._.my_player() );
+             acct.set( 'current_game', ctx.vars._ );
+             acct.set( 'player', ctx.vars._.my_player() );
          }
-         $.yote.templates.refresh();
+         refresh();
      } );
      $( ctx.controls.del_game ).click( function() {
          var key = ctx.hashkey_or_index;
          if( confirm( 'Really delete game ' + ctx.vars._.get_name() + '?' ) ) {
-         ctx.vars.__.remove( key );
-         $.yote.templates.refresh();
+             ctx.vars.__.remove( key );
+         refresh();
          }
      } );
        }
@@ -984,7 +987,7 @@ console.log( [ 'enny', enemyships, enemytargets ] );
        Start at tech level <$  _.starting_tech_level $> with <$  _.starting_resources $> RUs.
     Created by <$  _.created_by.handle $>. <$$$ control join_game <button type="button">Join</button> $$$>
     <? function( ctx ) {
-     $( ctx.controls.join_game ).click( function() { ctx.scratch.message += ctx.vars._.add_player();$.yote.templates.refresh(); } );
+     $( ctx.controls.join_game ).click( function() { ctx.scratch.message += ctx.vars._.add_player();refresh(); } );
        }
     ?>
   </script>
@@ -1029,7 +1032,7 @@ console.log( [ 'enny', enemyships, enemytargets ] );
 
   <BODY>
     <DIV class="yote_template" template="YoteHeader"></div>
-
+    <img id="spinner" src="spinnerLarge.gif">
     <DIV class="yote_template" template="MainBody"></div>
   </BODY>
 
