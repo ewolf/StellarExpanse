@@ -10,7 +10,7 @@ use StellarExpanse::StarChart;
 use StellarExpanse::Turn;
 use StellarExpanse::Player;
 
-use base 'Yote::Obj';
+use base 'Yote::RootObj';
 
 #
 # Starts the game on turn 0.
@@ -19,11 +19,12 @@ sub _init {
     my $self = shift;
     $self->SUPER::_init();
     $self->set_turn_number( 0 );
+
     my $first_turn = new StellarExpanse::Turn();
     $first_turn->set_turn_number( 0 );
     $first_turn->set_game( $self );
+
     $self->add_to__turns( $first_turn );
-    $self->set_messageboard( new Yote::Util::MessageBoard() );
 } #init
 
 sub _current_turn {
@@ -62,7 +63,7 @@ sub _find_player {
 #
 sub current_players {
     my $self = shift;
-    return $self->_current_turn()->get_players();
+    return [values %{$self->_current_turn()->get_players()}];
 }
 
 #
@@ -70,7 +71,7 @@ sub current_players {
 #
 sub add_player {
     my( $self, $data, $acct ) = @_;
-    my $login = $acct->get_login();
+    my $login   = $acct->get_login();
     my $players = $self->_current_turn()->get_players();
     if( $players->{$login->get_handle()} ) {
         die "account '" . $login->get_handle() . "' already added to this game";
@@ -82,13 +83,12 @@ sub add_player {
         $player->set_account( $acct );
         $player->set_name( $login->get_handle() );
         $players->{$login->get_handle()} = $player;
-        if( $self->needs_players() ) { #see if the game is now full
-	    
-	    # debug with a path to root
-
+	$self->set_needs_players( $self->get_number_players() - keys %{$self->_current_turn()->get_players()} );
+        if( $self->needs_players() ) {
 	    $acct->add_once_to_pending_games( $self );
             return "added to game";
         } else {
+	    $acct->get_app()->remove_all_from_pending_games( $self );
             $self->_start();
  	    my $all_players = $self->_players();
 	    for my $p (@$all_players) {
@@ -117,6 +117,7 @@ sub remove_player {
     $acct->remove_all_from_pending_games( $self );
     my $handle = $login->get_handle();
     delete $players->{$handle};
+    $self->set_needs_players( $self->get_number_players() - keys %{$self->_current_turn()->get_players()} );
     return "player '$handle' removed from game";
 } #remove_player
 
@@ -132,8 +133,7 @@ sub active_player_count {
 #
 sub needs_players {
     my $self = shift;
-    return ( 0 == $self->get_active() ) &&
-        $self->get_number_players() > keys %{$self->_current_turn()->get_players()};
+    return ( $self->get_active() ) ? 0 : $self->get_number_players() - keys %{$self->_current_turn()->get_players()};
 } #needs_players
 
 #
@@ -181,8 +181,7 @@ sub _start {
     my $sector_count = 0;
 
 
-    my $words = $flav->get_sector_names();
-    my @words = @$words;
+    my @words = split( /[\n\r]+/, $flav->get_sector_names() );
     unless( @words ) {
         # use random dictionary words
 	my( $dictfile ) = grep { -f $_ } qw! /etc/dictionaries-common/words /usr/share/dict/words !;
@@ -584,3 +583,8 @@ sub _buildRangeStringOptList {
 1;
 
 __END__
+
+Data fields :
+  turn_number - int tracking on which turn the game is
+  _turns - a list of turns, the index is the same as the turn
+  

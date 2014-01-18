@@ -1,258 +1,160 @@
 <html>
   <head>
-<title>Stellar Exapnse Admin</title>
+    <title>Stellar Exapnse Admin</title>
 
-    <script src="/yote/js/jquery-latest.js"></script>
-    <script src="/yote/js/jquery.dumper.js"></script>
-    <script src="/yote/js/jquery.cookie.js"></script>
-    <script src="/yote/js/jquery.base64.min.js"></script>
-    <script src="/yote/js/json2.js"></script>
-    <script src="/yote/js/yote.js"></script>
-    <script src="/yote/js/yote.util.js"></script>
-    <script src="/yote/js/yote.system.util.js"></script>
-    <link href="/css/bootstrap.css" rel="stylesheet" type="text/css" media="all" />
-    <link href="/css/bootstrap-responsive.css" rel="stylesheet" type="text/css" media="all" />
-    <link rel="stylesheet" href="/yote/css/jquery.mobile.css" type="text/css" media="all" />
-    <link rel="stylesheet" href="/yote/css/ui-lightness/jquery-ui-1.8.23.custom.css" type="text/css" media="all" />
+<script src="/yote/js/jquery-2.1.0.js"></script>
+<script src="/yote/js/jquery.base64.min.js"></script>
+<script src="/yote/js/jquery.cookie.js"></script>
+<script src="/yote/js/json2.js"></script>
+<script src="/yote/js/yote.js"></script>
+<script src="/yote/js/yote.util.js"></script>
+<!--    <script src="/yote/js"></script>  
+    <script src="/yote/_js/maxi.js"></script> -->
+
+    <script src="/templates/default_templates.js"></script>
+
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
-    <script>
-    $().ready(function(){
-	$.yote.init();
-	$('div.info').hide();
+    <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
 
-	function not_logged_in() {
-	    alert( 'not' );
-	}
+    <script type="text/template" class="yote_template_definition" template_name="FlavorEditorMain">
 
-	function on_login( my_login, my_account ) { 
-            var se_app = $.yote.fetch_app( 'StellarExpanse::App' );
-	    $('#nav a').each( function(idx) {
-		$( this ).click( function() { 
-		    $('div.info').hide();  
-		    $( '#' + $(this).attr("id").split('_')[0] + "_div" ).show();
-		} );
-	    } );
-
-            var flavors;
-	    var config;
-
-            function edit_flavors() {
-		se_app.load_flavors();
-		var flavs = se_app.get_flavors();
-
-		$('#flavor_div').empty();
-		$('#flavor_div').append( '<div id=flavor_selector_box>Available Flavors ' +
-					 '<select id=flavor_sel></select><br>' + 
-					 '<input type=submit id=flavor_new_sub value="New Flavor"></div>' +
-					 '<div id=flavor_edit_box></div>' );
-		for( var i=0; i<flavs.length(); i++ ) {
-	            var flav = flavs.get(i);
-	            $('#flavor_sel').append( "<option value=" + i + " id=flavor_" + i + ">" + flav.get('name') + "</option>" );
-		}
-		$('#flavor_sel').click(
-                    function() {
-			var idx = 1 * $(this).val();
-			edit_flavor( flavs.get( idx ) );
-                    }
-		);
- 		$('#flavor_new_sub').click(
-	            function() {
-			var newflav = se_app.new_flavor();
-			var new_idx = flavs.length()-1;
-			$('#flavor_sel').append( "<option value=" + new_idx + " id=flavor_" + idx + ">" + newflav.get('name') + "</option>" );
-			edit_flavor( newflav );
-	            }
-		);
-
-		edit_flavor( flavs.get(0) );
-		
-            } //edit flavors
-
-	    /*
-	      set up flavors to be edited.
-	    */
-	    function edit_flavor( flav ) {
-
-		$('#flavor_edit_box').empty();
-		$('#flavor_edit_box').append( '<button type=button id=save>Save</button> ' + 
-                                              ' <button type=button id=reset>Reset</button> <BR><br>Name : ' );
-		$.yote.util.stage_text_field( $('#flavor_edit_box'), flav, 'name' );
-
-		$('#flavor_edit_box').append( '<br><table><tr id=arow><th>Configs</th><td><span id=ship_span>ship</span></td><td><span id=sector_names_span>Sector Names</span></tr></table>' );
-		$( '#ship_span' ).css( 'cursor', 'pointer' );
-		$( '#sector_names_span' ).css( 'cursor', 'pointer' );
-		if( typeof config === 'undefined' ) {
-		    config = 'ship';
-		}
-		$( '#ship_span' ).click(
-		    function() {
-			$( '#flavor_edit_switch div' ).hide();
-			$( '#arow span' ).css( 'background-color', 'white' );
-			$( '#ship_box' ).show();
-			$( this ).css( 'background-color', 'yellow' );
-			config = 'ship';
-		    }
-		);
-		$( '#sector_names_span' ).click(
-		    function() {
-			$( '#flavor_edit_switch div' ).hide();
-			$( '#arow span' ).css( 'background-color', 'white' );
-			$( '#sector_names_box' ).show();
-			$( this ).css( 'background-color', 'yellow' );
-			config = 'sector_names';
-		    }
-		);
-		
-		var configs = Array( 'empire', 'base', 'game', 'universe' );
-		for( var i in configs ) {
-		    var val = configs[i];
-		    $( '#arow' ).append( '<td><span id=' + val + '_span>' + val + '</span></td>' );
-		    $( '#' + val + '_span' ).css( 'cursor', 'pointer' );
-		    $( '#' + val + '_span' ).click(
-			(function( v ) { 
-			    return function() {
-				var boxname = '#' + v + '_box';
-				$( '#flavor_edit_switch div' ).hide();
-				$( '#arow span' ).css( 'background-color', 'white' );
-				$( boxname ).show();
-				$( this ).css( 'background-color', 'yellow' );
-				config = v;
-			    }
-			} )( val )
-		    );
-		}
-		$( '#arow span' ).css( 'margin', '2px' );
-		$( '#arow span' ).css( 'border', 'solid black 1px' );
-
-		$('#flavor_edit_box').append( '<div id=flavor_edit_switch></div>' );
-		edit_ships( flav );
-		$('#flavor_edit_switch').append( '<div id=sector_names_box>Sector Names. If blank, systems in new game will come from random dictionary words.<BR>' );
-		$.yote.util.stage_textarea( {
-                    attachpoint:$( '#sector_names_box' ), 
-                    yoteobj:flav.get_sector_names(), 
-                    cols:40, 
-                    rows:15, 
-                    as_list:true } );
-
-		for( var i in configs ) {
-		    var val = configs[i];
-		    $('#flavor_edit_switch').append( '<div id=' + val + '_box>' + val + '<BR>' );
-		    $.yote.util.stage_textarea( {
-			attachpoint:$( '#' + val + '_box' ), 
-			yoteobj:flav, 
-			fieldname:val + '_config', 
-			cols:40, 
-			rows:15 } );
-		}	    
-		$( '#flavor_edit_switch div' ).hide();
-
-		$('#flavor_edit_switch').append( '<div id=rand_names_box></div>' );
-
-		$( '#' + config + '_box' ).show();
-		$( '#' + config + '_span' ).css( 'background-color', 'yellow' );
-	    } //edit_flavor
-
-  	    function edit_ships( flav ) {
-		$('#flavor_edit_switch').append( '<div id=ship_box><h2>Ships</h2><table border=1 id=ship_tab><tr></tr></table></div>' );
-		var fields = {
-	            name:'Name',
-                    ship_class:'Ship Class',
-	            tech_level:'Tech Level Required',
-	            damage_control:'Damage Control',
-	            jumps:'Jumps',
-	            cost:'Cost',
-	            targets:'Targets',
-	            self_destruct:'Self Destruct',
-	            attack_beams:'Attack Beams',
-	            defense:'Defense',
-	            size:'Size',
-	            racksize:'Rack Size',
-                    type:'Type',
-	            provides_tech_level:'Tech Level Provided',
-		};
-		var field_keys = Array();
-		for( var key in fields ) { 
-                    $('#ship_tab tr').append( "<th>" + fields[key] + '</th>' );
-		}
-		$('#reset').click( (function(ed) { return function() { if( confirm("Really Revert?") ) { edit_flavor(ed) }} })(flav) );
-
-		var ships = flav.get('ships');
-
-		$('#save').click( (function(ed) { 
-                    return function() {
-			ed._send_update();
-			ed.get_sector_names()._send_update();
-			for( var i=0; i<ships.length(); ++i ) {
-                            ships.get(i)._send_update();
-			}
-			edit_flavor(ed);
-                    } } )(flav) );
-
-		for( var i=0; i<ships.length(); ++i ) {
-                    var ship = ships.get(i);
-                    $( '#ship_tab' ).append( '<tr id=ship_'+i+'>' );
-                    for( var key in fields ) {
-			var tr = $( 'tr#ship_' + i ).append('<td id=ship_' + i + '_' + key + ' >');
-			$.yote.util.stage_text_field( $('#ship_' + i + '_' + key ), ship, key );
-                    }
-		}
-
-	    } //edit ships
-
-            edit_flavors();
-            
-	    $( '#flavor_div' ).show();
-        } //on_login    
-
-	$.yote.util.make_login_bar( { brand_html         : '<a class="brand"><IMG src="se.png"> <huge>Stellar Expanse Admin</huge></a>',
-				      container_id       : '#nav-container',
-				      logged_in_function : on_login,
-				      not_logged_in_function : not_logged_in,
-				      modal_div          : '#modal_div'
-				    } );
-
-    } );
     </script>
 
-<style>
-    ul#nav { list-style-type:none;
-	     margin:0px;
-	     padding:0px;
-	   }
-ul#nav li { display:inline; float: left; }
-ul#nav a { width:120px; display:block; padding: 5px;border:1px solid black; }
-</style>
+    <script>
 
-</head>
+      $().ready(function(){
+	  $.yote.debug = false;
+	  $.yote.include_templates( '/templates/default_templates.html' );
+	  $.yote.util.register_functions( base_templates );
 
-<body>
+	  var app = $.yote.init( 'StellarExpanse::App' );
+	  $.yote.util.register_item( 'app', app );
 
-    <div STYLE="background-color:#181818;vertical-align:middle">
-	<div id="nav-container" class="container" style="width: auto"></div>
-    </div>
+	  $.yote.util.register_functions( {
+	      ref : function( args ) {
+		  return args[ 'default_var' ][ 'class' ];
+	      },
+	      admin_body:function( args ) {
+		  return $.yote.is_root() ? '<$$ AdminBody $$>' : '';
+	      },
+	      setup_new_flavor:function( args ) {
+		  var name_id = args[ 'controls' ][ 'new_flavor_name' ];
+		  var button_id = args[ 'controls' ][ 'new_flavor_go' ];
+		  $.yote.util.button_actions( {
+		      button : button_id,
+		      texts : [ name_id ],
+		      action : function() {
+			  var newflav = app.new_flavor( { name : $(name_id).val() } );
+			  app.add_to( { name : 'flavors', items : [ newflav ] } );
+			  newflav.precache();
+			  refresh_all();
+		      }
+		  } );
+	      }
+	  } );
+	  function refresh_all() {
+	      if( $.yote.reinit() ) {
+		  $( '#mainbody' ).empty().append( $.yote.util.fill_template( { template_name : 'AdminBody', default_var : app } ) );
+	      }
+	      else if( $.yote.is_root() && ! $.yote._is_in_cache( app._get_id( 'flavors' ) ) ) {
+		  app.precache();
+	      }
+	      $.yote.util.refresh_ui();
+	      if( $.yote.is_root() ) {
+		  $( '#errpanel' ).hide();
+		  $( '#mainpanel' ).show();
+	      }
+	      else {
+		  $( '#errpanel' ).show();
+		  $( '#mainpanel' ).hide();
+ 	      }
+	      //adjust widths
+	      for( var i=1; i<15; i++ ) {
+		  $.yote.util.match_widths( '.col' + i );
+	      }
+	  }//refresh_all
+	  $.yote.util.register_function( 'refresh_all', refresh_all );
 
-    <HEADER class="jumbotron subhead" style="height:70px">
-      &nbsp;
-      <div style="position:fixed;top:350px;left:350px;" id="modal_div"></div>
-    </HEADER>
+	  refresh_all();
+      } );
+   </script>
 
-<table><tr><td>
-  <div id=nav>
-    <ul id=nav>
-      <li><a id=flavor_li href=#>Edit Flavors</a></li>
-      <li><a id=config_li href=#>Setup Configs</a></li>
-      <li><a id=player_li href=#>Show Players</a></li>
-      <li><a id=stats_li href=#>Stats</a></li>
-    </ul>
-  </div>
-</td></tr><tr><td>
-  <div id=body>
-    <div class=info id=flavor_div></div>
-    <div class=info id=config_div></div>
-    <div class=info id=player_div></div>
-    <div class=info id=stats_div></div>
-  </div>
-</td></tr></table>
-    <script src="/js/bootstrap.js"></script>
-</body>
+    <style>
+      td { text-align : center }
+      td div { text-align : left }
+    </style>
+
+    <script type="text/template" class="yote_template_definition" template_name="MainBody">
+      <DIV id="errpanel" class="err">
+	Must be logged in with a root account to view this page.
+      </DIV>
+      <?? admin_body ??>
+    </script>
+
+
+    <script type="text/template" class="yote_template_definition" template_name="AdminBody">
+      <DIV class="mainpanel" id="mainpanel">
+        <$@ Flavors app flavors Empty @$>
+      </DIV>
+      <DIV>
+        <$$ NewFlavor $$>
+      </DIV>
+    </script>
+
+    <script type="text/template" class="yote_template_definition" template_name="Empty">
+      No Flavs
+    </script>
+
+    <script type="text/template" class="yote_template_definition" template_name="Flavors">
+      <@ Flavor 1 @>
+      <$$ Paginator $$>
+    </script>
+
+    <script type="text/template" class="yote_template_definition" template_name="Flavor">
+      <div>
+        <label>Flavor<$ edit _ name $></label>
+        <div>
+          <$@ Ships _ ships @$>
+        </div>
+        <div>
+	  <h3>Sector Names</h3>
+	  <$ edit _ sector_names $>
+        </div>
+        <DIV>Empire Config : <$ edit _ empire_config $> </DIV>
+        <DIV>Base Config : <$ edit _ base_config $> </DIV>
+        <DIV>Game Config : <$ edit _ game_config $> </DIV>
+        <DIV>Universe Config : <$ edit _ universe_config $> </DIV>
+        <$ list_remove_button _ flavors $>
+      </div>
+    </script>
+
+    <script type="text/template" class="yote_template_definition" template_name="NewFlavor">
+        Name : <$$$ control new_flavor_name <input type="text"> $$$> <BR>
+	<$$$ control new_flavor_go <button type="BUTTON">Create New Flavor</button> $$$>
+	<? setup_new_flavor ?>
+    </script>
+  </head>
+
+  <script type="text/template" class="yote_template_definition" template_name="Ships">
+    <table><tr><th>Name</th><th>Class</th><th>Tech Level</th><th>Damage Control</th><th>Jumps</th><th>Design ID</th><th>Cost</th><th>Targets</th><th>Self Destruct</th>
+          <th>Attack Beams</th><th>Defense</th><th>Size</th><th>Rack Size</th><th>Type</th><th>Delete</th></tr>
+    <@ Ship 10 @>
+    </table>
+    <$$ Paginator $$>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Ship">
+      <tr><td><$ edit _ name col1 $></td><td><$ edit _ ship_class col2 $></td><td><$ edit _ tech_level col3 $></td><td><$ edit _ damage_control col4 $>
+	</td><td><$ edit _ jumps col5 $></td><td><$ edit _ design_id  col6 $></td><td><$ edit _ cost col7 $></td><td><$ edit _ targets col8 $></td>
+        <td><$ switch _ self_destruct col9 $></td><td><$ edit _ attack_beams col10 $></td><td><$ edit _ defense col11 $></td>
+	<td><$ edit _ size col12 $></td><td><$ edit _ racksize col13 $></td><td><$ edit _ type col14 $></td><td><$ list_remove_button _ ships $></td></tr>
+  </script>
+
+  <body>
+
+    <DIV class="yote_template" template="YoteHeaderAdmin"></div>
+
+    <DIV class="yote_template" template="MainBody" default_variable="app"></div>
+
+  </body>
 </html>

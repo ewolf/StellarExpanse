@@ -4,7 +4,7 @@ use strict;
 
 use StellarExpanse::Order;
 
-use base 'Yote::Obj';
+use base 'Yote::RootObj';
 
 sub _init {
     my $self = shift;
@@ -27,6 +27,7 @@ sub new_order {
     my $ord = new StellarExpanse::Order();
     $ord->_absorb( $data );
     $ord->set_subject( $self );
+    $ord->set__creator( $acct );
     $self->add_to_pending_orders( $ord );
     
     $self->get_owner()->add_to_all_pending_orders( $ord );

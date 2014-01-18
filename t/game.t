@@ -77,7 +77,9 @@ sub test_suite {
                                e => 'foo@bar.com' } )->{l},
         "create account for root account" );
     Yote::ObjProvider::stow_all();
-    my $login = Yote::ObjProvider::xpath("/_handles/root");
+
+    my $logins = $root->get__handles();
+    my $login = $logins->{ root };
     my $acct = $app->__get_account( $login );
     
     ok( $root->create_login( { h => 'fred', 
@@ -86,7 +88,7 @@ sub test_suite {
         "create account for root account" );
     Yote::ObjProvider::stow_all();
 
-    my $fred_login = Yote::ObjProvider::xpath("/_handles/fred");
+    my $fred_login = $logins->{ fred };
     my $fred_acct = $app->__get_account( $fred_login );
 
     ok( $root->create_login( { h => 'barny', 
@@ -95,7 +97,7 @@ sub test_suite {
         "create account for root account" );
     Yote::ObjProvider::stow_all();
 
-    my $barny_login = Yote::ObjProvider::xpath("/_handles/barny");
+    my $barny_login = $logins->{ barny };
     my $barny_acct = $app->__get_account( $barny_login );
 
     is( scalar( @$flavrs ), 1, "default flavor" );

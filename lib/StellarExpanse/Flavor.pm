@@ -823,18 +823,33 @@ sub _init {
     my $self = shift;
     $self->SUPER::_init();
     for my $def (@defaultships) {
-        my $prototype = new StellarExpanse::Ship;
-        $prototype->_absorb( $def );
+        my $prototype = new StellarExpanse::Ship( $def );
         $self->add_to_ships( $prototype );
     }
     $self->set_empire_config( $empire_sector_config );
     $self->set_base_config( $base_sector_config );
     $self->set_game_config( $game_sector_config );
     $self->set_universe_config( $univ_sector_config );
-
-    $self->set_sector_names( [] );
+    $self->set_sector_names('');
 } #init
+
+sub precache {
+    my( $self, $data, $acct ) = @_;
+    return [ map { $_, $_->precache() } @{ $self->get_ships() } ];
+} #precache
 
 1;
 
 __END__
+
+Flavor data fields :
+    ships - []
+
+   the rest are text
+
+    empire_config
+    base_config
+    game_config
+    universe_config  
+
+    sector_names      - a string of newline delimited sector names to use

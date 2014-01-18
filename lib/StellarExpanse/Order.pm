@@ -2,7 +2,7 @@ package StellarExpanse::Order;
 
 use strict;
 
-use base 'Yote::Obj';
+use base 'Yote::UserObj';
 
 sub _resolve {
     my( $self, $message, $success ) = @_;

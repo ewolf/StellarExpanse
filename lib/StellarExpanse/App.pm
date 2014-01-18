@@ -13,15 +13,19 @@ use base 'Yote::AppRoot';
 sub _init {
     my $self = shift;
     $self->SUPER::_init();
+
     my $flav = $self->_new_flavor();
     $flav->set_name( "primary flavor" );
     $self->add_to_flavors( $flav );
-    $self->set_messageboard( new Yote::Obj() );
-    $self->set__games({});
-    $self->set_pending_games( new Yote::Obj() );
-    $self->set_logged_in( new Yote::Obj() );
-    $self->set_lobby_messages( new Yote::Obj() );
-}
+
+    $self->set_logged_in( [] );
+    $self->set__logged_in_blocks( {} );    
+
+    $self->set_messageboard( new Yote::Obj( { chatter => [] } ) );
+
+    $self->set_pending_games( [] );
+
+} #_init
 
 #
 # When accounts are created here. The comm hashes actt id to converstaion objects.
@@ -29,16 +33,41 @@ sub _init {
 sub _init_account {
     my( $self, $acct ) = @_;
     $acct->set_comm( new StellarExpanse::Comm( { _creator => $acct } ) );
+    $acct->set_pending_games([]);
+    $acct->set_active_games([]);
     $acct->set_last_msg( time() );
+    $acct->set_app( $self );
 }
 
 #
-# Checks the lobby for messages and stuff.
+# Registers the account as taken an activity in the lobby.
 #
 sub sync_lobby {
     my( $self, $data, $acct ) = @_;
     $self->_register_account( $acct );
-} #sync_lobby 
+} #sync_lobby
+
+sub sync_changed {
+    my( $self, $data, $acct ) = @_;
+}
+
+sub precache {
+    my( $self, $data, $acct ) = @_;
+    my $ret = [ $self->get_pending_games(),
+		@{$self->get_pending_games()},
+		$self->get_messageboard(),
+		@{$self->get_messageboard()->get_chatter()},
+		$self->get_logged_in(),
+		@{$self->get_logged_in()},
+	];
+    if( $acct ) { 
+	push @$ret, $acct->get_active_games(), @{$acct->get_active_games()}, $acct->get_pending_games(), @{$acct->get_pending_games()}, $acct->get_comm();
+	if( $acct->is_root() ) {
+	    push @$ret, map { $_, $_->precache() } @{$self->get_flavors()};
+	}
+    }
+    return $ret;
+} #precache
 
 #
 # Keeps tracked of 'who is logged in'. People are on
@@ -49,7 +78,7 @@ sub _register_account {
     
     my $now = time();
 
-    my $blocks = $self->get__logged_in_blocks( {} );
+    my $blocks = $self->get__logged_in_blocks();
     my $five_min_block = int( $now / 300 );
     my $five_min_container = $blocks->{ $five_min_block };
     unless( $five_min_container ) {
@@ -65,8 +94,10 @@ sub _register_account {
 	# refresh get_logged_in list
 	$self->set_logged_in( [] );
 	for my $block ( keys %$blocks ) {
-	    for my $act ( values %{ $blocks->{ $block } } ) {
-		$self->add_once_to_logged_in( $act );
+	    for my $acts ( values %{ $blocks->{ $block } } ) {
+		for my $act (@$acts) {
+		    $self->add_once_to_logged_in( $act );
+		}
 	    }
 	}
     }
@@ -75,24 +106,11 @@ sub _register_account {
 
 } #_register_account
 
-sub load_data {
-    my( $self, $data, $acct ) = @_;
-    if( $acct ) {
-	$self->_register_account( $acct );
-	return [
-	    $acct->get_active_games(),
-	    @{ $acct->get_active_games() },
-	    $acct->get_pending_games(),
-	    @{ $acct->get_pending_games() },
-	    ];
-    }
-    return undef;
-} #load_data
+# ----  GAMES -------
 
 sub create_game {
     my( $self, $data, $acct ) = @_;
 
-    my $games = $self->get__games();
     my $game = new StellarExpanse::Game();
 
     $game->set_name( $data->{name} );
@@ -102,43 +120,44 @@ sub create_game {
     $game->set_created_by( $acct );
     $game->set_flavor( $data->{flavor} );
     $game->set_app( $self );
+    $game->set_needs_players( $data->{number_players} );
     my $id = Yote::ObjProvider::get_id( $game );
-    $games->{$id} = $game;
-
-    $self->add_once_to_pending_games( $game );
+    $self->add_to_pending_games( $game );
     return $game;
 } #create_game
 
-sub load_flavors {
-    my( $self, $data, $acct ) = @_;
-
-    return [
-	@ { $self->get_flavors() },
-	map { @{ $_->get_ships() } } @ { $self->get_flavors() },
-	];
-}
+# ----  FLAVS -------
 
 sub new_flavor {
     my( $self, $data, $acct ) = @_;
     die "Access Error" unless $acct->is_root();
-    return $self->_new_flavor();
+    return $self->_new_flavor($data);
 }
 
 sub _new_flavor {
-    my $self = shift;
-    my $flav = new StellarExpanse::Flavor();
+    my( $self, $data ) = @_;
+    my $flav = new StellarExpanse::Flavor( $data );
     return $flav;
 }
-
-sub available_games {
-    my( $self, $data, $acct ) = @_;
-    return [ grep { ! $_->_find_player($acct) } @{$self->get_pending_games()}];
-} #available_games
 
 1;
 
 __END__
 
+This App hosts Stellar Expanse games and provides accounts to play
+those games and allows users to chat and send messages to each other.
+
+Data :
+   flavors   - list of flavor objects
+   logged_in - a list of accounts that have been active in the last 10 minutes
+       _logged_in_blocks - a hash of time ( normalized to 5 min chunks since the epoch ) 
+                                to a list of accounts that have been active in that chunk of time. Used to populated logged_in list
+   messageboard - an object used for players to chat in the lobby
+   pending_games - a list of games not yet started
+
+
+Account :
+   
 
 =head1 AUTHOR
 
