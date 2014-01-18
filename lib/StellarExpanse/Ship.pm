@@ -205,59 +205,32 @@ sub _move {
     my $orders = $self->get_pending_orders();
     my( @move_orders ) = grep { $_->get_order() eq 'move' } @$orders;
     for my $ord (@move_orders) {
-        my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
-	print STDERR Data::Dumper->Dump(["START AT ",$loc, "Go from", $from, "Go to", $to]);
-        if( $loc ) {
-            if( $loc->_is( $from ) ) {
-                if( $from->_valid_link( $to ) ) {
-                    if( $move > 0 ) {
-                        $self->set_location ( $to );
-                        $to->add_to_ships( $self );
-                        $from->remove_from_ships( $self );
-                        $from->_notify( $self->get_name() . " jumped out of sector " . $loc->get_name() );
-                        $to->_notify( $self->get_name() . " jumped into sector " . $to->get_name() );
+	eval {
+	    my( $loc, $from, $to ) = ( $self->get_location(), $ord->get_from(), $ord->get_to() );
+	    die "Not in any location" unless $loc;
+	    die "Not in " . $loc->get_name() unless $loc->_is( $from );
+	    die $from->get_name() . " does not link to " . $to->get_name() unless $from->_valid_link( $to );
+	    die "out of movement" unless $move > 0;
 
+	    $self->set_location ( $to );
+	    $to->add_to_ships( $self );
+	    $from->remove_from_ships( $self );
+	    $from->_notify( $self->get_name() . " jumped out of sector " . $loc->get_name() );
+	    $to->_notify( $self->get_name() . " jumped into sector " . $to->get_name() );
 
-                        #
-                        # ships other than scouts lose all movement when entering an unexplored sector.
-                        #
-                        my $chart = $self->get_owner()->get_starchart();
-                        if( $chart->_has_entry( $to ) || $self->get_ship_class() eq 'Scout' ) {
-                            $move--;
-                        } 
-                        else {
-                            $move = 0;
-                        }
-                        
-                        #
-                        # Update star chart
-                        #
-                        $chart->_update( $to );
-                        
-                        #
-                        # Ships must stop if there are enemy ships here.
-                        #
-                        if( grep { ! $_->get_owner()->_is( $self->get_owner() ) } @{$to->get_ships()} ) {
-                            $move = 0;
-                        }
-                        print STDERR Data::Dumper->Dump(["MOVED FROM ".$from->get_name()." to ".$to->get_name(),"AT",$self->get_location()]);
-                        $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
-                    } 
-                    else {
-                        $ord->_resolve( "out of movement" );
-                    }
-                } 
-                else {
-                    $ord->_resolve( $from->get_name() . " does not link to " . $to->get_name() );
-                }
-            } 
-            else {
-                $ord->_resolve( "Not in " . $loc->get_name() );
-            }
-        } 
-        else {
-            $ord->_resolve( "Not in any location" );
-        }
+	    my $chart = $self->get_owner()->get_starchart();
+	    $move = ( $chart->_has_entry( $to ) || $self->get_ship_class() eq 'Scout' ) ? $move - 1 : 0;
+
+	    $chart->_update( $to );
+	    
+	    if( grep { ! $_->get_owner()->_is( $self->get_owner() ) } @{$to->get_ships()} ) {
+		$move = 0;
+	    }
+	    $ord->_resolve( "moved from " . $from->get_name() . " to " . $to->get_name(), 1  );
+	};
+	if( $@ ) {
+	    $ord->_resolve( $@ );
+	}
     }
     
 } #_move

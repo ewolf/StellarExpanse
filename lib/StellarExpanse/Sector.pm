@@ -132,6 +132,7 @@ sub _build {
     my $player = $self->get_owner();
     my $orders = $self->get_pending_orders();    
     for my $order (grep { $_->get_order() eq 'build' } @$orders) {
+	$order->set_location( $self );
         my $prototype = $order->get_ship();
         if( $prototype ) {
             if( $prototype->get_type() =~ /^(SHIP|OIND|IND|TECH)$/ ) {

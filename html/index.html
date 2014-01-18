@@ -40,6 +40,7 @@
       td.number { text-align: center; }
       td.panel { border : 1px solid black; padding: 3px; }
       .messages { margin : 12px; padding: 5px; border : solid 3px brown; text-align:center; }
+      .err { background-color: lightorange; border : 2px red solid; }
     </style>
   </head>
 
@@ -51,7 +52,6 @@
 	var arry = ctx.vars.__;
 	var idx = ctx.hashkey_or_index;
 	var ord = ctx.vars._;
-console.log( [ "ORD " + idx, ord ] );
 	if( idx == ( arry.full_size() - 1 ) ) { // last destination
 	    return '<$$$ control remove <button type="button">remove</button> $$$><br>';
 	}
@@ -149,16 +149,12 @@ console.log( [ "ORD " + idx, ord ] );
 	       if( move_left == 0 ) return 'n/a';
 	       var move_orders = ship.get( 'pending_orders' );
 
-	       console.log( [ 'start move from ' + order_from_sector.get_name() ] );
-
 	       for( var i=0; i<move_orders.length(); i++ ) {
 		   var mo = move_orders.get( i );
 		   if( mo.get_order() == 'move' ) {
 		       if( i == 0 ) ctx.vars.original_sector;
 		       move_left--;
 		       order_from_sector = mo.get_to();
-		       console.log( [ ' now move from ' + mo.get_to().get_name() ] );
-
 		       move_to = map.get( mo.get_to().id );
 		   }
 	       }
@@ -203,16 +199,24 @@ console.log( [ "ORD " + idx, ord ] );
 	   var player = ctx.vars.player;
 	   ctx.scratch.max_tech_ordered = player.get_tech_level() * 1;
 	   var unspent_resources = player.get_resources();
-	   var build_cap_left = sect.get( 'buildcap' );
+	   var build_cap_left = 1*sect.get( 'buildcap' );
 	   if( ords ) {
 	       for( var i=0; i<ords.length(); i++ ) {
 		   var o = ords.get( i );
-		   unspent_resources -= o.get_quantity() * o.get_ship().get_cost();
-		   build_cap_left -= o.get_quantity() * o.get_ship().get_size();
+		   var s = o.get_ship();
+		   if( s.get_ship_class().match( /^Tech_Level_/ ) ) {
+		       if( 1*s.get_provides_tech() > ctx.scratch.max_tech_ordered ) {
+			   ctx.scratch.max_tech_ordered = 1*s.get_provides_tech();
+		       }
+		   }
+		   unspent_resources -= o.get_quantity() * s.get_cost();
+		   var sz = s.get_size(); sz = sz*1 > 0 ? 1*sz : 0;
+		   build_cap_left -= 1*o.get_quantity() * sz;
 	       }
 	   }
 	   ctx.scratch.unspent_resources = unspent_resources;
 	   ctx.scratch.build_cap_left = build_cap_left;
+
 	   return '';
        }
        ???>
@@ -248,6 +252,8 @@ console.log( [ "ORD " + idx, ord ] );
 	    var cost = 1 * it.get_cost();
 	    var size = 1 * it.get_size();
 	    min_size = min_size == 0 || min_size > size ? size : min_size;
+	    var max_by_size    = size > 0 ? Math.floor( ctx.scratch.build_cap_left / size ) : undefined;
+
 	    var max_can_buy = cost > 0 ? Math.floor( ctx.scratch.unspent_resources / cost ) : 0;
 
 	    if( it.get_ship_class() == 'Planetary_Industry' ) {
@@ -255,14 +261,12 @@ console.log( [ "ORD " + idx, ord ] );
 		max_can_buy = max_avail > max_can_buy ? max_can_buy : max_avail;
 	    }
 	    else if( it.get_ship_class().match( /^Tech_Level_/ ) ) {
-		max_can_buy = 1;
+		max_by_size = 1;
 	    }
 
-	    var max_by_size    = size > 0 ? Math.floor( ctx.scratch.build_cap_left / size ) : undefined;
 
 	    max_can_buy = max_can_buy > max_by_size ? max_by_size : max_can_buy;
-	    
-	    if( it.get_tech_level()*1 < ctx.scratch.max_tech_ordered ) {
+	    if( it.get_tech_level()*1 > ctx.scratch.max_tech_ordered || ( it.get_ship_class().match( /^Tech_Level_/ ) && it.get_provides_tech()*1 <= ctx.scratch.max_tech_ordered ) ) {
 		max_can_buy = 0;
 	    }
 
@@ -271,7 +275,6 @@ console.log( [ "ORD " + idx, ord ] );
 	    max_quan = max_quan > max_can_buy ? max_quan : max_can_buy;
 	} // each available thing to build
 	$( ctx.controls.new_type ).append( opts );
-
 	if( max_quan > 0 ) {
 	    var quan_opts = '';
 	    for( var j=1; j <= max_quan; j++ ) {
@@ -335,7 +338,7 @@ console.log( [ "ORD " + idx, ord ] );
 
 Make the entries not the can build items, but the orders
 <h3>Build Orders</h3>
-    <table> <tr> <th>Quantity</th> <th>Name</th> <th>Cost</th> <th>Jumps</th> <th>Size</th> <th>Defense</th> <th>Beams</th> <th>Delete</th> </tr>
+    <table> <tr> <th>Quantity</th> <th>Name</th> <th>Tech</th> <th>Cost</th> <th>Jumps</th> <th>Size</th> <th>Defense</th> <th>Beams</th> <th>Delete</th> </tr>
        <@ BuildItem my_sector@pending_orders 10 @>
     </table>
        Resources avail : <$ player.resources $>
@@ -344,6 +347,7 @@ Make the entries not the can build items, but the orders
   <script type="text/template" class="yote_template_definition" template_name="BuildItem">
     <tr> <td><$$$ control quan_edit <select></select> $$$></td>
          <td><$  _.ship.name $></td>
+         <td><$$$ control show_tech <span></span>$$$></td>
          <td><$  _.ship.cost $></td>
          <td><$  _.ship.jumps $></td>
          <td><$  _.ship.size $></td>
@@ -356,11 +360,21 @@ Make the entries not the can build items, but the orders
 	    var ord = ctx.vars._;
 	    var cur_quan = 1 * ord.get_quantity();
 	    var ship = ord.get_ship();
+	    $( ctx.controls.show_tech ).append( ship.get_tech_level() );
+	    if( ship.get_tech_level() * 1 > ctx.scratch.max_tech_ordered ) {
+		$( ctx.controls.show_tech ).addClass( 'err' );
+	    }
 	    var ship_cost = 1*ship.get_cost();
 	    var max_quan = ship_cost ? Math.floor( ctx.scratch.unspent_resources / ship_cost ) : 0;
 	    var quan_opts = '';
-	    for( var j=1; j <= ( cur_quan + max_quan ); j++ ) {
-		quan_opts += '<option value="' + j + '" ' + ( j==cur_quan ? ' selected' : '') + '>' + j + '</option>';
+	    if( ship.get_tech_level()* 1 <= ctx.scratch.max_tech_ordered ) {
+		for( var j=1; j <= ( cur_quan + max_quan ); j++ ) {
+		    quan_opts += '<option value="' + j + '" ' + ( j==cur_quan ? ' selected' : '') + '>' + j + '</option>';
+		}
+	    }
+	    else {
+		ord.set_quantity( 0 );
+		quan_opts = '<option value="0">0</option>';
 	    }
 	    $( ctx.controls.quan_edit ).append( quan_opts );
 	    $( ctx.controls.quan_edit ).change( function() {
@@ -368,8 +382,9 @@ Make the entries not the can build items, but the orders
 		$.yote.templates.refresh();
 	    } );
 
+	    var key = ctx.hashkey_or_index;
 	    $( ctx.controls.del_ord ).click( function() {
-		ctx.vars.__.remove( ctx.hashkey_or_index );
+		ctx.vars.__.remove( key );
 		$.yote.templates.refresh();
 	    } );
 	}
@@ -377,7 +392,7 @@ Make the entries not the can build items, but the orders
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="SectorDetails">
-    <P>Last seen production : <$  cur_node.seen_currprod $> / <$  cur_node.seen_max_production $>
+    <P>Last seen production : <$  cur_node.seen_currprod 0 $> / <$  cur_node.seen_max_production 0 $>
     Links : <% NodeLink cur_node%links 10 %> <P>
     <?? function( ctx ) {
 	   var ships = ctx.vars.loc2my_ships[ ctx.vars.cur_node.get_sector_id() ] || [];
@@ -416,8 +431,8 @@ Make the entries not the can build items, but the orders
 	var here_node = ctx.vars.cur_node;
 	return ctx.vars.my_id2sec_map[ here_node.get( 'sector_id' ) ] ? 
 	 "Sector <$$ edit my_sector 'name' $$><BR><$$ MySectorDetails $$>" :
-	 'AARF <$  cur_node.name $>' + ( ctx.vars.known_sector_map[ here_node.get( 'sector_id' ) ] ? 
-	 'Other <$$ SectorDetails $$>' :
+	 '<$  cur_node.name $>' + ( ctx.vars.known_sector_map[ here_node.get( 'sector_id' ) ] ? 
+	 '<$$ SectorDetails $$>' :
 	 '' );
     } ??>
   </script>
@@ -451,7 +466,7 @@ Make the entries not the can build items, but the orders
 	    var player = ctx.vars.player;
 	    var map = ctx.vars.map;
 	    player.set_cur_node( map.get( node.id ) );
-	    ctx.vars.cur_node = node ;
+	    ctx.vars.cur_node = map.get( node.id );
 	    $.yote.templates.refresh();
 	} );
        } ?>
@@ -507,8 +522,36 @@ Make the entries not the can build items, but the orders
 
   </script>
     
-  <script type="text/template" class="yote_template_definition" template_name="CompletedOrders">
-    Order : <$  _.resolution_message $><BR>
+  <script type="text/template" class="yote_template_definition" template_name="CompletedOrder">
+    <??? function( ctx ) {
+  	     var o = ctx.vars._;
+	     if( o.get_order() == 'move' ) {
+		 var from = o.get_from();
+		 var to   = o.get_to();
+		 return '<li>Moved from <$$$ control fromlink <a href="#">$$$>' + from.get_name() + '</a> to <$$$ control tolink <a href="#">$$$>' + to.get_name() + '</a></li>';
+	     } else if( o.get_order() == 'build' && o.get( 'location' ) ) {
+		 return '<li>Built ' + o.get_quantity() + ' ' + o.get_ship().get_name() + ' in location <$$$ control tolink <a href="#">$$$>' + o.get_location().get_name() + '</a></li>';
+	     }
+             return '<li><$ _.resolution_message $></li>';
+         } ???>
+    <? function( ctx ) {
+	(function( to, from ) {
+	    $( ctx.controls.tolink ).click( function() {
+		var player = ctx.vars.player;
+		var map = ctx.vars.map;
+		player.set_cur_node( map.get( to.id ) );
+		ctx.vars.cur_node = map.get( to.id );
+		$.yote.templates.refresh();
+	    } );
+	    $( ctx.controls.fromlink ).click( function() { 
+		var player = ctx.vars.player;
+		var map = ctx.vars.map;
+		player.set_cur_node( map.get( from.id ) );
+		ctx.vars.cur_node = map.get( from.id );
+		$.yote.templates.refresh();
+	    } );
+	} )( ctx.vars._.get( 'to' ) || ctx.vars._.get( 'location' ), ctx.vars._.get( 'from' ) );
+	} ?>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="InGame">
@@ -603,13 +646,19 @@ Make the entries not the can build items, but the orders
         Ready for next turn <$$$ control ready_check <input class="not-ready" type="checkbox"> $$$>
         </label>
     <hr>
+    <$$$ set completed_orders function( ctx ) {
+	var aco = ctx.parse( 'player.all_completed_orders' );
+	var ret =  aco.get( '' + ctx.scratch.current_turn ) || aco.get( 1*ctx.scratch.current_turn );
+	return ret ? ret.to_list() : [];
+    } $$$>
     <?? function( ctx ) { 
-	return ctx.scratch.current_turn > 0 ? 'Last Turn Orders<blockquote> <@ CompletedOrders player@all_completed_orders.' + ctx.scratch_current_turn + ' @> </blockquote><hr>' : '';
+	return ctx.scratch.current_turn > 0 ? 'Last Turn Orders<ul> <@ CompletedOrder @completed_orders 40 @> </ul><hr>' : '';
     } ??>
     <h3>Known Sectors</h3>
     <table><tr> <th>Name</th> <th>Owner</th> <th>Build Cap</th> <th>Links</th> <th>Notes</th> <th>Ships</th> </tr>
-      <% SectorNode %known_sector_map 12 %>
+      <% SectorNode %known_sector_map 10 %>
     </table>
+    <hr><$$ Paginator %known_sector_map $$></hr>
      
     <$$ ActiveSector  $$>
 
@@ -661,7 +710,11 @@ Make the entries not the can build items, but the orders
        Start at tech level <$  _.starting_tech_level $> with <$  _.starting_resources $> RUs.
     Created by <$  _.created_by.handle $>. <$$$ control leave_game <button type="button">Leave</button> $$$>
     <? function( ctx ) {
-	 $( ctx.controls.go_game ).click( function() { alert( 'gonna leave ' + ctx.vars._.get_name() ); } );
+	var leave_idx = ctx.hashkey_or_index;
+	 $( ctx.controls.leave_game ).click( function() { 
+	     alert( 'gonna leave ' + ctx.vars._.get_name() ); 
+	     ctx.vars.__.remove( leave_idx );
+	 } );
        }
     ?>
   </script>
@@ -680,12 +733,12 @@ Make the entries not the can build items, but the orders
 	    button : ctx.controls.newgamego,
 	    texts  : [ ctx.controls.newgamename, ctx.controls.start_players, ctx.controls.start_res ],
 	    action : function() {
-		var game = ctx.vars._app_.create_game( {
+		var game = ctx.get( '_app_' ).create_game( {
 		    name : $( ctx.controls.newgamename ).val(),
 		    number_players : $( ctx.controls.start_players ).val(),
 		    starting_resources : $( ctx.controls.start_res ).val(),
 		    starting_tech_level : $( ctx.controls.start_tech ).val(),
-		    flavor : ctx.vars._app_.get_flavors().get(0)
+		    flavor : ctx.get( '_app_' ).get_flavors().get(0)
 		});
 		$.yote.templates.refresh();
             }
@@ -709,8 +762,9 @@ Make the entries not the can build items, but the orders
 	     $.yote.templates.refresh();
 	 } );
 	 $( ctx.controls.del_game ).click( function() {
+	     var key = ctx.hashkey_or_index;
 	     if( confirm( 'Really delete game ' + ctx.vars._.get_name() + '?' ) ) {
-		 ctx.vars.__.remove( ctx.hashkey_or_index );
+		 ctx.vars.__.remove( key );
 		 $.yote.templates.refresh();
 	     }
 	 } );
