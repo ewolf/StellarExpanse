@@ -113,6 +113,7 @@ sub _give {
                 $to->add_to_sectors( $sector );
                 $self->remove_from_sectors( $sector );
                 $sector->set_owner( $to );
+                $sector->set___creator( $to->get_account() );
                 $ord->_resolve( "Gave sector " . $sector->get_name() . " to " . $to->get_name(), 1 );
             } else {
                 $ord->_resolve( "Must give postive amount" );

@@ -81,10 +81,11 @@ sub add_player {
         $player->set_turn( $self->_current_turn() );
         $player->set_game( $self );
         $player->set_account( $acct );
+        $player->set___creator( $acct );
         $player->set_name( $login->get_handle() );
 
         $players->{$login->get_handle()} = $player;
-	$self->set_needs_players( $self->get_number_players() - keys %{$self->_current_turn()->get_players()} );
+        $self->set_needs_players( $self->get_number_players() - keys %{$self->_current_turn()->get_players()} );
         if( $self->needs_players() ) {
 	    $acct->add_once_to_pending_games( $self );
             return "added to game";
@@ -223,6 +224,7 @@ sub _start {
         my $gsecs = $group->{sectors};
         my $chart = new StellarExpanse::StarChart();
         $chart->set_owner( $player );
+        $chart->set___creator( $player->get_account() );
         $chart->set_game( $self );
 
         $player->set_starchart( $chart );
@@ -413,6 +415,8 @@ sub _make_random_group {
 
         if( $owner && $sectors->{$key}{owner} != -1 ) {
             $newsector->set_owner( $owner );
+            $newsector->set___creator( $owner->get_account() );
+            print STDERR Data::Dumper->Dump([$newsector," CREATED "]);
             $owner->add_to_sectors( $newsector );
             $maxprod = $sector_template->{maxprod};
             my $curprod = $sector_template->{currprod};

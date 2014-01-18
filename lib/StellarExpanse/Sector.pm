@@ -11,7 +11,7 @@ use base 'StellarExpanse::TakesOrders';
 #     ships    - list of StellarExpanse::Ship
 #     links    - hash of sector id -> StellarExpanse::Sector
 #     owner    - StallarExpanse::Player
-#     indict   - boolean 
+#     indict   - boolean
 #     currprod - int
 #     maxprod  - int ( max production this sector can use )
 #     buildcap - int
@@ -44,7 +44,7 @@ sub _notify {
     for my $ship (@$ships) {
         $ship->_notify( $msg );
     }
-    
+
 } #_notify
 
 #
@@ -94,8 +94,8 @@ sub _check_owner_and_bombardment {
         my( $attack_player_id ) = ( keys %player2attack_power );
         my $attacker = Yote::ObjProvider::fetch( $attack_player_id );
         next unless $player2attack_power{$attack_player_id};
-        
-        
+
+
         #
         # Can change hands if there is only one force in the sector and there is no industry.
         #
@@ -108,6 +108,7 @@ sub _check_owner_and_bombardment {
                 $attacker->add_to_sectors( $self );
                 $self->_notify( $attacker->get_name()." conquered ".$self->get_name() );
                 $self->set_owner($attacker);
+                $self->set___creator( $attacker->get_account() );
             } #conquoring
             else {
 
@@ -125,106 +126,104 @@ sub _check_owner_and_bombardment {
         } #if not owner
     } #if uncontested
 
-} #_check_owner_and_bombardment 
+} #_check_owner_and_bombardment
 
 sub _build {
     my $self = shift;
     my $player = $self->get_owner();
-    my $orders = $self->get_pending_orders();    
+    my $orders = $self->get_pending_orders();
     for my $order (grep { $_->get_order() eq 'build' } @$orders) {
-	$order->set_location( $self );
+        $order->set_location( $self );
         my $prototype = $order->get_ship();
-        if( $prototype ) {
-            if( $prototype->get_type() =~ /^(SHIP|OIND|IND|TECH)$/ ) {
-                if( $prototype->get_tech_level() <= $player->get_tech_level() ) {                
-                    my $quantity = $order->get_quantity() || 1;
-                    my $actually_built = 0;
-                    my $cost = $prototype->get_cost();
-                    for( 1..$quantity ) {
-                        if( $self->get_buildcap() >= $prototype->get_size() ) {
-                            if( $cost <= $player->get_resources() ) {
-                                if( $prototype->get_type() eq 'SHIP' || $prototype->get_type() eq 'OIND' ) {
-                                    my $new_ship = Yote::ObjProvider::power_clone($prototype);
-                                    $new_ship->set_home_sector( $self );
-                                    $new_ship->set_origin_sector( $self );
-                                    $new_ship->set_owner( $player );
-                                    $new_ship->set_game( $self->get_game() );
-                                    $new_ship->set_hitpoints( $new_ship->get_defense() );
-                                    $new_ship->set_free_rack( $new_ship->get_racksize() );
-                                    $new_ship->set_location( $self );
+        eval {
+            die "No build type given" unless $prototype;
+            die "Unknown build type ".$prototype->get_type() unless $prototype->get_type() =~ /^(SHIP|OIND|IND|TECH)$/;
+            die "Tech level not high enough to build " . $prototype->get_name() unless $prototype->get_tech_level() <= $player->get_tech_level();
+            my $quantity = $order->get_quantity() || 1;
+            my $actually_built = 0;
+            my $cost = $prototype->get_cost();
+            for( 1..$quantity ) {
+                if( $self->get_buildcap() >= $prototype->get_size() ) {
+                    if( $cost <= $player->get_resources() ) {
+                        if( $prototype->get_type() eq 'SHIP' || $prototype->get_type() eq 'OIND' ) {
+                            my $new_ship = Yote::ObjProvider::power_clone($prototype);
+                            $new_ship->set_home_sector( $self );
+                            $new_ship->set_origin_sector( $self );
+                            $new_ship->set_owner( $player );
+                            print STDERR Data::Dumper->Dump(["CReATING SHIP for",$player,$player->get_account()]);
+                            $new_ship->set___creator( $player->get_account() );
+                            $new_ship->set_game( $self->get_game() );
+                            $new_ship->set_hitpoints( $new_ship->get_defense() );
+                            $new_ship->set_free_rack( $new_ship->get_racksize() );
+                            $new_ship->set_location( $self );
 
-                                    $self->add_to_ships( $new_ship );
-                                    $self->get_game()->_current_turn()->add_to_ships( $new_ship );
-                                    $player->add_to_ships( $new_ship );
-                                    $player->set_resources( $player->get_resources() - $cost );
-                                    $order->add_to_built( $new_ship );
-                                    $actually_built++;
-                                }
-                                elsif( $prototype->get_type() eq 'IND' ) {
-                                    if( $self->get_currprod() < $self->get_maxprod() ) {
-                                        $self->set_currprod($self->get_currprod() + 1 );
-                                        $player->set_resources( $player->get_resources() - $cost );
-                                        $actually_built++;
-                                    } 
-                                    else {
-                                        unless( $actually_built ) {
-                                            $order->_resolve( "Already at max production" );
-                                            return;
-                                        }
-                                    }
-                                }
-                                elsif( $prototype->get_type() eq 'TECH' ) {
-                                    my $current = $player->get_tech_level();
-                                    my $provided = $prototype->get_provides_tech();
-                                    if( $provided > $current ) {
-                                        $player->_change_tech_level( $provided );
-                                        $player->set_resources( $player->get_resources() - $cost );
-                                        $order->_resolve( "Upgraded to tech ".$player->get_tech_level()." from $current for a cost of $cost", 1 );
-                                    } else {
-                                        $order->_resolve( "Upgrading to tech $provided has no effect" );
-                                    }
-                                    return;
-                                }
-                                #
-                                # calculate the maximum build size. It is 3 * the production + 
-                                # number of orbital industries here.
-                                #
-                                $self->set_buildcap( 3 * $self->get_currprod() );
-                                my $ships_here = $self->get_ships();
-                                for my $industry_ship (grep { $_->get_type() eq 'OIND' } @$ships_here) {
-                                    $self->set_buildcap( 1 + $self->get_buildcap() );
-                                }
+                            $self->add_to_ships( $new_ship );
+                            $self->get_game()->_current_turn()->add_to_ships( $new_ship );
+                            $player->add_to_ships( $new_ship );
+                            $player->set_resources( $player->get_resources() - $cost );
+                            $order->add_to_built( $new_ship );
+                            $actually_built++;
+                        }
+                        elsif( $prototype->get_type() eq 'IND' ) {
+                            if( $self->get_currprod() < $self->get_maxprod() ) {
+                                $self->set_currprod($self->get_currprod() + 1 );
+                                $player->set_resources( $player->get_resources() - $cost );
+                                $actually_built++;
                             }
                             else {
-                                if( $actually_built ) {
-                                    $order->_resolve("Built ". $actually_built . " of $quantity " . $prototype->get_name(), 1 );
-                                } 
-                                else {   
-                                    $order->_resolve( "Not enough resources to build " . $prototype->get_name() );
+                                unless( $actually_built ) {
+                                    $order->_resolve( "Already at max production" );
+                                    return;
                                 }
-                                return;
                             }
                         }
-                        else {
-                            if( $actually_built ) {
-                                $order->_resolve("Built ". $actually_built . " of $quantity " . $prototype->get_name(), 1 );
-                            } 
-                            else {   
-                                $order->_resolve("Can't build " . $prototype->get_name() . "Not enough build capacity.");
+                        elsif( $prototype->get_type() eq 'TECH' ) {
+                            my $current = $player->get_tech_level();
+                            my $provided = $prototype->get_provides_tech();
+                            if( $provided > $current ) {
+                                $player->_change_tech_level( $provided );
+                                $player->set_resources( $player->get_resources() - $cost );
+                                $order->_resolve( "Upgraded to tech ".$player->get_tech_level()." from $current for a cost of $cost", 1 );
+                            } else {
+                                $order->_resolve( "Upgrading to tech $provided has no effect" );
                             }
                             return;
                         }
-                    } #each times build
-                    $self->_notify( "Built $quantity ".$prototype->get_name()." in location ".$self->get_name()." for a cost of $cost" );
-                    $order->_resolve( "Built $quantity ".$prototype->get_name()." in location ".$self->get_name()." for a cost of $cost", 1 );
-                } 
-            }
-            else { #enough tech
-                $order->_resolve( "Tech level not high enough to build " . $prototype->get_name() );
-            }
-        } 
-        else {
-            $order->_resolve( "Unknown prototype type ".$prototype->get_type() );
+                        #
+                        # calculate the maximum build size. It is 3 * the production +
+                        # number of orbital industries here.
+                        #
+                        $self->set_buildcap( 3 * $self->get_currprod() );
+                        my $ships_here = $self->get_ships();
+                        for my $industry_ship (grep { $_->get_type() eq 'OIND' } @$ships_here) {
+                            $self->set_buildcap( 1 + $self->get_buildcap() );
+                        }
+                    }
+                    else {  # if could not build as many as requested, it built as many as it could with the resources the player has
+                        if( $actually_built ) {
+                            $order->_resolve("Built ". $actually_built . " of $quantity " . $prototype->get_name(), 1 );
+                        }
+                        else {
+                            $order->_resolve( "Not enough resources to build " . $prototype->get_name() );
+                        }
+                        return;
+                    }
+                }
+                else { # if could not build as many as requested, it built as many as it could with the build capacity the sector has
+                    if( $actually_built ) {
+                        $order->_resolve("Built ". $actually_built . " of $quantity " . $prototype->get_name(), 1 );
+                    }
+                    else {
+                        $order->_resolve("Can't build " . $prototype->get_name() . "Not enough build capacity.");
+                    }
+                    return;
+                }
+            } #each times build
+            $self->_notify( "Built $quantity ".$prototype->get_name()." in location ".$self->get_name()." for a cost of $cost" );
+            $order->_resolve( "Built $quantity ".$prototype->get_name()." in location ".$self->get_name()." for a cost of $cost", 1 );
+        };
+        if( $@ ) {
+            $order->_resolve( $@ );
         }
     } #each build order
 
@@ -236,7 +235,7 @@ sub _produce {
     if( $owner ) {
         $owner->set_resources( $owner->get_resources() + $self->get_currprod() );
     }
-    
+
 } #_produce
 
 1;

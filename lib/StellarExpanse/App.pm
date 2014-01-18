@@ -35,7 +35,7 @@ sub _init {
 #
 sub _init_account {
     my( $self, $acct ) = @_;
-    $acct->set_comm( new StellarExpanse::Comm( { _creator => $acct } ) );
+    $acct->set_comm( new StellarExpanse::Comm( { __creator => $acct } ) );
     $acct->set_pending_games([]);
     $acct->set_active_games([]);
     $acct->set_last_msg( time() );
