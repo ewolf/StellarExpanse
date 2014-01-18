@@ -50,6 +50,7 @@
       .err { background-color: lightorange; border : 2px red solid; }
       .owned { background-color: lightgreen; border : 2px green solid; }
       .row td { border-top: 1px solid black; }
+      .emph { background-color: lightgreen; font-size: larger; font-decoration: bold }
     </style>
   </head>
 
@@ -841,7 +842,7 @@ Make the entries not the can build items, but the orders
     Game is <$  game.name $><br>
     Resources : <$  player.resources $><br>
     Tech Level : <$  player.tech_level $><br>
-    On Turn : <?? function( ctx ) { return ctx.scratch.current_turn; } ??><BR>
+    On Turn :  <span id="turnspan"><?? function( ctx ) { return ctx.scratch.current_turn; } ??></span><BR>
     <$$$ control ready_div <label class="not-ready"> $$$>
         <$$$ control ready_txt <span>$$$>Ready for next turn</span> <$$$ control ready_check <input class="not-ready" type="checkbox"> $$$>
         </label>
@@ -916,6 +917,7 @@ Make the entries not the can build items, but the orders
                console.log( [ "FROM ", ctx.scratch.current_turn, 'to',player.get_game().get_turn_number() ] );
                if( ctx.scratch.current_turn *1 != player.get_game().get_turn_number() * 1 ) {
                    refresh();
+                   $( '#turnspan' ).addClass( 'emph' );
                }
            } );} , 10000 );
        }
