@@ -8,7 +8,6 @@
     <script src="/yote/js/jquery.base64.min.js"></script>
     <script src="/yote/js/json2.js"></script>
 
-
     <script src="/js/main.js"></script>
     <script src="/yote/js/yote.js"></script>
     <script src="/yote/js/yote.util.js"></script>
@@ -22,6 +21,7 @@
     <link href="css/se.css" rel="stylesheet" type="text/css" media="all" />
 
     <SCRIPT>
+      <!--
     $().ready(function(){
         $.yote.debug = true;
 	$.yote.init();
@@ -29,8 +29,37 @@
 	se_app = $.yote.fetch_app( 'StellarExpanse::App' );
 
 	$.yote.util.register_items( {
-	    chat : se_app.get_messageboard()
+	    chat : se_app.get_messageboard(),
+	    app  : se_app
 	} );
+    
+	if( $.yote.is_root() ) {
+	    $.yote.util.register_items( {
+		flavor_ed : [
+		    '*name', // flavor name
+		    function( item, is_prep ) { //flavor ships
+			if( is_prep ) {
+			    $.yote.util.register_item( 'flav_'+ item.id, item );
+			    return '<div id="flav_' + item.id + '" item="$flav_' + item.id + '" class="control_table" plimit="10" ' +
+				' container_name="ships" new_object_type="root" ' +
+				' columns="' + "['*name','*ship_class','*tech_level','*damage_control','*jumps','*cost','*targets','*self_destruct','*attack_beams','*defense','*size','*racksize','*type']" + '" ' +
+				' column_headers="' + "['Name','Class','Tech Req','Damage Control','Jumps','Cost','Targets','Self Destruct','Attack Beams','Defense','Size','Racksize','Type']" + '" ' +
+				' new_columns="' + "['name','ship_class','tech_level','damage_control','jumps','cost','targets','self_destruct','attack_beams','defense','size','racksize','type']" + '" ' +
+				' new_column_placeholders="' + "['Name','Class','Tech','Damage Control','Jump Range','Cost','Targets','Self Destruct','Attack Beams','Defense','Size','Rack Size','Type']" + '"' +
+				' new_button="Add Ship" new_attachpoint="#flav_newship_' + item.id + '" ' +
+				' new_columns="[' + "'name','ship_class'" + ']" new_column_placeholders="[' + "'name','ship class'" + ']" ' + 
+				'></DIV><DIV id="flav_newship_' + item.id + '"></DIV>';
+			}
+		    }, //ships for flavor
+		    '*universe_config',
+		    '*empire_config',
+		    '*game_config',
+		    '*base_config'
+		]
+	    } );
+	} else {
+	    $( 'flavor_editor_panel' ).hide();
+	}
 
 	attach_login( {
 	    attachpoint : '#logged_in_status',
@@ -39,26 +68,26 @@
 	    after_login         : function() { refresh( true ) },
 	    after_logout        : function() { refresh( false ) }
 	} );
-	
+
 	function refresh( logged_in ) {
 	    $( '#comm_div' ).empty();
 	    $.yote.util.refresh_ui();
 	    if( logged_in ) {
+		my_acct = se_app.account();
+		se_app.sync_lobby( my_acct );
 		$( '#comm_div' ).append( '<h3>Comm</h3><input type="text" placeholder="connect to" id="connector"> <button id="c_go">connect</button><div id="comm_msg"></div><hr>' );
 		$.yote.util.button_actions( {
 		    button : '#c_go',
 		    texts  : [ '#connector' ],
 		    action : function() {
 			$( '#comm_msg' ).empty();
-			var conv = my_acct.get_comm().open_channel( $('#connector').val() );
-			if( conv ) {
-			    convo( conv.get_with(), conv );
-			} else {
+			try {
+			    convo( $('#connector').val() );
+			} catch(err) {
 			    $( '#comm_msg' ).append( $('#connector').val() + ' not found' );
 			}
 		    }
 		} );
-		var my_acct = se_app.account();
 		var my_comm = my_acct.get_comm();
 		var items = my_comm.paginate( { 
 		    name : '_convos_with',
@@ -69,36 +98,36 @@
      
 		var ihash = items.to_hash();
 		for( var i in ihash ) {
-		    var item = ihash[ i ];
-		    if( my_acct.get( 'closed_' + item.id ) != 'true' )
-			convo( item.get_with(), item );
+		    var conv = ihash[ i ];
+		    if( my_acct.get( 'closed_' + conv.id ) != 'true' )
+			convo( i );
 		}
-	    }
-
+	    } //if logged in
+	    $.yote.util.init_ui();
 	} //refresh
+	$.yote.util.init_ui();
     });
-     function convo( target_account, convo ) {
-	 var cid     = target_account.id;
-	 var my_acct = se_app.account();
+     function convo( target_handle ) {
+	 var conv = my_acct.get_comm().open_channel( target_handle );
+	 var cid     = conv.id;
 	 if( typeof $( '#conv_panel_wrapper_' + cid ).val() == 'undefined' ) {
 	     $( '#comm_div' ).append( '<DIV id="conv_panel_wrapper_' + cid + '"></div>' );
 	 } else {
 	     $( '#conv_panel_wrapper_' + cid ).empty();
 	 }
 	 // create a conversation and attach to the two recipients
-	 var conv = convo || my_acct.get_comm().open_channel( target_account.get_handle() );
  	 my_acct.set( 'closed_' + conv.id, 'false' );
          // create a panel for the conversatoin on the UI
-         var ri_hash = {};
+         var ri_hash = { app : se_app };
          ri_hash['conv_' + cid] = conv;
          $.yote.util.register_items( ri_hash );
          var buf = '<DIV id="conv_panel_' + cid + '">\
                     <button type="Button" id="close_' + cid + '">X</BUTTON>\
-                    Conversation with ' + target_account.get_handle() + '<BR>\
+                    Conversation with ' + target_handle + '<BR>\
                     <div id="conv_msg_' + cid + '"></div>\
                     <div id="conv_div_' + cid + '" class="control_table" item="$conv_' + cid + '" plimit="15"\
                          container_name="conversations" container_type="hash" show_count="false"\
-                         columns="[function(item,is_prep){if(is_prep){return item.get_message()+' +
+                         columns="[function(item,is_prep){if(is_prep){return item.get(\'message\')+' +
                                           "'['+item.get_creator().get_handle()+'] ('+new Date(1000*item.get_created_on()).toLocaleString()+')'}}]" + '"\
                          new_button="say" new_attachpoint="#conv_msg_' + cid + '"\
                          paginate_order="reverse" new_columns="[' + "'message'" + ']"\
@@ -112,14 +141,16 @@
 	     $( '#conv_panel_wrapper_' + cid ).remove();
 	     my_acct.set( 'closed_' + c.id, 'true' );
 	 } } )( conv ) );
-         $.yote.util.init_ui();
+	 $.yote.util.init_ui();
      } //convo
+		    -->
     </script>
     <style>
       .emp   { font-family:"Lucida Console",monospace;  }
       .bordered { border: 1px solid black;padding:5px; margin: 5px;}
       #comm_div { margin:10px;border: 3px solid black;background-color:rgba(200,150,30,.4) }
       #chat_panel { margin:10px;border: 3px solid black;background-color:rgba(150,200,30,.4) }
+      #whos_panel { margin:10px;border: 3px solid black;background-color:rgba(150,30,200,.4) }
       #side_panel { float: left; }
     </style>
   </head>
@@ -142,10 +173,10 @@
              columns="[function(item,is_prep){
                           var cr=item.get_creator();
                           if(is_prep){
-                          return item.get_message()+'[<a href=# id=chat_with_' + cr.id + ' >'+cr.get_handle()+'</a>] ('+
+                          return item.get('message')+'[<a href=# id=chat_with_' + cr.id + '>'+cr.get_handle()+'</a>] ('+
                                  new Date(1000*item.get_created_on()).toLocaleString()+')'
                              }else{
-                              $('#chat_with_'+cr.id).click(function(){convo(cr)});
+                              $('#chat_with_'+cr.id ).click(function(){convo(cr.get_handle())});
                           }}]"
              after_new_function="*function(item){
                                        item.set('created_on',Math.round(new Date().getTime()/1000));
@@ -158,21 +189,64 @@
              ></div>
       </DIV>
 
-      <DIV id="comm_div"></div>
-    </DIV>
-    <!-- Panel for talking directly to an other. Only when logged in with account 
- 	 the conversation is between two accounts, so
-	    account A -> comm -> {converstaions} :  account B id -> conversation_obj_AB
-	    account B -> comm -> {converstaions} :  account A id -> conversation_obj_AB
-	 this is for conversations with only two participants. There could be more, but would have a different container type
-      -->
+      <DIV id="comm_div">
+	<!-- Panel for talking directly to an other. Only when logged in with account 
+ 	     the conversation is between two accounts, so
+	     account A -> comm -> {converstaions} :  account B id -> conversation_obj_AB
+	     account B -> comm -> {converstaions} :  account A id -> conversation_obj_AB
+	     this is for conversations with only two participants. 
+	     There could be more, but would have a different container type.
+	     This will be populated with all conversations that have not been closed.
+	  -->
+      </div>
+      <DIV id="whos_panel">
+	<h3>Who is logged in</h3>
+	<DIV id="whos_logged_in_panel" class="control_table"
+	     item="$app" plimit="15" container_name="logged_in" show_count="false"
+	     columns="[function(acct,is_prep){if(is_prep){return '<a href=# id=chat_with_online_' + acct.id + ' >' + acct.get_handle() + '</a>'; } else { $( '#chat_with_online_' + acct.id ).click((function(a){return function(){convo(a.get_handle());}})(acct))}}]"
+	     >
+	</div>
+      </div>
+
+    
+    </DIV> <!-- side_panel -->
 
     <DIV id="main_div" class="main_div">
       <h1>Stellar Expanse</h1>
+
       <!-- Control table for games -->
       <DIV id="games_panel">
+	<h3>Active Games</h3>
+	<DIV id="active_games" class="control_table" search_terms="" search_on=""
+	     >	  
+	</DIV>
+	<HR>
+	<h3>Pending Games</h3>
+	<DIV>
+	</DIV>
+	<HR>
+	<h3>Available Games</h3>
+	<DIV id="avail_games" class="control_table" 
+	     columns=""
+	     >
+	</DIV>
+	<HR>
       </DIV>
     </div>
+
+    <DIV id="flavor_editor_panel">
+      Flavor Editor
+      <DIV id="flavor_editor_div" item="$app" requires_root="true" include_remove="true" class="control_table" plimit="12"
+           container_name="flavors"
+	   columns="$flavor_ed" column_headers="['Name','Ships','Univ Sector Config','Empire Sector Config','Game Sector Config','Base Sector Config']"
+           suppress_table="true" 
+           new_button="Add Flavor" new_attachpoint="#new_flavor_div" new_object_type="root"
+           new_columns="['name']" new_column_placeholders="['Name']"
+           new_function="*function(){return se_app.new_flavor();}"
+	   >
+      </DIV>
+      <DIV id="new_flavor_div"></DIV>
+    </DIV>
 
   </BODY>
 </html>

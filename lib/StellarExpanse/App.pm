@@ -12,8 +12,10 @@ use base 'Yote::AppRoot';
 
 sub _init {
     my $self = shift;
-    my $flav = $self->new_flavor();
+    $self->SUPER::_init();
+    my $flav = $self->_new_flavor();
     $flav->set_name( "primary flavor" );
+    $self->add_to_flavors( $flav );
     $self->set_messageboard( new Yote::Obj() );
     $self->set__games({});
     $self->set_pending_games( new Yote::Obj() );
@@ -64,12 +66,12 @@ sub _register_account {
 	$self->set_logged_in( [] );
 	for my $block ( keys %$blocks ) {
 	    for my $act ( values %{ $blocks->{ $block } } ) {
-		$self->add_once_to_logged_in( $act->get_handle() );
+		$self->add_once_to_logged_in( $act );
 	    }
 	}
     }
     $five_min_container->{ $acct->{ID} } = $acct;
-    $self->add_once_to_logged_in( $acct->get_handle() );
+    $self->add_once_to_logged_in( $acct );
 
 } #_register_account
 
@@ -118,8 +120,13 @@ sub load_flavors {
 
 sub new_flavor {
     my( $self, $data, $acct ) = @_;
+    die "Access Error" unless $acct->is_root();
+    return $self->_new_flavor();
+}
+
+sub _new_flavor {
+    my $self = shift;
     my $flav = new StellarExpanse::Flavor();
-    $self->add_to_flavors( $flav );
     return $flav;
 }
 

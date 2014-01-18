@@ -4,7 +4,7 @@ use strict;
 
 use StellarExpanse::Ship;
 
-use base 'Yote::Obj';
+use base 'Yote::RootObj';
 
 our @defaultships=(
     {
@@ -821,7 +821,6 @@ our $base_sector_config = q~
 ~;
 sub _init {
     my $self = shift;
-
     $self->SUPER::_init();
     for my $def (@defaultships) {
         my $prototype = new StellarExpanse::Ship;
