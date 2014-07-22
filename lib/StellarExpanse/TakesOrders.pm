@@ -4,7 +4,7 @@ use strict;
 
 use StellarExpanse::Order;
 
-use base 'Yote::RootObj';
+use base 'Yote::UserObj';
 
 sub _init {
     my $self = shift;
@@ -17,6 +17,10 @@ sub _init {
 sub new_order {
     my( $self, $data, $acct ) = @_;
     my $player = $self->get_game()->_find_player( $acct );
+
+    print STDERR Data::Dumper->Dump(["New ORDER",$acct,$player,$player->get_account() ]);
+
+
     unless( $player->_is( $self->get_owner() ) || $player->_is( $self ) ) {
         die "Player may not order this object";
     }
@@ -27,7 +31,7 @@ sub new_order {
     my $ord = new StellarExpanse::Order();
     $ord->_absorb( $data );
     $ord->set_subject( $self );
-    $ord->set__creator( $acct );
+    $ord->set___creator( $acct );
     $self->add_to_pending_orders( $ord );
     
     $self->get_owner()->add_to_all_pending_orders( $ord );

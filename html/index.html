@@ -4,13 +4,7 @@
     <title>Stellar Expanse</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <script src="/yote/js/jquery-2.1.0.js"></script>
-    <script src="/yote/js/jquery.base64.min.js"></script>
-    <script src="/yote/js/jquery.cookie.js"></script>
-    <script src="/yote/js/json2.js"></script>
-    <script src="/yote/js/yote.js"></script>
-    <script src="/yote/js/yote.templates.js"></script>
-    <script src="/yote/js/yote.util.js"></script>
+    <script src="/yote/_js/maxi.js"></script>
 
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
     <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
@@ -23,6 +17,10 @@
     }
 
     $().ready(function(){
+      setTimeout( startme, 0 );
+    } );
+
+    function startme() {
         $.yote.debug = false;
         $.yote.templates.import_templates( '/templates/default_templates.html' );
         
@@ -30,8 +28,7 @@
         $.yote.templates.init();
         $.yote.templates.refresh();
         $( '#spinner' ).hide();
-    } );
-
+    }
     </script>
     <style>
       .emp   { font-family:"Lucida Console",monospace;  }

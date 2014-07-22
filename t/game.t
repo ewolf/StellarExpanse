@@ -34,9 +34,9 @@ if( 0 ) {
     my( $host, $port ) = ( 'localhost', 27017 );
 
     my $client = MongoDB::MongoClient->new(
-	host=> $host,
-	port=> $port,
-	);
+        host=> $host,
+        port=> $port,
+        );
     my $db = $client->get_database( 'yote_test' );
     $db->drop();
     
@@ -58,7 +58,7 @@ sub test_error {
     my( $fun, $val, $msg ) = @_;
     undef $@;
     eval {
-	&$fun();
+        &$fun();
     };
     like( "$@", $val, $msg );
     return;
@@ -74,7 +74,7 @@ sub test_suite {
 
 
     # create login account to use for app commands
-    my $root = Yote::YoteRoot::fetch_root();
+    my $root = Yote::Root::fetch_root();
     ok( $root->create_login( { h => 'root', 
                                p => 'toor', 
                                e => 'foo@bar.com' } )->{l},
@@ -107,11 +107,11 @@ sub test_suite {
 
     my $flav = $flavrs->[0];
     my $game = $app->create_game( { name => "test game",
-				    number_players => 2,
-				    starting_tech_level => 1,
-				    starting_resources => 100,
-				    flavor => $flav,
-				  }, $acct );
+                                    number_players => 2,
+                                    starting_tech_level => 1,
+                                    starting_resources => 100,
+                                    flavor => $flav,
+                                  }, $acct );
     is( scalar( @{$game->get__turns()} ), 1, "Number of turns stored for initialized game" );
 
     is( $game->get_name(), "test game", "game name" );
@@ -304,17 +304,17 @@ sub test_suite {
     # this test can't use 'fail_order' because it sets up the wrong
     # root and acct
     test_error(
-	sub {
-	    $fred_battleship->new_order( {
-		from  => $fred_sector,
-		to    => $links->[0],
-		turn  => $turn->get_turn_number(),
-		order => 'move',
-				    },
-				    $amy_acct ), 
-	},
-	qr/player may not order this/i,
-	"Cannot order someone else's ship" );
+        sub {
+            $fred_battleship->new_order( {
+                from  => $fred_sector,
+                to    => $links->[0],
+                turn  => $turn->get_turn_number(),
+                order => 'move',
+                                         },
+                                         $amy_acct ), 
+        },
+        qr/player may not order this/i,
+        "Cannot order someone else's ship" );
 	
 
     #
@@ -486,7 +486,7 @@ sub test_suite {
 
     # OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
     my $uo = pass_order( $scout2, { turn  => $scout2->get_game()->_current_turn()->get_turn_number(), 
-                           order => 'unload' } );
+                                    order => 'unload' } );
     my $lo = pass_order( $fred_boat, { order => 'load', carrier => $carrier, turn  => $scout2->get_game()->_current_turn()->get_turn_number() } );
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -529,8 +529,8 @@ sub test_suite {
     my $f2 = fire_order( $carrier, $fred_boat, 3, "fire on boat but out of juice" );
     
     my $ro = pass_order( $fred_battleship, { turn  => $fred_battleship->get_game()->_current_turn()->get_turn_number(),
-                                        order => 'repair',
-                                        repair_amount => 3 } );
+                                             order => 'repair',
+                                             repair_amount => 3 } );
     # battleships hp for next turn 45 - 10 + 3 (repair) + 6 = 44
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -612,10 +612,9 @@ sub test_suite {
     my $misses = $Yote::ObjProvider::CACHE->{misses};
     my $total = $hits + $misses;
     if( $total ) {
-	my $hit_ratio = $hits / $total;
-	print STDERR Data::Dumper->Dump(["Hit Ratio : $hit_ratio of $total"]);
+        my $hit_ratio = $hits / $total;
+        print STDERR Data::Dumper->Dump(["Hit Ratio : $hit_ratio of $total"]);
     } else { 	print STDERR Data::Dumper->Dump(["NO cache data"]); }
-
 } #test_suite
 
 sub move_order {
@@ -669,8 +668,8 @@ sub pass_order {
     my( $obj, $ord, $msg ) = @_;
     my $res;
     eval {
-	$res = $obj->new_order( $ord, $obj->get_owner()->get_acct() );
-	ok( 1, $msg || 'made order' );
+        $res = $obj->new_order( $ord, $obj->get_owner()->get_acct() );
+        ok( 1, $msg || 'made order' );
     };
     ok( 0, $msg || 'made order' ) unless $res;
     return $res;
