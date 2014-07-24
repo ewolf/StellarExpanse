@@ -10,11 +10,11 @@ use strict;
 
 use base 'Yote::Obj';
 
-# sub _init {
-#     my $self = shift;
-#     $self->SUPER::_init();
-#     $self->set_players({});
-# }
+sub _init {
+     my $self = shift;
+     $self->SUPER::_init();
+     $self->set_players({});
+}
 
 #
 # List of joined players in the game this turn.

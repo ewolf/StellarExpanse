@@ -106,7 +106,7 @@
 
     <script type="text/template" class="yote_template_definition" template_name="MainBody">
       <??? function( ctx ) { 
-	   return $.yote.is_root() ? '<$$ Flavors $$>' : '<DIV id="errpanel" class="err">Must be logged in with a root account to view this page.</DIV>';
+	   return $.yote.has_root_permissions() ? '<$$ Flavors $$>' : '<DIV id="errpanel" class="err">Must be logged in with a root account to view this page.</DIV>';
       }
       ???>
     </script>

@@ -1,10 +1,11 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
   <head>
     <title>Stellar Expanse</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <script src="/yote/_js/maxi.js"></script>
+    <script src="/yote/js"></script>  
+<!--    <script src="/yote/_js/maxi.js"></script> -->
 
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
     <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
@@ -17,7 +18,7 @@
     }
 
     $().ready(function(){
-      setTimeout( startme, 0 );
+        startme();
     } );
 
     function startme() {
@@ -25,6 +26,7 @@
         $.yote.templates.import_templates( '/templates/default_templates.html' );
         
         var app = $.yote.init( 'StellarExpanse::App' );
+        app.precache();
         $.yote.templates.init();
         $.yote.templates.refresh();
         $( '#spinner' ).hide();
@@ -186,11 +188,9 @@
 
         var load_target;
         ords = myship.get( 'pending_orders' );
-console.log( [ 'MYSHIP',myship.get_name(), ords ? ords.to_list() : undefined ] );
         for( var j=0; j < ords.length(); j++ ) {
             var ord = ords.get( j );
             if( ord.get_order() == 'load' ) {
-console.log( " LOAD ORDER " );
                 load_target = ord.get_carrier();
                 ctx.vars.load_target_order = ord;
             }
@@ -211,7 +211,6 @@ console.log( " LOAD ORDER " );
                         can_load = true;
                     }                    
                     // show load or cancel load or nothing
-console.log( [ 'CHECK', carrier.get_name(), load_target ] );
                     buf += '<option value="' + i + '" ' + ( carrier.is( load_target ) ? ' selected' : '') + '>' + carrier.get_name() + '</option>';
                 }
             } //var i
@@ -251,7 +250,6 @@ console.log( [ 'CHECK', carrier.get_name(), load_target ] );
             }
         } //if carried
         $( ctx.controls.load_onto ).change( function() {
-console.log( ["load onto chnage", ctx.vars.load_target_order ] );
             var selval = $( this ).val();
             if( selval == '' ) {
                 if( ctx.vars.load_target_order ) {
@@ -268,7 +266,6 @@ console.log( ["load onto chnage", ctx.vars.load_target_order ] );
                     }
                     else {
                         //make order
-console.log( [ 'make load order for ' + ctx.vars._.get_name(), carrier ] );
                         ctx.vars._.new_order( { order :  'load',
                                                 carrier : carrier,
                                                 turn  : ctx.scratch.current_turn
@@ -508,30 +505,30 @@ console.log( [ 'carried ' + ms.get_name(), ms, c ] );
     <#  --------------------- default var is sector ------------------- #>
     <???
        function( ctx ) {
-       var sect = ctx.vars.my_sector;
-       var ords = sect.get( 'pending_orders' );
-       var player = ctx.vars.player;
-       ctx.scratch.max_tech_ordered = player.get_tech_level() * 1;
-       var unspent_resources = player.get_resources();
-       var build_cap_left = sect.get( 'buildcap' );
-       if( ords ) {
-           for( var i=0; i<ords.length(); i++ ) {
-           var o = ords.get( i );
-           var s = o.get_ship();
-           if( s.get_ship_class().match( /^Tech_Level_/ ) ) {
-               if( 1*s.get_provides_tech() > ctx.scratch.max_tech_ordered ) {
-                   ctx.scratch.max_tech_ordered = 1*s.get_provides_tech();
+           var sect = ctx.vars.my_sector;
+           var ords = sect.get( 'pending_orders' );
+           var player = ctx.vars.player;
+           ctx.scratch.max_tech_ordered = player.get_tech_level() * 1;
+           var unspent_resources = player.get_resources();
+           var build_cap_left = sect.get( 'buildcap' );
+           if( ords ) {
+               for( var i=0; i<ords.length(); i++ ) {
+                   var o = ords.get( i );
+                   var s = o.get_ship();
+                   if( s.get_ship_class().match( /^Tech_Level_/ ) ) {
+                       if( 1*s.get_provides_tech() > ctx.scratch.max_tech_ordered ) {
+                           ctx.scratch.max_tech_ordered = 1*s.get_provides_tech();
+                       }
+                   }
+                   unspent_resources -= o.get_quantity() * s.get_cost();
+                   var sz = s.get_size(); sz = sz*1 > 0 ? 1*sz : 0;
+                   build_cap_left -= 1*o.get_quantity() * sz;
                }
            }
-           unspent_resources -= o.get_quantity() * s.get_cost();
-           var sz = s.get_size(); sz = sz*1 > 0 ? 1*sz : 0;
-           build_cap_left -= 1*o.get_quantity() * sz;
-           }
-       }
-       ctx.scratch.unspent_resources = unspent_resources;
-       ctx.scratch.build_cap_left = build_cap_left;
+           ctx.scratch.unspent_resources = unspent_resources;
+           ctx.scratch.build_cap_left = build_cap_left;
 
-       return '';
+           return '';
        }
        ???>
        <?? function( ctx ) { 
@@ -901,17 +898,18 @@ Make the entries not the can build items, but the orders
     <# CompletedOrder #>
   </script>
 
+  <script type="text/template" class="yote_template_definition" template_name="Messages">
+    <li> <$ _ $></li>
+  </script>
+
   <script type="text/template" class="yote_template_definition" template_name="InGame">
     <#  -------------------DECLARATIONS--------------------------- #>
     <???
     function( ctx ) {
         ctx.scratch.message = '';
         var acct = $.yote.fetch_account();
-        var player = acct.get( 'player' );
-        if( ! player ) {
-            player = acct.get_game().my_player();
-            acct.set( 'player', player );
-        }
+        var player = acct.get_current_game().my_player();
+
         if( ctx.scratch.player_loaded != player.id  ) {
             setTimeout( function() { $( '#spinner' ).show(); }, 10 );
             player.load_data();
@@ -1006,7 +1004,8 @@ Make the entries not the can build items, but the orders
         return ret ? ret.to_list() : [];
     } $$$>
     <?? function( ctx ) { 
-        return ctx.scratch.current_turn > 0 ? 'Last Turn Orders<ul> <@ CompletedOrder @completed_orders 40 @> </ul><hr>' : '';
+        console.log( [ "PLAY", ctx.vars.player ] );
+        return ctx.scratch.current_turn > 0 ? '<h3>Last Turn Orders</h3><ul> <@ CompletedOrder @completed_orders 40 @> </ul> <ul> <@ Messages player@notifications 40 @></ul>' : '';
     } ??>
     <h3>Known Sectors</h3>
     <table><tr> <th>Name</th> <th>Owner</th> <th>Build Cap</th> <th>Links</th> <th>Ships</th> </tr>
@@ -1061,19 +1060,17 @@ Make the entries not the can build items, but the orders
            
            $( ctx.controls.backlink ).click( function() {
                $.yote.fetch_account().set( 'current_game', '' );
+               $.yote.clear_wrap_cache();
                refresh();
            } );
            
            ctx.scratch.set_message( ctx.scratch.message || '' );
-           
            setInterval( function() {  player.sync_all('',function(succ) {
-               if( ctx.scratch.current_turn *1 != player.get_game().get_turn_number() * 1 ) {
-                   $.yote.debug = true;
+               if( ctx.scratch.current_turn *1 != player.get_current_game().get_turn_number() * 1 ) {
                    refresh();
-                   $.yote.debug = false;
                    $( '#turnspan' ).addClass( 'emph' );
                }
-           },function(err){},true );} , 10000 );
+           },function(err){},true );} , 10000000 );
        }
     ?>
     <# InGame #>
@@ -1133,10 +1130,7 @@ Make the entries not the can build items, but the orders
     <? function( ctx ) {
      $( ctx.controls.go_game ).click( function() {
          var acct = $.yote.fetch_account();
-         if( ! acct.get( 'current_game' ) || acct.get_current_game().id != ctx.vars._.id ) {
-             acct.set( 'current_game', ctx.vars._ );
-             acct.set( 'player', ctx.vars._.my_player() );
-         }
+         acct.set( 'current_game', ctx.vars._ );
          refresh();
      } );
      $( ctx.controls.del_game ).click( function() {
@@ -1157,7 +1151,7 @@ Make the entries not the can build items, but the orders
        Start at tech level <$  _.starting_tech_level $> with <$  _.starting_resources $> RUs.
     Created by <$  _.created_by.handle $>. <$$$ control join_game <button type="button">Join</button> $$$>
     <? function( ctx ) {
-     $( ctx.controls.join_game ).click( function() { ctx.scratch.message += ctx.vars._.add_player();refresh(); } );
+     $( ctx.controls.join_game ).click( function() { ctx.scratch.message += ctx.vars._.add_player();alert( ctx.scratch.message );refresh(); } );
        }
     ?>
   </script>
@@ -1175,18 +1169,18 @@ Make the entries not the can build items, but the orders
     <$$$ set game _acct_.current_game $$$>
     <?? function(ctx) {
     
-    var cur_game = ctx.parse( '_acct_.current_game' );
-    if( cur_game )
-        ctx.scratch.current_turn = 1*cur_game.get_turn_number();
-    if( ctx.scratch.current_turn == 0 ) {
-        ctx.scratch.user_acknowledged_turn_change = true;
-    }
-    if( cur_game ) {
-        return '<$$ InGame $$>';
-    }
-    else {
-        return '<$$ Lobby $$>';
-    }
+        var cur_game = ctx.parse( '_acct_.current_game' );
+        if( cur_game )
+            ctx.scratch.current_turn = 1*cur_game.get_turn_number();
+        if( ctx.scratch.current_turn == 0 ) {
+            ctx.scratch.user_acknowledged_turn_change = true;
+        }
+        if( cur_game ) {
+            return '<$$ InGame $$>';
+        }
+        else {
+            return '<$$ Lobby $$>';
+        }
     } ??>
     <# LoggedIn #>
   </script>
@@ -1196,7 +1190,7 @@ Make the entries not the can build items, but the orders
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="MainBody">
-    <?? function() { return $.yote.is_logged_in() ? '<$$ LoggedIn $$>' : '<$$ Splash $$>'; } ??>
+    <?? function( ctx ) { ctx.scratch.message = ''; return $.yote.is_logged_in() ? '<$$ LoggedIn $$>' : '<$$ Splash $$>'; } ??>
   </script>
 
 

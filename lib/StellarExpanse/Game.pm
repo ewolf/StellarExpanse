@@ -136,7 +136,7 @@ sub active_player_count {
 #
 sub needs_players {
     my $self = shift;
-    return ( $self->get_active() ) ? 0 : $self->get_number_players() - keys %{$self->_current_turn()->get_players()};
+    return ( $self->get_active() ) ? 0 : $self->get_number_players() - keys %{$self->_current_turn()->get_players({})};
 } #needs_players
 
 #

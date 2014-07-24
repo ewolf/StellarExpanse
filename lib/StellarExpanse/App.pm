@@ -65,9 +65,9 @@ sub precache {
         ];
     if( $acct ) { 
         push @$ret, $acct->get_active_games(), @{$acct->get_active_games()}, $acct->get_pending_games(), @{$acct->get_pending_games()}, $acct->get_comm();
-        if( $acct->is_root() ) {
+#        if( $acct->is_root() ) {
             push @$ret, map { $_, $_->precache() } @{$self->get_flavors()};
-        }
+#        }
     }
     return $ret;
 } #precache
