@@ -9,6 +9,9 @@ use File::Spec::Functions qw( catdir updir );
 use Test::More;
 use Test::Pod;
 
+use Yote::ObjProvider;
+use Yote::Root;
+
 use Carp;
 $SIG{ __DIE__ } = sub { Carp::confess( @_ ) };
 
@@ -38,11 +41,11 @@ if( 1 ) {
     $db->drop();
     
     Yote::ObjProvider::init( {
-        datastore      => 'Yote::MongoIO',
-        datahost       => $host,
-        dataport       => $port,
-        databasename   => 'yote_test',
-                             } );
+	datastore      => 'Yote::MongoIO',
+	datahost       => $host,
+	dataport       => $port,
+	databasename   => 'yote_test',
+	} );
 }
 Yote::Root::fetch_root();
 Yote::ObjProvider::stow_all();
