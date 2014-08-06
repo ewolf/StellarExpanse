@@ -145,7 +145,7 @@
          } ???>
     <tr><td class="number"> <?? function( ctx ) { return '<$$ WorkerSelect assign ' + ctx.vars._.id + ' ' + ctx.vars.factory.get_build_rate() + ' $$>'; } ??> </td>
         <td> <$ _.recipe.name $> </td>
-        <td> <?? function(ctx) { return  ctx.vars._.get_completed().get( 'ore' ); } ??> </td>
+        <td> <$ _.materials_completed $> of <$ _.recipe.total_material_cost $> </td>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="MyPlanet">
@@ -324,8 +324,10 @@
             ctx.refresh();
         } );
         $( ctx.controls.tobuild ).click( function() {
+$.yote.debug = true;
             ctx.vars.factory.queue_build( ctx.vars._  );
             ctx.refresh();
+$.yote.debug = false;
         } );
     } ?>
   </script>
@@ -485,7 +487,6 @@
           } );
 
          $( ctx.controls.join_game ).click( function() { 
-             $.yote.debug = true;
              ctx._app_.add_player(ctx.vars._,
                                        function(msg){
                                            ctx.scratch.avail_message = "Joined game '" + ctx.vars._.get_name() + "'";
@@ -496,7 +497,6 @@
              if( ctx.vars._.get( 'is_active' ) ) {
                  ctx._acct_.set( 'active_game', ctx.vars._ );
              }
-             $.yote.debug = false;
              ctx.refresh(); 
           } );
        } ?>

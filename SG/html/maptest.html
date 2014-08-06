@@ -3,19 +3,106 @@
 <head>
 <title>map test</title>
 <script src="/yote/js"></script>  
+
+<style>
+    .location { width: 15px; height: 15px; }
+   table { border: 1px black solid }
+  div.line{
+    transform-origin: 0 100%;
+    height: 3px; /* Line width of 3 */
+    background: #000; /* Black fill */
+   }
+</style>
+
 <script>
+    function interpolate( x, x0, x1, y0, y1, bounds ) {
+        if ( (x1 - x0) == 0 ) return 0;
+        var y = ( y0 + ( y1 - y0 ) * ( x - x0 ) / ( x1 - x0 ) );
+        if( bounds ) {
+            if( y < y0 ) y = y0;
+            if( y > y1 ) y = y1;
+        }
+        return y;
+    }
+    function createLine(x1,y1, x2,y2){
+        var length = Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+        var angle  = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        var transform = 'rotate('+angle+'deg)';
+
+        var line = $('<div>')
+            .appendTo('#page')
+            .addClass('line')
+            .css({
+                'position': 'absolute',
+                'transform': transform
+            })
+            .width(length)
+            .offset({left: x1, top: y1}).data( 'x', x1 ).data('y', y1 );
+        return line;
+    } //createLine
+
+    function swingLine(x2,y2,line,h){
+        var x1 = line.data( 'x' );
+        var y1 = line.data( 'y' );
+        var length = Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+        var angle  = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        var transform = 'rotate('+angle+'deg)';
+        
+        line.css({
+            'position': 'absolute',
+            'transform': transform
+        }).width(length).height( h );
+
+    } //swingLine
+
   $().ready( function() { 
-      for( var i=0; i<50; i++ ) {
+      var buf = '<table>'
+      for( var i=0; i<30; i++ ) {
+          buf += '<tr>';
           for( var j=0; j<50; j++ ) {
-              
+              buf += '<td><div class="location" data-x="' + j + '" data-y="' + i + '"></div></td>';
           }
+          buf += '</tr>';
       }
+      buf += '</table>';
+
+      var line;
+
+      $( '#map' ).append( buf );
+      $( '.location' ).mouseover( function(e) {
+          $( '#info' ).empty().append( $( this ).data( 'x' ) + ',' + $( this ).data( 'y' ) );
+      } ).click( function(e) {
+          var here = $( this ).offset();
+          var x = here.left + $( this ).width()/2;
+          var y = here.top + $( this ).height()/2;
+          if( line ) line.remove();
+          line = createLine(x,y,e.pageX,e.pageY);
+          line.data( 'mx', $( this ).data( 'x' ) );
+          line.data( 'my', $( this ).data( 'y' ) );
+      } ).mouseover( function(e) {
+          var here = $( this ).offset();
+
+          
+
+          var x = here.left + $( this ).width()/2;
+          var y = here.top + $( this ).height()/2;
+          
+          if( line ) {
+              var delx = Math.abs( 1*$( this ).data( 'x' ) - 1*line.data( 'mx' ) );
+              var dely = Math.abs( 1*$( this ).data( 'y' ) - 1*line.data( 'my' ) );
+              var length = Math.sqrt( delx*delx + dely*dely );
+              var thick = interpolate( length, 50, 0, 1, 30, true );
+              swingLine(x,y,line,thick);
+          }
+      } );
   } );
 </script>
 <head>
-<body>
-
+<body id="page">
+Map Test
 <div id="map"></div>
+
+<div id="info"></div>
 
 </body>
 

@@ -219,6 +219,33 @@ sub _activate {
                 },
             } );
 
+        my $freighter_recipe = new Yote::Obj( {
+            name => 'freighter',
+            composition => {
+                # special resources go here
+            },
+            components => {
+                warp => 1,
+                passenger_hold => 1,
+                cargo_hold     => 1,
+            },
+                                              } );
+        
+        my $colony_recipe = new Yote::Obj( {
+            name => 'colony ship',
+            composition => {
+                # special resources go here
+            },
+            components => {
+                warp   => 1,
+                        colony => 1,
+            },
+                                           } );
+            
+        $self->calculate_recipe_stats( $freighter_recipe );
+        $self->calculate_recipe_stats( $colony_recipe );
+
+
         $player->_absorb( {
             ships     => [],
             sectors   => [ $ps1 ],
@@ -226,29 +253,7 @@ sub _activate {
             planets   => [ $homeworld ],
             total_pop => 3,
             money     => 10,
-            recipes   => [
-                new Yote::Obj( {
-                    name => 'freighter',
-                    composition => {
-                        # special resources go here
-                    },
-                    components => {
-                        warp => 1,
-                        passenger_hold => 1,
-                        cargo_hold     => 1,
-                    },
-                               } ),
-                new Yote::Obj( {
-                    name => 'colony ship',
-                    composition => {
-                        # special resources go here
-                    },
-                    components => {
-                        warp   => 1,
-                        colony => 1,
-                    },
-                               } ),
-                ],
+            recipes   => [ $freighter_recipe, $colony_recipe ],
                           } ) if $player;
 
         my $otherworld = new Yote::Obj;
@@ -406,6 +411,13 @@ sub calculate_recipe_stats {
     # calculate what happens due to the addons.
 
     $recipe->set_is_calculated( 1 );
+
+    my $total_material_cost = 0;
+    for my $comp (keys %$composition) {
+        $total_material_cost += $composition->{$comp};
+    }
+    $recipe->set_total_material_cost( $total_material_cost );
+    
 
 } #calculate_recipe_stats
 
