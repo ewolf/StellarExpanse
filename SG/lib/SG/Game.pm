@@ -81,7 +81,7 @@ sub _activate {
         my $ps1 = $player_sectors->[ $_ ];
         my $ps2 = $player_sectors->[ $_==0 ? 4 : $_+1 ];
 
-        $players[ $_ ].add_to_sectors( $ps1 );
+        $players[ $_ ]->add_to_sectors( $ps1 );
 
         $os->add_to_connections( $ps1, $ps2, $master_sector );
         $master_sector->add_to_connections( $os );
@@ -90,7 +90,7 @@ sub _activate {
 
         # add one system for now for the player
         my $start_system = new Yote::RootObj( { name => 'start system' } );
-        $players[ $_ ].add_to_systems( $start_system );
+        $players[ $_ ]->add_to_systems( $start_system );
 
         my $other_system = new Yote::RootObj;
         $ps1->add_to_systems( $start_system, $other_system );
@@ -131,15 +131,55 @@ connectoins - [ list of systems this connects with ]
 
 locations - ( planets and others )
 
-?? mineral composition
+#---- planet ( location ) ----
+
+max_population size
+resources - hash of resource type --> abundance 
+colonies - [ list of colonies ]
+mines - [ list of mines ]
+
+#---- player -----
+
+sectors - list of sectors this player has a presence in
+systems - list of systems controlled
+resource_cache - hash of resource type -> amount
+
+
+,?? mineral composition
 
 #---------------- overall -------------------
 
 player can build a colony which has a certain amount of population ( say max 10 per colony ).
 You get one income unit per population in a colony.
-A colony must be built on arable land. There is a 1-10 scale of how arable it is. The colony will
+
+A colony must be built on varying degrees of habitible land. A planet ( location ) will have a max
+population that it can support.
+There is a 1-10 scale of how habitible it is. The colony will
 have that much population. All colonies cost the same. You can put a colony in an asteroid belt and 
 it will have a minimum of 1 population.
 
+A home system will have 100 units of population randomly distributed in its planets but be concentrated
+in the home world ( which will have at least half )
+
+Resource units are used to calculate the cost of ships per turn. Ships are designed with recipes. The player 
+can adjust the composition of the components of the ships' recipes.
+
+The home system will have 100 units of resource allocation. (The most common will be ore.).  This production
+will be spread througough the planets in the system with a minimum in the home planet. ( maybe min amount ore, 
+then a min amount of a random resource then the rest is distributed normally ).
+
+The player collects so many resource units per turn. The marketplace also collects a certain number of units.
+The player can sell to and buy from the marketplace. Thus, the cost of the ship is free as long as there are 
+resources of the appropriate type for the player.  Any overflow is supplanted by the marketplace for a cost.
+
+Resource units are automatically collected by the player and the marketplace due to abstracted out small mines.
+These are collected only from planets with a colony ( colonies of size 1 are bases, like a mining base ). A planet
+will have a unit resource rating for each of the different resource types.
+
+When a mine is built, it will raise the production of the available types of resources on the planet it is placed.
+You can build as many mines as the planet has production size.
+
+
 #<--- important, check all this in
+
 
