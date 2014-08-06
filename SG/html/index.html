@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Space Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="/yote/js"></script>  
+
+    <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
+    <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
+
+    <SCRIPT>
+
+    $().ready(function(){
+        startme();
+    } );
+
+    function startme() {
+        $.yote.debug = false;
+        $.yote.templates.import_templates( '/templates/default_templates.html' );
+        
+        var app = $.yote.init( 'SG::App' );
+        app.precache();
+        $.yote.templates.init();
+        $.yote.templates.refresh();
+        $( '#spinner' ).hide();
+    }
+    </script>
+    <style>
+      .emp   { font-family:"Lucida Console",monospace;  }
+      .bordered { border: 1px solid black;padding:5px; margin: 5px;}
+      #comm_div { margin:10px;border: 3px solid black;background-color:rgba(200,150,30,.4) }
+      #chat_panel { margin:10px;border: 3px solid black;background-color:rgba(150,200,30,.4) }
+      #whos_panel { margin:10px;border: 3px solid black;background-color:rgba(150,30,200,.4) }
+      #side_panel { float: left; }
+      #game { background-color:#8A9 }
+      .not-ready { background-color:#FDD }
+      .ready { background-color:#DFD }
+      td.number { text-align: center; }
+      td.panel { border : 1px solid black; padding: 3px; }
+      .messages { margin : 12px; padding: 5px; border : solid 3px brown; text-align:center; }
+      .err { background-color: lightorange; border : 2px red solid; }
+      .owned { background-color: lightgreen; border : 2px green solid; }
+      .row td { border-top: 1px solid black; }
+      .emph { background-color: lightgreen; font-size: larger; font-decoration: bold }
+
+      .gamepicker { border : dotted 2px gold; margin-left: 15px; padding: 4px; }
+      .err { background-color: #FAB }
+      .bigpanel { 
+          background-color: lightblue;
+          min-width : 500px;
+          min-height : 500px;
+          margin : 15px;
+          padding : 15px;
+          display: inline-block;
+      } 
+      .sidepanel { 
+          background-color: lightblue;
+          min-width : 300px;
+          min-height : 500px;
+          margin : 15px;
+          padding : 15px;
+          display: inline-block;
+          float: right;
+      } 
+      .upsidepanel { 
+          background-color: lightgreen;
+//          min-width : 500px;
+//          min-height : 500px;
+//          margin : 15px;
+//          padding : 15px;
+      } 
+    </style>
+  </head>
+
+  <script type="text/template" class="yote_template_definition" template_name="InGame">
+    <??? function( ctx ) {
+            ctx.vars.game = ctx._acct_.get_current_game();
+            if( ! ctx.scratch.view ) {
+                ctx.vars.player = ctx.vars.game.player();
+                ctx.vars.systems = player.get_systems();
+                ctx.scratch.view = '';
+            }
+         } ???>
+    <$$$ lob <a href="#">Back to lobby</a> $$$> 
+    
+    <h3>Playing <b><$ game.name $></b> game</h3>
+
+    <div>
+      <div class="bigpanel">
+        System map goes here
+      </div>
+      
+      <div class="sidepanel">
+        <div class="upsidepanel">
+        </div>
+        <div class="downsidepanel">
+        </div>
+      </div>
+    </div>
+    
+    <? function( ctx ) {
+          $( ctx.controls.lob ).click( function() {
+              ctx._acct_.set( 'current_game', '' );
+              ctx.refresh();
+          } );
+       } ?>
+  </script>
+
+  <! ---------------------------- LOBBY ----------------------------->
+
+  <script type="text/template" class="yote_template_definition" template_name="PendGame">
+    <br>
+    <b><$  _.name $></b> : Created by <$  _.created_by.handle $>. 
+      <??? function( ctx ) { 
+            if( ctx._acct_.is( ctx.vars._.get( 'created_by' ) ) ) 
+                return '<$$$ remove_game <button type="button">Delete</button> $$$>';
+        } ???>
+    <? function( ctx ) {
+          var leave_idx = ctx.hashkey_or_index;
+          $( ctx.controls.remove_game ).click( function() { 
+              ctx._app_.remove_game( ctx.vars._ );
+              ctx.refresh();
+          } );
+    }
+    ?>
+    <# PendGame #>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="CreateGame">
+    <div>
+    Create a new game
+    <$$$ newgamename <input type="text" placeholder="game name"> $$$>
+    <$$$ newgamego <button type="button">Create</button> $$$>
+    </div>
+    <? function( ctx ) {
+        $.yote.util.button_actions( {
+            button : ctx.controls.newgamego,
+            texts  : [ ctx.controls.newgamename ],
+            action : function() {
+                var game = ctx._app_.create_game( {
+                    name : $( ctx.controls.newgamename ).val(),
+                    number_players : 1
+                });
+                ctx.refresh();
+            }
+        } );
+    } ?>
+    <# CreateGame #>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="ActGame">
+    <br>
+    <b><$  _.name $></b> : for <$  _.number_players $> players.
+    Created by <$  _.created_by.handle $>. <$$$ go_game <button type="button">Play</button> $$$>
+      <$$$ del_game <button type="button">Delete Game</button> $$$>
+    <? function( ctx ) {
+     $( ctx.controls.go_game ).click( function() {
+         var acct = $.yote.fetch_account();
+         acct.set( 'current_game', ctx.vars._ );
+         ctx.refresh();
+     } );
+     $( ctx.controls.del_game ).click( function() {
+         var key = ctx.hashkey_or_index;
+         if( confirm( 'Really delete running game ' + ctx.vars._.get_name() + '?' ) ) {
+             ctx._app_.remove_game( ctx.vars._ );
+             ctx.refresh();
+         }
+     } );
+       }
+    ?>
+    <# ActGame #>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="AvailGame">
+    <br>
+    <b><$  _.name $></b> : 
+    Created by <$  _.created_by.handle $>. <$$$ join_game <button type="button">Join</button> $$$>
+    <??? function( ctx ) {
+        if( ctx._acct_.is( ctx.vars._.get( 'created_by' ) ) ) {
+            return '<$$$ remove_game <button type="button">Delete</button> $$$>';
+        }
+    } ???>
+
+    <? function( ctx ) {
+          $( ctx.controls.remove_game ).click( function() { 
+              ctx._app_.remove_game( ctx.vars._ );
+              ctx.refresh();
+          } );
+
+         $( ctx.controls.join_game ).click( function() { 
+             $.yote.debug = true;
+             ctx.vars._.add_player(undefined,
+                                   function(msg){
+                                       ctx.scratch.avail_message = "Joined game '" + ctx.vars._.get_name() + "'";
+                                   },
+                                   function(err){
+                                       ctx.scratch.avail_err_message = err;
+                                   });
+             if( ctx.vars._.get( 'is_active' ) ) {
+                 ctx._acct_.set( 'active_game', ctx.vars._ );
+             }
+             $.yote.debug = false;
+             ctx.refresh(); 
+          } );
+       } ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Lobby">
+    <??? function( ctx ) {
+        // find games you can join, games you have joined that are pending starting, and active games you are in
+
+        var ag = [];
+        var myg = ctx._acct_.get( 'joined_games' ) ? ctx._acct_.get( 'joined_games' ).to_hash() : {};
+        var appg = ctx._app_.get( 'available_games' ) || [];
+
+        // games you can join, or available games are the joinable games overall - the ones
+        //       already joined
+        
+        // games you can join
+        for( var i=0; i<appg.length(); i++ ) {
+            var g = appg.get(i);
+            if( ! myg[ g.id ] )
+                ag.push( g );
+        }
+        ctx.vars.available_games = ag;
+
+        var actv = [];
+        var pend = [];
+        for( var gid in myg ) {
+            var g = myg[ gid ];
+            if( g.get( 'is_active' ) ) 
+                actv.push( g );
+            else
+                pend.push( g );
+        }
+        console.log( [ "MYG", myg, actv, pend ] );
+        ctx.vars.active_games = actv;
+        ctx.vars.pending_games = pend;
+    } ???>
+    <div>
+      <div style="display:inline-block">
+        Welcome <b> <$ _acct_.handle $> </b>
+          <h4>Active Games</h4> 
+            <div class="gamepicker">
+             <?? function(ctx){ return ctx._acct_.count( 'active_games' ) > 0 ? '' : 'not playing any games';} ??>
+             <@ ActGame @active_games 10 @><$$ Paginator @active_games $$>
+            </div>
+          <???
+              function(ctx){ 
+                  if( ctx.vars.pending_games.length > 0 )
+                      return ' <h4>Pending Games</h4> ' + 
+                               '<div class="gamepicker"> ' + 
+                               '<$$$ pend_msg <p class="messages" style="display:none"></p> $$$>' +
+                               '<@ PendGame @pending_games 10 @><$$ Paginator @pending_games $$>' + 
+                               '</div>';
+                  } ???>
+          <h4>Available Games</h4> 
+            <div class="gamepicker">
+              <$$$ avail_msg <p class="messages" style="display:none"></p> $$$>
+
+              <?? function(ctx){ return ctx.parse( '@available_games' ).to_list().length > 0 ? '' : 'no games available.';} ??>
+              <@ AvailGame @available_games 10 @><$$ Paginator @available_games $$> 
+            </div>
+          <p>
+            <$$ CreateGame $$>
+          </p>
+      </div>
+      <div style="float:right;display:inline-block">
+        <$$ Chat $$>
+      </div>
+    </div>
+    <? function( ctx ) {
+        if( ctx.scratch.avail_message ) {
+            $( ctx.controls.avail_msg ).append( ctx.scratch.avail_message ).show();
+            ctx.scratch.avail_message = '';
+        }         
+        else if( ctx.scratch.avail_err_message ) {
+            $( ctx.controls.avail_msg ).append( ctx.scratch.avail_err_message ).addClass( 'err' ).show();
+            ctx.scratch.avail_err_message = '';
+        }
+    } ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Chat">
+    <div style="border: solid 2px white; background-color: lightblue; max-width: 30em">
+      <h4>Global Chat</h4>
+      <$$$ chativ <div style="border: groove 2px; background-color: grey; padding:5px; max-height: 100px; overflow: auto"> $$$>
+        <$$ Chatter $$>
+      </div>
+      <$$$ whatsay <input type="text"> $$$> <$$$ say <button type="button">Say</button> $$$>
+    </div>
+    <? function( ctx ) {
+        $( ctx.controls.chativ ).scrollTop($( ctx.controls.chativ ).prop('scrollHeight'));
+
+        $.yote.util.button_actions( {
+            button : ctx.controls.say,
+            texts : [ ctx.controls.whatsay ],
+            action : function() { 
+                ctx._app_.chat( $( ctx.controls.whatsay ).val() );
+                ctx.refresh();
+            }
+        } );
+       } ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Chatter">
+    <??? function( ctx ) {
+            ctx.vars.chatlog = ctx.parse( '_app_@chatter' );
+            ctx.vars.chatlog.sort_reverse = true;
+            var l = ctx.parse( 'chatlog' ).to_list();
+            var b = [];
+            for( var i=0; i<l.length && b.length < 12; i++ ) {
+                b.push( '<b>' + l[ i ].get_from() + ':</b> ' + l[i].get_msg() );
+            }
+            b.reverse();
+            return b.join('<br>');
+         } ???>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="LoggedIn">
+    <?? function(ctx) {
+    
+        var cur_game = ctx._acct_.get( 'current_game' );
+        return cur_game ? '<$$ InGame $$>' : '<$$ Lobby $$>';
+    } ??>
+    <# LoggedIn #>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Splash">
+     Welcome to space game prototype
+     <BR>
+     <$$ Logged_out $$>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="MainBody">
+    <??? function( ctx ) { 
+            ctx.refresh = function() {
+                $( '#spinner' ).show();
+                $.yote.templates.refresh();
+                $( '#spinner' ).hide();
+            }
+         } ???>
+    <?? function( ctx ) { ctx.scratch.message = ''; return $.yote.is_logged_in() ? '<$$ LoggedIn $$>' : '<$$ Splash $$>'; } ??>
+  </script>
+
+  <BODY>
+    <img id="spinner" src="spinnerLarge.gif">
+    <DIV class="yote_template" template="MainBody"></div>
+  </BODY>
+
+</html>
