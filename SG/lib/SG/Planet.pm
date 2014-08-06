@@ -2,41 +2,87 @@ package SG::Planet;
 
 use strict;
 use warnings;
-no warnings 'unitialized';
+no warnings 'uninitialized';
 
 use base 'Yote::RootObj';
 
-sub _init {
-    my $self = shift;
+use SG::Factory;
+
+
+sub _setup {
+    my( $self, $game, $data ) = @_;
+
+    my $resources = $game->get_resources();
+
     $self->_absorb(
         {
-            name    => "planet",
-            max_pop => 10,
-            factory => new Yote::RootObj(  # each planet has a factory slot when created
-                                           { 
-                                               build_rate            => 0,  # in units of multiples of 10. 0 indicates no factory
-                                               workers_expanding     => 0,
-                                               workers_manufacturing => 0,
-                                           } ),
-            colony  => new Yote::RootObj(  # each planet has a colony slot when created
-                                           {
-                                               name           => 'colony',
-                                               owner          => undef,
-                                               population     => 0,
-                                               max_population => 0,
-                                           } ),
-            mine   => new Yote::RootObj(   # each planet has a mine slot when created
-                                           {
-                                               rate              => 1, #deca units. 0 indicates no mine
-                                               workers_expanding => 0,
-                                               workers_mining    => 0,
-                                           } ),
-            abundance => 10, #how much can be produced per turn of this planet, in multiples of 10
-            resource_distribution => { #these all add up to 10
-                ore     => 10,  
+            abundance => 5, #how much can be produced per turn of this planet
+
+            colony  => new Yote::Obj(  # each planet has a colony slot when created
+                                       {
+                                           name              => 'colony',
+                                           planet            => $self,
+                                           population        => 0,
+                                           workers_expanding => 0,
+                                       } ),
+
+
+
+            factory => new SG::Factory(  # each planet has a factory slot when created
+                                         {
+                                             build_rate            => 1,
+                                             workers_expanding     => 0,
+                                             workers_manufacturing => 0,
+                                             build_queue           => [],
+                                             planet                => $self,
+                                         } ),
+
+            game => $game,
+
+            max_pop => 5,
+
+            name    => "a planet",
+
+            owner => undef,
+                    
+            depot => new Yote::Obj( {
+                capacity          => 0,
+                content_count     => 0,
+                workers_expanding => 0,
+                contents          => {},
+                                            } ),
+            
+            resource_distribution => { #these all add up to 1. # TODO : on creation, a randomizer for stuff...maybe
+                map {
+                    $_ => $_ eq 'ore' ? 1 : 0,
+                } @$resources,
             },
+
+            ships => [],
         } );
-} #_init
+    $self->_absorb( $data ) if $data;
+
+    $self->_absorb( {
+            mines => {
+                map { 
+                    $_ => new Yote::Obj( {
+                        rate              => 0,
+                        workers_expanding => 0,
+                        workers_mining    => 0,
+                        planet            => $self,
+                                         } ),
+                } keys %{$self->get_resource_distribution()},
+            } } );
+
+} #_setup
+
+sub _take_control {
+    my( $self, $player ) = @_;
+    $self->set_owner( $player );
+    $self->get_colony()->set_owner( $player );
+    $self->get_factory()->set_owner( $player );
+    $self->get_colony()->set_owner( $player );
+} #_take_control
 
 1;
 

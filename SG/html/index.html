@@ -70,8 +70,38 @@
     </style>
   </head>
 
+  <script type="text/template" class="yote_template_definition" template_name="Dummy">
+    map goes here
+    </script>
+
   <script type="text/template" class="yote_template_definition" template_name="SystemMap">
-        System map goes here
+   <???
+    function( ctx ) {
+      var sys = ctx.vars.system;
+      var coords = sys.get_coords().to_list();
+      var buf = '<table>'
+      for( var i=1; i<coords.length; i++ ) {
+          buf += '<tr>';
+          for( var j=1; j<coords[ i ].length(); j++ ) {
+              var loc = coords[ i ].get( j );
+              buf += '<td><div class="location" ' + ( loc ? ' class="occupied" data-has="' + loc.id + '"' : '' ) + ' data-x="' + j + '" data-y="' + i + '">';
+              buf += loc ? "X" : "&nbsp;";
+              buf += '</div></td>';
+          }
+          buf += '</tr>';
+      }
+      buf += '</table>';
+      return buf;
+     }
+    ???>
+    <?
+     function( ctx ) {
+         var sys = ctx.vars.system;
+         $( ctx.controls.occupied ).click( function() {
+             
+         } );
+     }
+    ?>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="WorkerSelect">
@@ -119,12 +149,13 @@
 
   <script type="text/template" class="yote_template_definition" template_name="ResourceRow">
     <??? function( ctx ) { 
-           var dist = ctx.vars.dist[ ctx.vars._ ];
-           var depo = ctx.vars.depos.get( ctx.vars._ );
-           ctx.vars.mined    = dist > 0 ? ctx.vars.mines.get( ctx.vars._ ).get_workers_mining() + '/' + ctx.vars.mines.get( ctx.vars._ ).get_rate() : '-';
-           ctx.vars.untapped = dist > 0 ? 1*ctx.vars.planet.get_abundance() * dist - ctx.vars.mines.get( ctx.vars._ ).get_rate() : '-';
-           ctx.vars.in_depot = dist > 0 ? 1*depo.get_contents() + '/' + depo.get_capacity() : '-';
-           ctx.vars.market   = ctx.vars.game.get_marketplace().get( ctx.vars._ );
+           var res = ctx.vars._;
+           var dist = ctx.vars.dist[ res ];
+           var depot_contents = ctx.vars.depot.get_contents().to_hash();
+           ctx.vars.mined    = dist > 0 ? ctx.vars.mines.get( res ).get_workers_mining() + '/' + ctx.vars.mines.get( res ).get_rate() : '-';
+           ctx.vars.untapped = dist > 0 ? 1*ctx.vars.planet.get_abundance() * dist - ctx.vars.mines.get( res ).get_rate() : '-';
+           ctx.vars.in_depot = dist > 0 ? 1*depot_contents[ res ] + '/' + ctx.vars.depot.get_capacity() : '-';
+           ctx.vars.market   = ctx.vars.player.get_marketplace().get( res );
     } ???>
     <tr> <td><$ _ $></td> 
          <td><$ mined $></td> 
@@ -136,7 +167,17 @@
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="PlanetShips">
-    <$ _.recipe.name $> <BR>
+    <??? function(ctx) { return ctx.scratch.do_fleet_check ? '<$$$ toFleet <input type="checkbox"> $$$>' : ''; } ???> 
+     <$ _.recipe.name $> <BR>
+    <? function(ctx) {
+        $( ctx.controls.toFleet ).click( function() {
+            if( $( this ).is(':checked') ) {
+                ctx.scratch.ships_selected[ ctx.hashkey_or_index ] = ctx.vars._;
+            } else {
+                ctx.scratch.ships_selected.splice( ctx.hashkey_or_index, 1 );
+            }
+        } );
+    } ?>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="BuildQueue">
@@ -152,6 +193,7 @@
     <??? 
     function( ctx ) {
         ctx.vars.factory = ctx.vars.planet.get_factory();
+        ctx.vars.depot   = ctx.vars.planet.get_depot();
         var mines = ctx.vars.planet.get_mines();
         ctx.vars.mines = mines;
 
@@ -185,17 +227,7 @@
         ctx.vars.mined_amount = mined_amount;
         ctx.vars.developed_amount = developed_amount;
         
-        var depos = ctx.vars.planet.get_resource_depos();
-        ctx.vars.depos = depos;
-        if( depos ) {
-            depos = depos.to_hash();
-            for( res in depos ) {
-                var depot = depos[ res ];
-                ctx.vars.avail_workers -= (
-                    1 * depot.get_workers_expanding()
-                );
-            }
-        }
+        ctx.vars.avail_workers -= ctx.vars.depot.get_workers_expanding()
     } ???>
     <div class="innerpanel">
       <h3>Showing planet <$ planet.name $></h3>
@@ -218,8 +250,26 @@
     </div>
 
     <div class="innerpanel">
+      <??? function( ctx ) { 
+          ctx.scratch.ships_selected = [];
+          ctx.scratch.do_fleet_check = ctx.vars.planet.get_ships().length() > 1;
+         } ???>
       <h3>Ships</h3>
       <@ PlanetShips planet.ships 10 @>
+      <???    function( ctx ) {
+        if( ctx.vars.planet.get_ships().length() == 0 ) return;
+          console.log( ctx.vars.system.get_planets().to_list() );
+        var buf = 'move orders <$$$ move_sel <select> $$$>' + 
+              '<option value="">stay</option>' + 
+            // TODO : add jump points and warp here
+            ctx.vars.system.get_planets().to_list().map( function( it, idx ) {
+                return ctx.vars.planet.is( it ) ? '' : 
+                    '<option value="' + it.id + '">' + it.get_name() + '</option>';
+            } ).join( '' ) + 
+              '</select>' + 
+              'disposition flee fight' + 
+        
+        return buf; } ???>
     </div>
 
     <div class="innerpanel">
@@ -228,13 +278,14 @@
       <?? function( ctx ) { return 1*ctx.vars.col.get_population() < 1*ctx.vars.planet.get_max_pop() ? 
                                 '<tr> <td class="number"> <$$ WorkerSelect col workers_expanding $$> </td> ' + 
                                    '<td> Expand Colony    </td> <td> <$ planet.colony.expansion_progress $> of <$ game.development_costs.colony $> </td> </tr>' : ''; } ??>
+      <tr> <td class="number"> <$$ WorkerSelect depot workers_expanding $$> </td> 
+           <td> Expand Depot    </td> <td> <$ depot.expansion_progress $> of <$ game.development_costs.depot $> </td> </tr>
       <?? function( ctx ) { 
         var dist = ctx.vars.planet.get( 'resource_distribution' );
         var mines = ctx.vars.mines;
         var buf = '';
         if( dist && mines ) {
             mines = mines.to_hash();
-            var depot = ctx.vars.depos.to_hash();
             var resses = dist.keys();
             resses.sort();
             dist = dist.to_hash();
@@ -242,12 +293,9 @@
             for( var i in resses ) {
                 var res = resses[ i ];
                 var rate = mines[ res ] ? 1*mines[ res ].get_rate() : 0;
-                if( rate < 1*ctx.vars.planet.get_abundance() )
+                if( 1*dist[ res ] > 0 && rate < dist[ res ] * ctx.vars.planet.get_abundance() )
                     buf += '<tr><td class="number"> <$$ WorkerSelect mines.' + res + ' workers_expanding $$> </td><td> ' + ( rate > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' mine </td> <td> <$ mines.' + res + '.expansion_progress $> of <$ game.development_costs.mine $> </tr>';
 
-                var cap = depot[ res ] ? 1*depot[ res ].get_capacity() : 0;
-                buf += '<tr><td class="number"> <$$ WorkerSelect depos.' + res + ' workers_expanding $$> </td><td> ' + ( cap > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' depot </td> <td> <$ depos.' + res + '.expansion_progress $> of <$ game.development_costs.resource_depot $> </td> </tr>';
-                        
                 if( rate > 0 )
                     buf += '<tr><td class="number"> <$$ WorkerSelect mines.' + res + ' workers_mining ' + rate + ' $$> </td><td> mining ' + res + '</td></tr>';
             }
@@ -280,7 +328,6 @@
         var r = ctx.scratch.view_recipe; 
         ctx.vars.view_recipe = r;
         if( r ) {
-            r.set( 'is_calculated', '0' );
             ctx.vars.game.calculate_recipe_stats( r );
             ctx.vars.components = ctx.vars.game.get( 'component_size' ).keys();
             ctx.vars.stats = r.get_stats().keys().sort();
@@ -378,7 +425,8 @@ $.yote.debug = false;
         
         ctx.vars.colony = ctx.vars.planet.get( 'colony' );
         if( ! ctx.scratch.view ) {
-            ctx.scratch.view = 'SystemMap';
+//            ctx.scratch.view = 'SystemMap';
+ctx.scratch.view = 'Dummy';
         }
     } ???>
     <$$$ lob <a href="#">Back to lobby</a> $$$>
@@ -605,7 +653,6 @@ $.yote.debug = false;
   <script type="text/template" class="yote_template_definition" template_name="Chatter">
     <??? function( ctx ) {
             ctx.vars.chatlog = ctx.parse( '_app_@chatter' );
-        console.log( [ ctx.vars.chatlog, ctx.vars.chatlog.to_list(), "CAHTY" ] );
             ctx.vars.chatlog.sort_reverse = true;
             var l = ctx.parse( 'chatlog' ).to_list();
             var b = [];

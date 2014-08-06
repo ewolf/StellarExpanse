@@ -57,10 +57,18 @@
 
   $().ready( function() { 
       var buf = '<table>'
+      var coords = [];
+      for( var j=0; j<50; j++ ) {
+          coords[ j ] = []
+      }
+      coords[ 10 ][ 10 ] = true;
       for( var i=0; i<30; i++ ) {
           buf += '<tr>';
           for( var j=0; j<50; j++ ) {
-              buf += '<td><div class="location" data-x="' + j + '" data-y="' + i + '"></div></td>';
+              var has = coords[ j ][ i ];
+              buf += '<td><div class="location" ' + ( has ? 'data-has="1"' : '') + ' data-x="' + j + '" data-y="' + i + '">';
+              buf += has ? 'X' : '&nbsp;';
+              buf += '</div></td>';
           }
           buf += '</tr>';
       }
@@ -91,7 +99,10 @@
               var delx = Math.abs( 1*$( this ).data( 'x' ) - 1*line.data( 'mx' ) );
               var dely = Math.abs( 1*$( this ).data( 'y' ) - 1*line.data( 'my' ) );
               var length = Math.sqrt( delx*delx + dely*dely );
-              var thick = interpolate( length, 50, 0, 1, 30, true );
+
+              // the thick is a trick to change the width when the line is long to 
+              // represent a stretching
+              var thick = interpolate( length, 50, 0, 1, 15, true );
               swingLine(x,y,line,thick);
           }
       } );

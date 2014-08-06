@@ -1,0 +1,8 @@
+
+
+maybe the jump portals are in locations. Gotta get there before you can jump to the destination. Only long jumps in this case.
+
+abstract the system for now, I guess...just to have ships and destinations...though
+there should be coordinates I suppose
+
+have each panel with something in its coordinates get other dom items with click events

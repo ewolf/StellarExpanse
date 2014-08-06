@@ -6,7 +6,7 @@ no warnings 'uninitialized';
 
 use base 'Yote::Obj';
 
-use SG::Factory;
+use SG::Planet;
 
 sub _init {
     my $self = shift;
@@ -14,50 +14,52 @@ sub _init {
         number_players => 5,
         component_size => {
             armor        => 1, #1 per each 10 non armor size
+            battery      => 1,
             blaster      => 1,
             cargo_hold   => 10,
             carrier_hold => 20,
             colony       => 20,
             jump_drive   => 4,
+            powerplant   => 3,
             passenger_compartment => 8,
+            thrusters    => 1,
             warp         => 2,
         },
         component_mass => {
             armor        => 1, #1 per each 10 non armor size
+            battery      => 1,
             blaster      => 1,
             cargo_hold   => 3,
             carrier_hold => 7,
             colony       => 10,
             jump_drive   => 10,
             passenger_compartment => 6,
+            powerplant   => 3,
+            thrusters    => 1,
             warp         => 2,
-        },
-        development_costs => {
-            # in population turns per level times 1 + current level
-            factory => 10,
-            mine    => 10,
-            resource_depot   => 5,
-            colony  => 20,
         },
         component_cost => { #per unit
             armor        => 1,
+            battery      => 2,
             blaster      => 2,
             cargo_hold   => 2,
             carrier_hold => 10,
             colony       => 40,
             jump_drive   => 10,
             passenger_compartment => 8,
+            powerplant   => 10,
+            thrusters    => 2,
             warp         => 4,
+        },
+        development_costs => {
+            # in population turns per level times 1 + current level
+            factory => 10,
+            mine    => 10,
+            depot   => 5,
+            colony  => 20,
         },
         resources => [qw( ore fastium shrinkium growium blastium turtlite tofunite featheride organium plastica )],
                     } );
-    $self->set_marketplace( { map { 
-        $_ => new Yote::Obj(   # TODO - secure, also maybe this belongs in player
-            {
-                buy_cost => $_ eq 'ore' ? 10 : 50,
-                sell_cost => $_ eq 'ore' ? 2 : 10
-            } ) }
-                              @{$self->get_resources()} } );
 } #_init
 
 #
@@ -90,7 +92,17 @@ sub add_player {
     die "Game " . $self->get_name() . " is full" if scalar( keys %$players ) == $self->get_number_players();
 
     # add the account to the game ( TODO - decide if this should be a RootObj for security )
-    my $player = new Yote::Obj( { name => $acct->get_handle(), acct => $acct, game => $self } );
+    my $player = new Yote::Obj( { name => $acct->get_handle(), 
+                                  acct => $acct, 
+                                  game => $self,
+                                  marketplace => { map { 
+                                      $_ => new Yote::Obj(
+                                          {
+                                              buy_cost => $_ eq 'ore' ? 10 : 50,
+                                              sell_cost => $_ eq 'ore' ? 2 : 10
+                                          } ) }
+                                                   @{$self->get_resources()} },
+                                } );
     $players->{ $acct->get_handle() } = $player;
 
 
@@ -115,13 +127,13 @@ sub _activate {
 
   #    *   *
   #    |\ /|
-  # *--0 0 0--*
-  #  \   |   /
-  #   \  O  /
-  #   | / \ |
-  #   0    0
-  #    \  /
-  #     *
+  # *--0-0-0---*
+  #  \ |\|/|  /
+  #   \| O | /
+  #    |/ \|/
+  #    0---0
+  #     \ /
+  #      *
   #  * - player sector
   #  0 - other sector
   #  O - master sector
@@ -162,62 +174,27 @@ sub _activate {
         $start_system->add_to_connections( $other_system );
         $other_system->add_to_connections( $start_system );
 
-        my $homeworld = new Yote::Obj( {
-            ships => [],
-            resource_distribution => { #these all add up to 1
-                ore     => .8,  # should be .5 + random
-                fastium => .2,
-            },
-                                       } );
-
-        my $resources = $self->get_resources();
-
-        $homeworld->_absorb(
-            {
-                name    => "homeworld",
-                owner   => $player,
-                max_pop => 10,
-                factory => new SG::Factory(  # each planet has a factory slot when created
-                                             {
-                                                 build_rate            => 1,
-                                                 workers_expanding     => 0,
-                                                 workers_manufacturing => 0,
-                                                 build_queue           => [],
-                                                 planet                => $homeworld,
-                                                 owner                 => $player,
-                                                 game                  => $self,
-                                             } ),
-                colony  => new Yote::Obj(  # each planet has a colony slot when created
-                                           {
-                                               name              => 'colony',
-                                               planet            => $homeworld,
-                                               owner             => $player,
-                                               population        => 3,
-                                               workers_expanding => 0,
-                                           } ),
-                abundance => 30, #how much can be produced per turn of this planet
-                resource_depos => { # any overflow is sold to the marketplace
-                    # build gets its resources here first
-                    map { 
-                        $_ => new Yote::Obj( {
-                            capacity          => $_ eq 'ore' ? 20 : 0,
-                            contents          => 0,
-                            workers_expanding => 0,
-                                             } );
-                    }
-                    @$resources
-                },
-                mines => { 
-                    map { $_ => new Yote::Obj( {
-                        rate              => $_ eq 'ore' ? 1 : 0,
-                        workers_expanding => 0,
-                        workers_mining    => 0,
-                        planet            => $homeworld,
-                        owner             => $player,
-                                               } ) } 
-                    @$resources
-                },
+        my $homeworld = new SG::Planet();
+        $homeworld->_setup( $self, {
+            name => 'homeworld',
+            abundance => 30,
+            max_pop => 10,
+                            } );
+        $homeworld->get_mines()->{ ore }->set_rate( 1 ); 
+        $homeworld->get_mines()->{ fastium } = new Yote::Obj( 
+            { 
+                rate              => 0,
+                workers_expanding => 0,
+                workers_mining    => 0,
+                planet            => $homeworld,
             } );
+        $homeworld->get_depot()->set_capacity( 20 );
+        $homeworld->get_factory()->set_build_rate( 1 );
+        my $dist = $homeworld->get_resource_distribution();
+        $dist->{ ore } = 0.8;
+        $dist->{ fastium } = 0.2;
+        $homeworld->get_colony()->set_population( 3 );
+        $homeworld->_take_control( $player );
 
         my $freighter_recipe = new Yote::Obj( {
             name => 'freighter',
@@ -225,7 +202,7 @@ sub _activate {
                 # special resources go here
             },
             components => {
-                warp => 1,
+                thrusters      => 1,
                 passenger_hold => 1,
                 cargo_hold     => 1,
             },
@@ -237,8 +214,9 @@ sub _activate {
                 # special resources go here
             },
             components => {
-                warp   => 1,
-                        colony => 1,
+                warp      => 1,
+                thrusters => 1,
+                colony    => 1,
             },
                                            } );
             
@@ -256,17 +234,28 @@ sub _activate {
             recipes   => [ $freighter_recipe, $colony_recipe ],
                           } ) if $player;
 
-        my $otherworld = new Yote::Obj;
+        my $otherworld = new SG::Planet();
+        $otherworld->_setup( $self, { name => 'other world' } );
+        $otherworld->set_name( 'other world' );
+
         $start_system->add_to_planets( $homeworld, $otherworld );
-            
+
+        # TODO - better coord system. 
+        # for now, just set up a 200x200 matrix
+        my $coords = $start_system->set_coords( [ map { [] } (1..80) ] );
+
+        $coords->[ 10 ][ 10 ] = [ $homeworld ]; #list of items at that location
+
+        $coords->[ 80 ][ 60 ] = [ $otherworld ]; #list of items at that location
+        
         # for home systems, they have a fixed amount of materials in random proportions
         # the planets in the system are somewhat random, too
-
 
     } # 0 - 4
 
 } #_activate
 
+# workers expanding a planet feature
 sub _expand {
     my( $self, $obj, $isa, $field, $max ) = @_;
 
@@ -274,6 +263,7 @@ sub _expand {
 
     my $workers  = $obj->get_workers_expanding();
     my $progress = $obj->get_expansion_progress();
+
     my $val   = $obj->_get( $field );
     $progress += $workers;
     while( $progress >= $dev_costs->{ $isa } && ( ! defined( $max ) || $val < $max ) ) {
@@ -300,36 +290,34 @@ sub _take_turn {
 
 
     my $ship_part_costs = $self->get_component_cost();
-    my $resources = $self->get_resources();
 
     for my $player ( values %$players ) {
         for my $planet ( @{ $player->get_planets() } ) {
             my $mines = $planet->get_mines();
-            my $depos = $planet->get_resource_depos();
+            my $depot = $planet->get_depot();
             my $dists = $planet->get_resource_distribution();
+
+            # checking for depot expansion
+            $self->_expand( $depot, 'depot', 'capacity' );
 
             # 
             # mine resources and check for mine and depot expansions.
-            # maybe there should be automatic buying and selling of resources
+            # TODO : mine the most expensive things first
             #
             for my $res (keys %$dists ) {
-                my $depot   = $depos->{ $res };
                 my $mine    = $mines->{ $res };
                 my $dist    = $dists->{ $res } || 0;
 
                 # setting resources in depot
                 my $workers = $mine->get_workers_mining();
-                my $new_content_size = $workers + $depot->get_contents();
+                my $depot_contents = $depot->get_contents();
+                my $new_content_size = $workers + $depot_contents->{ $res };
                 my $cap = $depot->get_capacity();
-                $depot->set_contents( $new_content_size > $cap ? $cap : $new_content_size );
+                $depot_contents->{ $res } = $new_content_size > $cap ? $cap : $new_content_size;
 
                 # checking for mine expansion
-                if( $dist ) {
-                    $self->_expand( $mine, 'mine', 'rate', $planet->get_abundance() * $dist );
-                }
+                $self->_expand( $mine, 'mine', 'rate', $planet->get_abundance() * $dist );
 
-                # checking for depot expansion
-                $self->_expand( $depot, 'resource_depot', 'capacity' );
             }
 
             my $fact = $planet->get_factory();
@@ -351,10 +339,8 @@ sub _take_turn {
 sub calculate_recipe_stats {
     my( $self, $recipe ) = @_;
 
-    return if $recipe->get_is_calculated();
-
-    my $sizes = $self->get_component_size();
-    my $masses = $self->get_component_mass();
+    my $sizes          = $self->get_component_size();
+    my $masses         = $self->get_component_mass();
     my $resource_costs = $self->get_component_cost();
 
     my $stats = $recipe->get_stats( {} );
@@ -384,9 +370,9 @@ sub calculate_recipe_stats {
     my $tofu_boost = 1 + $composition->{ tofunite };
     my $size_diff = $tofu_boost * ( $composition->{ growium } - $composition->{ shrinkium } );
 
-    $stats->{ blast_power }  = $components->{ blaster } + $tofu_boost * $composition->{ blastium };
+    $stats->{ blast_power }    = $components->{ blaster } + $tofu_boost * $composition->{ blastium };
     $stats->{ cargo_capacity } = $components->{ cargo_hold } * $sizes->{ cargo_hold } +  $size_diff;
-    $stats->{ colonize_size } = $components->{ colony } + $tofu_boost * $composition->{ organium };
+    $stats->{ colonize_size }  = $components->{ colony } + $tofu_boost * $composition->{ organium };
 
     $stats->{ passengers } = $components->{ passenger_compartment } + $tofu_boost * $composition->{ organium };
 
@@ -403,14 +389,13 @@ sub calculate_recipe_stats {
     $mass -= $tofu_boost * $composition->{ featheride };
     $mass = 1 if $mass < 1;
     $stats->{ mass } = $mass;
+    $stats->{ thrust_rating } = (10*$components->{ thrusters }) / ( 1 + $mass );
     $stats->{ warp_rating } = (10*$components->{ warp }) / ( 1 + $mass );
     $stats->{ jump_rating } = (10*$components->{ jump_drive }) / ( 1 + $size );
                        
     my $build_rate = $build_size - $composition->{ plastica };
 
     # calculate what happens due to the addons.
-
-    $recipe->set_is_calculated( 1 );
 
     my $total_material_cost = 0;
     for my $comp (keys %$composition) {
@@ -449,7 +434,7 @@ resources - hash of resource type --> abundance
 colony  - a planet may have one colony
 mines    - a planet may have one mine per matierial type
 factory - a planet may have one factory
-resource_depos    - a planet may have type specific resource depos
+depot    - a planet has one big resources depot
 abundance - how much can be produced per turn of this planet (multiple of 10)
 resource_distribution - hash of resource -> count. the sum of all resources must equal 10.
 ships - list of ship objects here
