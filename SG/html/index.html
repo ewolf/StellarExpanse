@@ -4,13 +4,13 @@
     <title>Space Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <script src="/yote/js"></script>  
+    <script src="/yote/JS"></script>  
 
     <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
     <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
 
     <SCRIPT>
-
+    var intev;
     $().ready(function(){
         startme();
     } );
@@ -82,7 +82,7 @@
             var fld = ctx.args[ 1 ];
             var max = ctx.args[ 2 ] ? 1* ctx.args[2] : 0;
             var avail = ctx.vars.avail_workers;
-            var already_working = 1*obj.get( fld );
+            var already_working = 1*obj.get( fld ) || 0;
             var buf = '';
             for( var i=0; i <= already_working + avail && ( max == 0 || max >= i); i++ ) {
                 buf += '<option value="' + i + '"' + ( already_working == i ? ' selected="selected"' : '') + '>' + i + '</option>';
@@ -97,7 +97,11 @@
             var obj = ctx.parse( ctx.args[ 0 ] );
             var fld = ctx.args[ 1 ];
             $( ctx.controls.sel ).change( function() {
-                obj.set( fld, $( this ).val() );
+                if( obj.class == 'HASH' ) {
+                    
+                } else {
+                    obj.set( fld, $( this ).val() );
+                }
                 ctx.refresh();
             } );
         }
@@ -116,22 +120,37 @@
   <script type="text/template" class="yote_template_definition" template_name="ResourceRow">
     <??? function( ctx ) { 
            var dist = ctx.vars.dist[ ctx.vars._ ];
-           ctx.vars.mined    = dist > 0 ? 10 * 1*ctx.vars.mines.get( ctx.vars._ ).get_rate() : '-';
-           ctx.vars.untapped = dist > 0 ? 1*ctx.vars.planet.get_abundance() * dist  / 10.0 - 10*ctx.vars.mines.get( ctx.vars._ ).get_rate() : '-';
-           ctx.vars.in_depot = dist > 0 ? 10 * 1*ctx.vars.depos.get( ctx.vars._ ).get_contents() : '-';
-           ctx.vars.cost     = 10 * 1*ctx.vars.economy.get( ctx.vars._ ).get_current_price();
+           var depo = ctx.vars.depos.get( ctx.vars._ );
+           ctx.vars.mined    = dist > 0 ? ctx.vars.mines.get( ctx.vars._ ).get_workers_mining() + '/' + ctx.vars.mines.get( ctx.vars._ ).get_rate() : '-';
+           ctx.vars.untapped = dist > 0 ? 1*ctx.vars.planet.get_abundance() * dist - ctx.vars.mines.get( ctx.vars._ ).get_rate() : '-';
+           ctx.vars.in_depot = dist > 0 ? 1*depo.get_contents() + '/' + depo.get_capacity() : '-';
+           ctx.vars.market   = ctx.vars.game.get_marketplace().get( ctx.vars._ );
     } ???>
     <tr> <td><$ _ $></td> 
          <td><$ mined $></td> 
          <td><$ untapped $></td> 
          <td><$ in_depot $></td> 
-         <td><$ cost $></td> 
+         <td><$ market.buy_cost $></td>
+         <td><$ market.sell_cost $></td>
     </tr>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="PlanetShips">
+    <$ _.recipe.name $> <BR>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="BuildQueue">
+    <??? function( ctx ) {
+           ctx.vars.assign = ctx.vars.factory.get_build_assignments();
+         } ???>
+    <tr><td class="number"> <?? function( ctx ) { return '<$$ WorkerSelect assign ' + ctx.vars._.id + ' ' + ctx.vars.factory.get_build_rate() + ' $$>'; } ??> </td>
+        <td> <$ _.recipe.name $> </td>
+        <td> <?? function(ctx) { return  ctx.vars._.get_completed().get( 'ore' ); } ??> </td>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="MyPlanet">
     <??? 
-    function( ctx ) { 
+    function( ctx ) {
         ctx.vars.factory = ctx.vars.planet.get_factory();
         var mines = ctx.vars.planet.get_mines();
         ctx.vars.mines = mines;
@@ -139,18 +158,32 @@
         ctx.vars.col = ctx.vars.planet.get_colony();
         ctx.vars.avail_workers = 1*ctx.vars.col.get_population() - 
             ( 1*ctx.vars.col.get_workers_expanding() +
-              1*ctx.vars.col.get_commerce_workers() + 
-              1*ctx.vars.factory.get_workers_expanding() +
-              1*ctx.vars.factory.get_workers_manufacturing() );
+              1*ctx.vars.factory.get_workers_expanding() );
+
+        var blding  = ctx.vars.factory.get( 'building' );
+        if( blding ) {
+            var assgn   = ctx.vars.factory.get( 'build_assignments' );
+            blding = blding.to_list();
+            for( var i=0; i<blding.length; i++ ) {
+                var asid = blding[ i ].id;
+                ctx.vars.avail_workers -= assgn.get( asid );
+            }
+        }
+        var mined_amount = 0;
+        var developed_amount = 0;
         if( mines ) {
             mines = mines.to_hash();
             for( var res in mines ) {
                 var mine = mines[ res ];
+                mined_amount += 1*mine.get_workers_mining();
+                developed_amount += 1*mine.get_rate();
                 ctx.vars.avail_workers -= (
                     1* mine.get_workers_expanding() + 
                         1*mine.get_workers_mining() );
             }
         }
+        ctx.vars.mined_amount = mined_amount;
+        ctx.vars.developed_amount = developed_amount;
         
         var depos = ctx.vars.planet.get_resource_depos();
         ctx.vars.depos = depos;
@@ -164,29 +197,37 @@
             }
         }
     } ???>
-
     <div class="innerpanel">
       <h3>Showing planet <$ planet.name $></h3>
+      money : <$ player.money $><br>
       population : <$ planet.colony.population $>
+             <?? function( ctx ) { return ctx.vars.planet.get_colony().get_population()*1 < ctx.vars.planet.get_max_pop()*1 ?
+                                   '/' + ctx.vars.planet.get_max_pop() : ''; } ??>
         <br>
         <br>
-        mineral wealth : <$ planet.abundance $> units per turn
+        developed <$ developed_amount 0 $> of <$ planet.abundance $> planetary resources.
+        <br>
+        mining <$ mined_amount 0 $> of those resources.
         <br>
         <br>
-          <table> <tr> <th>resource</th> <th>mined</th> <th>untapped</th> <th>in depot</th> <th>cost</th> </tr>
+          <table> <tr> <th>resource</th> <th>mined</th> <th>untapped</th> <th>in depot</th> <th>buy price</th> <th>sale price</th> </tr>
             <@ ResourceRow @resources 15 @>
           </table>
           <br>
-          factory output : <$ planet.factory.build_rate $> units per turn
+          factory output rate : <$ factory.build_rate $> 
     </div>
 
     <div class="innerpanel">
-      <table> <tr> <th>Workers</th> <th>Task</th> </tr>
+      <h3>Ships</h3>
+      <@ PlanetShips planet.ships 10 @>
+    </div>
+
+    <div class="innerpanel">
+      <table> <tr> <th>Workers</th> <th>Task</th> <th>Progress</th> </tr>
+      <tr> <td class="number"><?? function( ctx ) { return ctx.vars.avail_workers || '0'; } ??></td> <td>Workers Available</td> </tr>
       <?? function( ctx ) { return 1*ctx.vars.col.get_population() < 1*ctx.vars.planet.get_max_pop() ? 
-                                '<tr> <td> <$$ WorkerSelect col commerce_workers $$> </td> ' + 
-                                   '<td> Make Money    </td> </tr>' + 
-                                '<tr> <td> <$$ WorkerSelect col workers_expanding $$> </td> ' + 
-                                   '<td> Expand Colony    </td> </tr>' : ''; } ??>
+                                '<tr> <td class="number"> <$$ WorkerSelect col workers_expanding $$> </td> ' + 
+                                   '<td> Expand Colony    </td> <td> <$ planet.colony.expansion_progress $> of <$ game.development_costs.colony $> </td> </tr>' : ''; } ??>
       <?? function( ctx ) { 
         var dist = ctx.vars.planet.get( 'resource_distribution' );
         var mines = ctx.vars.mines;
@@ -202,25 +243,32 @@
                 var res = resses[ i ];
                 var rate = mines[ res ] ? 1*mines[ res ].get_rate() : 0;
                 if( rate < 1*ctx.vars.planet.get_abundance() )
-                    buf += '<tr><td> <$$ WorkerSelect mines.' + res + ' workers_expanding $$> </td><td> ' + ( rate > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' mine </td></tr>';
+                    buf += '<tr><td class="number"> <$$ WorkerSelect mines.' + res + ' workers_expanding $$> </td><td> ' + ( rate > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' mine </td> <td> <$ mines.' + res + '.expansion_progress $> of <$ game.development_costs.mine $> </tr>';
 
                 var cap = depot[ res ] ? 1*depot[ res ].get_capacity() : 0;
-                buf += '<tr><td> <$$ WorkerSelect depos.' + res + ' workers_expanding $$> </td><td> ' + ( cap > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' depot </td></tr>';
+                buf += '<tr><td class="number"> <$$ WorkerSelect depos.' + res + ' workers_expanding $$> </td><td> ' + ( cap > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' depot </td> <td> <$ depos.' + res + '.expansion_progress $> of <$ game.development_costs.resource_depot $> </td> </tr>';
                         
                 if( rate > 0 )
-                    buf += '<tr><td> <$$ WorkerSelect mines.' + res + ' workers_mining ' + rate + ' $$> </td><td> mining ' + res + '</td></tr>';
+                    buf += '<tr><td class="number"> <$$ WorkerSelect mines.' + res + ' workers_mining ' + rate + ' $$> </td><td> mining ' + res + '</td></tr>';
             }
         }
         return buf;
        } ??>
 
-      <tr> <td> <$$ WorkerSelect factory workers_expanding $$> </td> 
-           <td> <?? function( ctx ) { return ctx.vars.factory.get_build_rate() > 0 ? "Develop" : "Build"; } ??> Factory </td> 
+      <tr> <td class="number"> <$$ WorkerSelect factory workers_expanding $$> </td> 
+           <td> <?? function( ctx ) { return ctx.vars.factory.get_build_rate()*1 > 0 ? "Develop" : "Build"; } ??> Factory </td> <td> <$ factory.expansion_progress $> of <$ game.development_costs.factory $>
+         </tr>
+      <tr><th colspan=2>Build Queue</th></tr>
+
+    <@ BuildQueue factory@build_queue 10 @>
       </tr>
-           <?? function( ctx ) { return 1*ctx.vars.factory.get_build_rate() > 0 ? 
-                                 '<tr> <td> <$$ WorkerSelect factory workers_manufacturing ' + (ctx.vars.factory.get_build_rate()/10) + ' $$> </td> <td> Manufacturing   </td> </tr>' : ''; } ??>
      </table>
     </div>
+
+    <div class="innerpanel">
+      <$$ Recipes $$>
+    </div>
+
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="OtherPlanet">
@@ -263,8 +311,9 @@
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="RecipeRow">
+
     <li>
-         <$ _.name $>
+        <$ _.name $>
         <$$$ toedit <a href="#">$$$>edit</a>
         <$$$ tobuild <a href="#">$$$>queue up to build</a>
       </li>
@@ -275,12 +324,14 @@
             ctx.refresh();
         } );
         $( ctx.controls.tobuild ).click( function() {
-            ctx.vars.game.queue_build( { factory : ctx.vars.factory, recipe : ctx.vars._ } );
+            ctx.vars.factory.queue_build( ctx.vars._  );
+            ctx.refresh();
         } );
     } ?>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="Recipes">
+
     <h3>Ship Designs</h3>
     <ul>
      <@ RecipeRow player@recipes 10 @> <$$ Paginator player@recipes $$>
@@ -289,23 +340,28 @@
 
   <script type="text/template" class="yote_template_definition" template_name="InGame">
     <??? function( ctx ) {
+        var doing_stuff = false;
+        if( intev ) clearInterval( intev );
+        intev = setInterval( function() {  
+            if( doing_stuff ) return;
+            doing_stuff = true;
+            ctx.scratch.player.sync_all();
+            ctx.refresh();                                   
+            doing_stuff = false;
+         }, 60000 );
+
         ctx.vars.game = ctx._acct_.get_current_game();
         var player = ctx.vars.game.player();
         ctx.vars.player = player;
-        var eco = player.get_economy();
-        ctx.vars.economy = eco;
+        ctx.scratch.player = player;
         
         // resources in ascending price order
-        var resources = ctx.vars.economy.keys();
+        var resources = ctx.vars.game.get_resources();
         resources.sort( function( a, b ) {
             return a == 'ore' ? -1 : b == 'ore' ? 1 : a.localeCompare( b );
         } );
 
-        var resources_by_cost = ctx.vars.economy.keys().sort();
-        resources_by_cost.sort( function( a, b ) {
-            return a == 'ore' ? -1 : eco.get( a ).get_current_price() - eco.get( b ).get_current_price();
-        } );
-        ctx.vars.resources = resources;
+        ctx.vars.resources = resources.to_list();
 
         ctx.vars.systems = player.get_systems();
         ctx.vars.system = ctx.vars.systems.get( 0 );
@@ -336,18 +392,6 @@
 
         <?? function( ctx ) { return ctx.vars.colony && ctx.vars.player.is( ctx.vars.colony.get_owner() ) ? '<$$ MyPlanet $$>' : '<$$ OtherPlanet $$>'; } ??>
 
-        <div class="innerpanel">
-          <$$ Recipes $$>
-        </div>
-
-        <div class="innerpanel">
-           Factory Production
-        </div>
-
-        <div class="innerpanel">
-           <$$$ turn_ready <button type="button">$$$>Ready for next turn</button>
-        </div>
-
       </div>
     </div>
     
@@ -356,10 +400,6 @@
               ctx._acct_.set( 'current_game', '' );
               ctx.refresh();
           } );
-        $( ctx.controls.turn_ready ).click( function() {
-            ctx.vars.game.ready_player( ctx.vars.player );
-            ctx.refresh();
-        } );
        } ?>
   </script>
 
@@ -446,7 +486,7 @@
 
          $( ctx.controls.join_game ).click( function() { 
              $.yote.debug = true;
-             ctx.vars._app_.add_player(ctx.vars._,
+             ctx._app_.add_player(ctx.vars._,
                                        function(msg){
                                            ctx.scratch.avail_message = "Joined game '" + ctx.vars._.get_name() + "'";
                                        },
@@ -468,16 +508,18 @@
 
         var ag = [];
         var myg = ctx._acct_.get( 'joined_games' ) ? ctx._acct_.get( 'joined_games' ).to_hash() : {};
-        var appg = ctx._app_.get( 'available_games' ) || [];
+        var appg = ctx._app_.get( 'available_games' );
 
         // games you can join, or available games are the joinable games overall - the ones
         //       already joined
         
         // games you can join
-        for( var i=0; i<appg.length(); i++ ) {
-            var g = appg.get(i);
-            if( ! myg[ g.id ] )
-                ag.push( g );
+        if( appg ) {
+            for( var i=0; i<appg.length(); i++ ) {
+                var g = appg.get(i);
+                if( ! myg[ g.id ] )
+                    ag.push( g );
+            }
         }
         ctx.vars.available_games = ag;
 
@@ -495,7 +537,7 @@
     } ???>
     <div>
       <div style="display:inline-block">
-        Welcome <b> <$ _acct_.handle $> </b>
+        Welcome <b> <$ _acct_.handle $> <$$$ logout <a href="#">$$$>logout</a></b>
           <h4>Active Games</h4> 
             <div class="gamepicker">
              <?? function(ctx){ return ctx._acct_.count( 'active_games' ) > 0 ? '' : 'not playing any games';} ??>
@@ -526,6 +568,7 @@
       </div>
     </div>
     <? function( ctx ) {
+        $( ctx.controls.logout ).click( function() { $.yote.logout(); ctx.refresh() } );
         if( ctx.scratch.avail_message ) {
             $( ctx.controls.avail_msg ).append( ctx.scratch.avail_message ).show();
             ctx.scratch.avail_message = '';
@@ -562,6 +605,7 @@
   <script type="text/template" class="yote_template_definition" template_name="Chatter">
     <??? function( ctx ) {
             ctx.vars.chatlog = ctx.parse( '_app_@chatter' );
+        console.log( [ ctx.vars.chatlog, ctx.vars.chatlog.to_list(), "CAHTY" ] );
             ctx.vars.chatlog.sort_reverse = true;
             var l = ctx.parse( 'chatlog' ).to_list();
             var b = [];

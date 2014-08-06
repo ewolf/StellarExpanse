@@ -10,8 +10,10 @@ use Yote::Root;
 
 use SG::Game;
 
+
 sub _init {
     my $self = shift;
+    my $sg = $self->_update_cron();
 } #_init
 
 sub _init_account {
@@ -24,8 +26,6 @@ sub precache {
 
 sub _load {
     my $self = shift;
-    my $sg = $self->_update_cron();
-    $sg->get_enabled( 1 );
 }
 
 sub add_player {
@@ -55,18 +55,25 @@ sub _update_cron {
     my $sg = $self->get_cron_entry();
 
     unless( $sg ) {
+        # check to see if this is in the cron already. Remove it if it is
         my $root = Yote::Root::fetch_root;
         my $cron = $root->_cron();
+
+        my( $old_cron ) = grep { $_->get_name() eq 'SG' } @{$cron->get_entries()};
+        if( $old_cron ) {
+            $cron->remove_from_entries( $old_cron );
+        }
         
-        my $sg = new Yote::RootObj( {
+        $sg = new Yote::RootObj( {
             name    => 'SG',
             enabled => 1,
-            script  => 'my $r = Yote::Root::fetch_root(); my $a = $r->fetch_app_by_class( "SG::App" ); if( $a ) { print STDERR " SG :: checking turns\n""; $a->_check_turns; print STDERR " SG :: checking turns done\n";  } else { print STDERR "Could not find SG::App\n" };',
-            new Yote::Obj( { repeat_interval => 1, repeat_infinite => 1, repeat_times => 0 } ),
-                                       } );
+            script  => 'use Yote::Root; use SG::App; my $r = Yote::Root::fetch_root(); my $a = $r->fetch_app_by_class( "SG::App" ); if( $a ) { print STDERR " SG :: checking turns\n"; $a->_check_turns; print STDERR " SG :: checking turns done\n";  } else { print STDERR "Could not find SG::App\n" };',
+            repeats => [new Yote::Obj( { repeat_interval => 1, repeat_infinite => 1, repeat_times => 0 } ) ],
+                                    } );
         $cron->add_to_entries( $sg );
         $self->set_cron_entry( $sg );
     }
+    $sg->set_enabled( 1 );
     return $sg;
 } #update_cron
 
@@ -76,7 +83,7 @@ sub _check_turns {
     
     my $games = $self->get_active_games();
     for my $game (@$games) {
-        
+        $game->_take_turn;
     }
 
 } #_check_turns
@@ -93,6 +100,7 @@ sub remove_game {
     my( $self, $game, $acct, $env ) = @_;
     die "Access Error to remove game" unless $acct && $acct->_is( $game->get_created_by() );
     $self->remove_from_available_games( $game );
+    $self->remove_from_active_games( $game );
     my $players = $game->get_players( {} );
     for my $player_acct ( map { $_->get_acct() } values %$players ) {
         $player_acct->_hash_delete( 'joined_games', $game->{ ID } );
