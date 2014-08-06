@@ -24,12 +24,14 @@ sub add_player {
     my( $self, $data, $acct, $env ) = @_;
     die "Must be logged in to add player" unless $acct;
     my $players = $self->get_players({});
+
     die "Already joined game " . $self->get_name() if $players->{ $acct->get_handle() };
     die "Game " . $self->get_name() . " is full" if scalar( keys %$players ) == $self->get_number_players();
 
-    # add the account to the game
+    # add the account to the game ( TODO - decide if this should be a RootObj for security )
     my $player = new Yote::UserObj( { name => $acct->get_handle(), acct => $acct } );
     $players->{ $acct->get_handle() } = $player;
+
 
     $acct->_hash_insert( 'joined_games', $self->{ID}, $self );
 
@@ -74,14 +76,13 @@ sub _activate {
 
     my @players = values %{ $self->get_players({}) };
 
+
     for( 0..4 ) {
         
         my $os = $other_sectors->[ $_ ];
         
         my $ps1 = $player_sectors->[ $_ ];
-        my $ps2 = $player_sectors->[ $_==0 ? 4 : $_+1 ];
-
-        $players[ $_ ]->add_to_sectors( $ps1 );
+        my $ps2 = $player_sectors->[ ($_==0 ? 4 : $_-1) ];
 
         $os->add_to_connections( $ps1, $ps2, $master_sector );
         $master_sector->add_to_connections( $os );
@@ -89,8 +90,19 @@ sub _activate {
         $ps2->add_to_connections( $os );
 
         # add one system for now for the player
-        my $start_system = new Yote::RootObj( { name => 'start system' } );
-        $players[ $_ ]->add_to_systems( $start_system );
+        my $start_system = new Yote::RootObj( { 
+            name => 'start system',
+                                              } );
+
+        my $player = $players[ $_ ];
+        if( $player ) {
+            $player->_absorb( {
+                sectors   => [ $ps1 ],
+                systems   => [ $start_system ],
+                money     => 100,
+                resources => { ore => 10, fastium => 10 },
+                              } );
+        }
 
         my $other_system = new Yote::RootObj;
         $ps1->add_to_systems( $start_system, $other_system );
@@ -98,10 +110,34 @@ sub _activate {
         $start_system->add_to_connections( $other_system );
         $other_system->add_to_connections( $start_system );
 
-        my $homeworld = new Yote::RootObj;
+        my $homeworld = new Yote::RootObj( 
+            {
+                name    => "homeworld",
+                max_pop => 70,
+                factory => new Yote::RootObj( 
+                    { 
+                        build_rate => 10,  # in units
+                    } ),
+                colony  => new Yote::RootObj(
+                    {
+                        name           => 'colony',
+                        owner          => $player,
+                        population     => 35,
+                        max_population => 40,
+                    } ),
+                mine   => new Yote::RootObj(
+                    {
+                        rate  => 10, 
+                    } ),
+                abundance => 30, #how much can be produced per turn of this planet
+                resource_distribution => { #these all add up to 10
+                    ore     => 8,  # should be 5 + random
+                    fastium => 2,
+                },
+            } );
         my $otherworld = new Yote::RootObj;
-        $start_system->add_to_locations( $homeworld, $otherworld );
-
+        $start_system->add_to_planets( $homeworld, $otherworld );
+        
         # for home systems, they have a fixed amount of materials in random proportions
         # the planets in the system are somewhat random, too
         
@@ -122,28 +158,74 @@ is_active
 #--- sector ----
 
 connections - [ list of sectors this connects with ]
-
-systems - internal systems
+systems     - internal systems
 
 #---- system ----
 
-connectoins - [ list of systems this connects with ]
-
-locations - ( planets and others )
+name
+connections - [ list of systems this connects with ]
+planets - ( planets and others )
 
 #---- planet ( location ) ----
 
-max_population size
+max_pop   - max population size ( from 1-100 )
 resources - hash of resource type --> abundance 
-colonies - [ list of colonies ]
-mines - [ list of mines ]
+colony  - a planet may have one colony
+mine    - a planet may have one mine
+factory - a planet may have one factory
+abundance - how much can be produced per turn of this planet(multiple of 10)
+resource_distribution - hash of resource -> count. the sum of all resources must equal 10.
 
 #---- player -----
 
 sectors - list of sectors this player has a presence in
 systems - list of systems controlled
-resource_cache - hash of resource type -> amount
+money   - units of money in treasury ( maybe no money..just have to have the population to run a mine and factory
+resources - hash of resource type -> amount
 
+
+#---- colony -----
+
+name        - 
+owner       - player
+population  - current population
+max_population - max population this colony can handle
+
+colonies should grow at a rate of 1 pop per turn up to their max size
+
+#---- factory -----
+
+build_rate - how many units of resources can be used per turn to build a ship.
+
+#---- recipe
+
+#---- ship ----
+
+composition - a hash of resource to amount. The sum of the amounts must add up to 10. The resources affect all the components of the ship.
+
+size        - 
+blast_power -
+carry_size  - 
+cargo       - 
+passengers  - 
+
+# resources :
+
+ore        - standard vanilla ore
+speedium   - increases speed
+shrinkium  - decreases size ( useful for carrying a punch in a carrier )
+growium    - increase size ( useful for *being* a carrier )
+blastium   - increases blaster power
+turtleite  - increases defensive power
+tofunite   - doubles the effectiveness of effective ores up to its weight
+featheride - decreases weight
+organium   - allows more population to be in a colony past its size 
+
+#---- mine -----
+
+rate - in chunks of 10 : how much can this mine up to the planets
+                         abundance.  needs one population per chunk
+ maybe a mine *is* needed to gather resources
 
 ,?? mineral composition
 

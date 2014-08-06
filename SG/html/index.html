@@ -73,26 +73,36 @@
     </style>
   </head>
 
+  <script type="text/template" class="yote_template_definition" template_name="SystemMap">
+        System map goes here
+  </script>
+
   <script type="text/template" class="yote_template_definition" template_name="InGame">
     <??? function( ctx ) {
             ctx.vars.game = ctx._acct_.get_current_game();
             if( ! ctx.scratch.view ) {
-                ctx.vars.player = ctx.vars.game.player();
+                var player  = ctx.vars.game.player();
+                ctx.vars.player = player;
                 ctx.vars.systems = player.get_systems();
-                ctx.scratch.view = '';
+                ctx.vars.system = ctx.vars.systems.get( 0 );
+                ctx.vars.planet = ctx.vars.system.get_locations().get(0);
+                ctx.vars.view = 'SystemMap';
             }
          } ???>
-    <$$$ lob <a href="#">Back to lobby</a> $$$> 
+    <$$$ lob <a href="#">Back to lobby</a> $$$>
     
     <h3>Playing <b><$ game.name $></b> game</h3>
 
     <div>
       <div class="bigpanel">
-        System map goes here
+        <?? function( ctx ) { return '<$$ ' + ctx.vars.view + ' $$>'; } ??>
       </div>
       
       <div class="sidepanel">
         <div class="upsidepanel">
+          Showing planet <$ planet.name $>
+
+          
         </div>
         <div class="downsidepanel">
         </div>
