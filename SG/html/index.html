@@ -63,13 +63,10 @@
           display: inline-block;
           float: right;
       } 
-      .upsidepanel { 
+      .innerpanel { 
           background-color: lightgreen;
-//          min-width : 500px;
-//          min-height : 500px;
-//          margin : 15px;
-//          padding : 15px;
-      } 
+          margin: 15px;
+      }
     </style>
   </head>
 
@@ -77,15 +74,138 @@
         System map goes here
   </script>
 
+  <script type="text/template" class="yote_template_definition" template_name="WorkerSelect">
+    <$$$ sel <select> $$$>
+    <??? function( ctx ) {
+        if( ctx.args.length == 2 ) {
+            var obj = ctx.parse( ctx.args[ 0 ] );
+            var fld = ctx.args[ 1 ];
+            var avail = ctx.vars.avail_workers;
+            var already_working = 1*obj.get( fld );
+            var buf = '';
+            for( var i=0; i <= already_working + avail; i++ ) {
+                buf += '<option value="' + i + '"' + ( already_working == i ? ' selected="selected"' : '') + '>' + i + '</option>';
+            }
+            return buf;
+        }
+    } ???>
+    </select>
+
+    <? function( ctx ) {
+        if( ctx.args.length == 2 ) {
+            var obj = ctx.parse( ctx.args[ 0 ] );
+            var fld = ctx.args[ 1 ];
+            $( ctx.controls.sel ).change( function() {
+                obj.set( fld, $( this ).val() );
+                ctx.refresh();
+            } );
+        }
+      } ?>
+    
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="MyPlanet">
+    <??? 
+    function( ctx ) { 
+        ctx.vars.factory = ctx.vars.planet.get_factory();
+        var mines = ctx.vars.planet.get( 'mines' );
+        ctx.vars.mines = mines;
+        if( mines ) {
+            mines = mines.to_hash();
+        }
+        ctx.vars.col = ctx.vars.planet.get_colony();
+        ctx.vars.avail_workers = 1*ctx.vars.col.get_population() - 
+            ( 1*ctx.vars.col.get_workers_expanding() + 
+              1*ctx.vars.factory.get_workers_expanding() +
+              1*ctx.vars.factory.get_workers_manufacturing() );
+        if( mines ) {
+            for( var res in mines ) {
+                var mine = mines[ res ];
+                ctx.vars.avail_workers -= (
+                    1* mine.get_workers_expanding() + 
+                        1*mine.get_workers_mining() );
+            }
+        }
+    } ???>
+
+    <div class="innerpanel">
+      <h3>Showing planet <$ planet.name $></h3>
+      population : <$ planet.colony.population $>
+        <br>
+        <br>
+        mineral wealth : <$ planet.abundance $> units per turn
+        <br>
+        <br>
+          <table> <tr> <th>resource</th> <th>mined</th> <th>untapped</th> </tr>
+            <?? function(ctx){ 
+                var buf = '';
+                var mines = ctx.vars.planet.get_mines();
+                var rd = ctx.vars.planet.get_resource_distribution().to_hash();
+                if( mines ) {
+                    var resses = mines.keys();
+                    resses.sort();
+                    for( var i in resses ) {
+                        var res = resses[ i ];
+                        buf += '<tr><td>' + res + '</td><td class="number">' + (10 * 1*mines.get( res ).get_rate() ) + '</td>' + 
+                            '<td class="number">' + ( (1*ctx.vars.planet.get_abundance() * rd[ res ] ) / 10.0  - 10*mines.get( res ).get_rate()  ) + '</td></tr>';
+                    }
+                } 
+                return buf; } ??>
+          </table>
+          <br>
+          factory output : <$ planet.factory.build_rate $> units per turn
+    </div>
+
+    <div class="innerpanel">
+      <table> <tr> <th>Workers</th> <th>Task</th> </tr>
+      <?? function( ctx ) { return 1*ctx.vars.col.get_population() < 1*ctx.vars.planet.get_max_pop() ? 
+                                '<tr> <td> <$$ WorkerSelect col workers_expanding $$> </td> ' + 
+                                   '<td> Expand Colony    </td> </tr>' : ''; } ??>
+      <?? function( ctx ) { 
+        var dist = ctx.vars.planet.get( 'resource_distribution' );
+        var mines = ctx.vars.mines;
+        var buf = '';
+        if( dist && mines ) {
+            mines = mines.to_hash();
+            var resses = dist.keys();
+            resses.sort();
+            dist = dist.to_hash();
+            for( var i in resses ) {
+                var res = resses[ i ];
+                var rate = mines[ res ] ? 1*mines[ res ].get_rate() : 0;
+                if( rate < 1*ctx.vars.planet.get_abundance() )
+                    buf += '<tr><td> <$$ WorkerSelect mines.' + res + ' workers_expanding $$> </td><td> ' + ( rate > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' mine </td></tr>';
+                        
+                if( rate > 0 )
+                    buf += '<tr><td> <$$ WorkerSelect mines.' + res + ' workers_mining $$> </td><td> mining ' + res + '</td></tr>';
+            }
+        }
+        return buf;
+       } ??>
+
+      <tr> <td> <$$ WorkerSelect factory workers_expanding $$> </td> 
+           <td> <?? function( ctx ) { return ctx.vars.factory.get_build_rate() > 0 ? "Develop" : "Build"; } ??> Factory </td> 
+      </tr>
+           <?? function( ctx ) { return 1*ctx.vars.factory.get_build_rate() > 0 ? 
+                                 '<tr> <td> <$$ WorkerSelect factory workers_manufacturing $$> </td> <td> Manufacturing   </td> </tr>' : ''; } ??>
+     </table>
+    </div>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Recipes">
+    
+  </script>
+
   <script type="text/template" class="yote_template_definition" template_name="InGame">
     <??? function( ctx ) {
             ctx.vars.game = ctx._acct_.get_current_game();
-            if( ! ctx.scratch.view ) {
+            if( ! ctx.vars.view ) {
                 var player  = ctx.vars.game.player();
                 ctx.vars.player = player;
                 ctx.vars.systems = player.get_systems();
                 ctx.vars.system = ctx.vars.systems.get( 0 );
-                ctx.vars.planet = ctx.vars.system.get_locations().get(0);
+                ctx.vars.planet = ctx.vars.system.get_planets().get(0);
+                ctx.vars.colony = ctx.vars.planet.get( 'colony' );
                 ctx.vars.view = 'SystemMap';
             }
          } ???>
@@ -94,18 +214,18 @@
     <h3>Playing <b><$ game.name $></b> game</h3>
 
     <div>
-      <div class="bigpanel">
+      <$$$ bigpanel <div class="bigpanel"> $$$>
         <?? function( ctx ) { return '<$$ ' + ctx.vars.view + ' $$>'; } ??>
       </div>
-      
-      <div class="sidepanel">
-        <div class="upsidepanel">
-          Showing planet <$ planet.name $>
 
-          
+      <div class="sidepanel">
+
+        <?? function( ctx ) { return ctx.vars.colony && ctx.vars.player.is( ctx.vars.colony.get_owner() ) ? '<$$ MyPlanet $$>' : '<$$ OtherPlanet $$>'; } ??>
+
+        <div class="innerpanel">
+          <$$ Recipes $$>
         </div>
-        <div class="downsidepanel">
-        </div>
+
       </div>
     </div>
     
@@ -332,6 +452,7 @@
     <?? function(ctx) {
     
         var cur_game = ctx._acct_.get( 'current_game' );
+        
         return cur_game ? '<$$ InGame $$>' : '<$$ Lobby $$>';
     } ??>
     <# LoggedIn #>
@@ -339,7 +460,7 @@
 
   <script type="text/template" class="yote_template_definition" template_name="Splash">
      Welcome to space game prototype
-     <BR>
+     <br>
      <$$ Logged_out $$>
   </script>
 
