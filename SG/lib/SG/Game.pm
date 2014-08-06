@@ -6,6 +6,8 @@ no warnings 'uninitialized';
 
 use base 'Yote::Obj';
 
+use SG::Factory;
+
 sub _init {
     my $self = shift;
     $self->_absorb( {
@@ -27,7 +29,7 @@ sub _init {
             carrier_hold => 7,
             colony       => 10,
             jump_drive   => 10,
-            passenger_compartment => 3,
+            passenger_compartment => 6,
             warp         => 2,
         },
         development_costs => {
@@ -46,8 +48,19 @@ sub _init {
             passenger_compartment => 8,
             warp         => 4,
         },
+        resource_base_cost => { #per unit
+            map { 
+                $_ => new Yote::Obj( {
+                    base_price => $_ eq 'ore' ? 1 : 10,
+                    consumption_per_resource => $_ eq 'ore' ? 1 : 10,  # 10 means 10 people consume 1
+                                     } ),
+            } qw( ore fastium shrinkium 
+                  growium blastium turtlite
+                  tofunite featheride organium plastica
+                 ),
+        },
                     } );
-}
+} #_init
 
 #
 # Return the player associated with the account.
@@ -56,6 +69,19 @@ sub player {
     my( $self, $data, $acct, $env ) = @_;
     return $self->_hash_fetch( 'players', $acct->get_handle() );
 } #player
+
+sub ready_player {
+    my( $self, $player, $acct, $env ) = @_;
+    my $players = $self->get_players();
+    die "access error" unless $player && $player->_is( $players->{ $acct->get_handle() } );
+    $player->set_is_ready( 1 );
+    
+#    if( 0 == grep { ! $_->get_is_ready() } values %$players ) {
+        # if no players are unready
+        $self->_take_turn();
+#    }
+    
+} #ready_player
 
 sub add_player {
     my( $self, $data, $acct, $env ) = @_;
@@ -75,7 +101,6 @@ sub add_player {
     # check if the game is now starting
     if( scalar( keys %$players ) == $self->get_number_players() ) {
         $self->_activate();
-        $self->remove_from_available_games( $self );
     }
 
     return $player;
@@ -113,7 +138,6 @@ sub _activate {
 
     my @players = values %{ $self->get_players({}) };
 
-
     for( 0..4 ) {
 
         my $os = $other_sectors->[ $_ ];
@@ -132,37 +156,7 @@ sub _activate {
                                               } );
 
         my $player = $players[ $_ ];
-        if( $player ) {
-            $player->_absorb( {
-                sectors   => [ $ps1 ],
-                ships     => [],
-                systems   => [ $start_system ],
-                money     => 10,
-                recipes   => [
-                    new Yote::Obj( {
-                        name => 'freighter',
-                        composition => {
-                            # special resources go here
-                        },
-                        components => {
-                            warp => 1,
-                            passenger_hold => 1,
-                            cargo_hold     => 1,
-                        },
-                                   } ),
-                    new Yote::Obj( {
-                        name => 'colony ship',
-                        composition => {
-                            # special resources go here
-                        },
-                        componentns => {
-                            warp   => 1,
-                            colony => 1,
-                        },
-                                   } ),
-                    ],
-                              } );
-        }
+
 
         my $other_system = new Yote::Obj;
         $ps1->add_to_systems( $start_system, $other_system );
@@ -170,48 +164,111 @@ sub _activate {
         $start_system->add_to_connections( $other_system );
         $other_system->add_to_connections( $start_system );
 
-        my $homeworld = new Yote::Obj(
+        my $homeworld = new Yote::Obj( {
+            resource_distribution => { #these all add up to 10
+                ore     => 8,  # should be 5 + random
+                fastium => 2,
+            },
+                                       } );
+
+        my $base = $self->get_resource_base_cost();
+
+        $homeworld->_absorb(
             {
                 name    => "homeworld",
+                owner   => $player,
                 max_pop => 10,
-                factory => new Yote::Obj(  # each planet has a factory slot when created
-                    {
-                        build_rate            => 10,  # in units of multiples of 10. 0 indicates no factory
-                        workers_expanding     => 0,
-                        workers_manufacturing => 0,
-                    } ),
+                factory => new SG::Factory(  # each planet has a factory slot when created
+                                             {
+                                                 build_rate            => 10,  # in units of multiples of 10. 0 indicates no factory
+                                                 workers_expanding     => 0,
+                                                 workers_manufacturing => 0,
+                                                 build_queue           => [],
+                                                 build_assignments     => {}, # build_queue idx -> number of workers on that item. check at built time to make sure no value is greater than avail workers
+                                                 planet                => $homeworld,
+                                                 owner                 => $player,
+                                             } ),
                 colony  => new Yote::Obj(  # each planet has a colony slot when created
-                    {
-                        name              => 'colony',
-                        owner             => $player,
-                        population        => 3,
-                        workers_expanding => 0,
-                    } ),
+                                           {
+                                               name              => 'colony',
+                                               planet            => $homeworld,
+                                               owner             => $player,
+                                               population        => 3,
+                                               workers_expanding => 0,
+                                               commerce_workers  => 3,
+                                           } ),
                 abundance => 30, #how much can be produced per turn of this planet
-                resource_distribution => { #these all add up to 10
-                    ore     => 8,  # should be 5 + random
-                    fastium => 2,
+                resource_depos => { # any overflow is sold to the marketplace
+                    # build gets its resources here first
+                    map { 
+                        $_ => new Yote::Obj( {
+                            capacity          => $_ eq 'ore' ? 20 : 0,
+                            contents          => 0,
+                            workers_expanding => 0,
+                                             } );
+                    }
+                    keys %$base
                 },
-                resource_depot => { #a planet can store unlimited
-                    ore     => 10,
-                    fastium => 10
+                mines => { 
+                    map { $_ => new Yote::Obj( {
+                        rate              => $_ eq 'ore' ? 1 : 0,
+                        workers_expanding => 0,
+                        workers_mining    => 0,
+                        planet            => $homeworld,
+                        owner             => $player,
+                                               } ) } 
+                    keys %$base
                 },
             } );
-        $homeworld->set_mines( { 
-                    ore => new Yote::Obj(   # each planet has a mine slot when created
-                                            {
-                                                rate              => 1, #deca units. 0 indicates no mine
-                                                workers_expanding => 0,
-                                                workers_mining    => 0,
-                                            } ),
-                    map { $_ => new Yote::Obj( {
-                        rate => 0,
-                        workers_expanding => 0,
-                        workers_mining => 0
-                                               } ) } grep { $_ ne 'ore' } keys %{ $homeworld->get_resource_distribution() } } );
+
+        $player->_absorb( {
+            ships     => [],
+            sectors   => [ $ps1 ],
+            systems   => [ $start_system ],
+            planets   => [ $homeworld ],
+            money     => 10,
+            total_pop => 3,
+            recipes   => [
+                new Yote::Obj( {
+                    name => 'freighter',
+                    composition => {
+                        # special resources go here
+                    },
+                    components => {
+                        warp => 1,
+                        passenger_hold => 1,
+                        cargo_hold     => 1,
+                    },
+                               } ),
+                new Yote::Obj( {
+                    name => 'colony ship',
+                    composition => {
+                        # special resources go here
+                    },
+                    components => {
+                        warp   => 1,
+                        colony => 1,
+                    },
+                               } ),
+                ],
+            economy => { # any overflow is sold to the marketplace
+                # build gets its resources here first
+                map { 
+                    $_ => new Yote::Obj( {
+                        amount_in_economy   => 0,
+                        base_price          => $base->{ $_ }->get_base_price(),
+                        current_price       => $base->{ $_ }->get_base_price(),
+                        consumption_per_resource => $base->{ $_ }->get_consumption_per_resource(),
+                                         } );
+                }
+                keys %$base
+            },
+                          } ) if $player;
+
+
         my $otherworld = new Yote::Obj;
         $start_system->add_to_planets( $homeworld, $otherworld );
-
+            
         # for home systems, they have a fixed amount of materials in random proportions
         # the planets in the system are somewhat random, too
 
@@ -220,8 +277,100 @@ sub _activate {
 
 } #_activate
 
+sub _take_turn {
+    my $self = shift;
+    
+    my $players = $self->get_players();
+
+    # turn order - fire, move, build
+
+    # fire
+
+    # move
+
+    # build ( accept factory orders )
+    for my $player ( values %$players ) {
+        my $economy = $player->get_economy();
+        my $res_costs = [ 'ore', 'fastium' ]; #in ascending order
+        my $money = $player->get_money();
+        for my $planet ( @{ $player->get_planets() } ) {
+            my $mines = $planet->get_mines();
+            my $depos = $planet->get_resource_depos();
+            for my $res (keys %$mines ) {
+                my $depot   = $depos->{ $res };
+                my $mine    = $mines->{ $res };
+                my $workers = $mine->get_workers_mining();
+                my $new_content_size = $workers + $depot->get_contents();
+                my $cap = $depot->get_capacity();
+                if( $cap <= $new_content_size ) {
+                    $depot->set_contents( $new_content_size );
+                } else {
+                    my $overflow = $new_content_size - $cap;
+                    $economy->{ $res } += $overflow;
+                    # the overflow gets disbersed to the economy, lowering
+                    # the price of this commodity
+                }
+            }
+            my $fact = $planet->get_factory();
+            my $queue = $fact->get_build_queue();
+            my $assignments = $fact->get_build_assignments();
+
+            for my $assign_id ( keys %$assignments ) {
+                my $workers = $assignments->{ $assign_id };
+                next unless $workers;
+                my $ship = $queue->[ $assign_id ];
+                my $recipe = $ship->get_recipe();
+                my $done = $ship->get_completed();
+                my $composition = $recipe->get_composition();
+
+                #find what the ship needs to complete
+                my $incomplete = 0;
+                for my $res (@$res_costs) {
+                    my $needed = $composition->{ $res } - $done->{ $res };
+                    next unless $needed;
+                    
+                    my $building = $needed <= $workers ? $needed : $workers;
+                    
+                    # calc the price to build that much
+                    my $depot   = $depos->{ $res };
+                    my $avail_from_depot = $depot->get_contents();
+                    
+                    my $using_from_depot = $avail_from_depot > $building ? 
+                        $building : $avail_from_depot;
+                    $depot->set_contents( $avail_from_depot - $using_from_depot );
+
+                    $done->{ $res } += $using_from_depot;
+                    $workers -= $using_from_depot;
+
+                    $needed = $building - $using_from_depot;
+                    # buy this now
+                    
+                    # TODO - real numbers.
+                    my $spending = $money > $needed ? $money - $needed : 0;
+                    $money -= $spending;
+                    $done->{ $res } += $spending;
+
+                    $incomplete ||= ($composition->{ $res } - $done->{ $res });
+
+                    last if $workers == 0;
+                } #each resource
+
+                # check if ship is done
+                unless( $incomplete ) {
+                    #remove from assignments
+                    #add to planet
+                    #add to player's active ships
+                }
+                
+            } #each assigned build
+        } #each planet
+        $player->set_money( $money );
+    } #loop through each player
+
+} #_take_turn
+
 # calc weight, size, etc
-sub _calculate_recipe_stats {
+sub calculate_recipe_stats {
     my( $self, $recipe ) = @_;
 
     return if $recipe->get_is_calculated();
@@ -268,14 +417,16 @@ sub _calculate_recipe_stats {
 
     $recipe->set_size( $build_size );
     $stats->{ size } = $build_size;
-    $recipe->set_resource_cost( $resource_cost );
+
+    # the ore is calculated rather than given
+    $composition->{ ore } = $resource_cost; 
 
     # mass goes here, along with warp and jump ratings
     $mass -= $tofu_boost * $composition->{ featheride };
     $mass = 1 if $mass < 1;
     $stats->{ mass } = $mass;
-    $stats->{ warp_rating } = (2*$components->{ warp }) / ( 1 + $mass );
-    $stats->{ jump_rating } = (2*$components->{ warp }) / ( 1 + $size );
+    $stats->{ warp_rating } = (10*$components->{ warp }) / ( 1 + $mass );
+    $stats->{ jump_rating } = (10*$components->{ jump_drive }) / ( 1 + $size );
                        
     my $build_rate = $build_size - $composition->{ plastica };
 
@@ -283,11 +434,11 @@ sub _calculate_recipe_stats {
 
     $recipe->set_is_calculated( 1 );
 
-} #_calculate_recipe_stats
+} #calculate_recipe_stats
 
 sub _prepare_to_build_ship {
     my( $self, $recipe, $player, $at_colony ) = @_;
-    $self->_calculate_recipe_stats( $recipe );
+    $self->calculate_recipe_stats( $recipe );
 
     # the recipe has a size. That is the amount of ore needed
     # to construct it.
@@ -345,7 +496,7 @@ resources - hash of resource type --> abundance
 colony  - a planet may have one colony
 mines    - a planet may have one mine per matierial type
 factory - a planet may have one factory
-resource_depot    - a planet may have type specific resource depos
+resource_depos    - a planet may have type specific resource depos
 abundance - how much can be produced per turn of this planet (multiple of 10)
 resource_distribution - hash of resource -> count. the sum of all resources must equal 10.
 ships - list of ship objects here

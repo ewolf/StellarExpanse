@@ -6,6 +6,8 @@ no warnings 'uninitialized';
 
 use base 'Yote::AppRoot';
 
+use Yote::Root;
+
 use SG::Game;
 
 sub _init {
@@ -22,6 +24,17 @@ sub precache {
 
 sub _load {
     my $self = shift;
+    my $sg = $self->_update_cron();
+    $sg->get_enabled( 1 );
+}
+
+sub add_player {
+    my( $self, $game, $acct, $env ) = @_;
+    $game->add_player( undef, $acct, $env );
+    if( $game->get_is_ready( 1 ) ) {
+        $self->remove_from_available_games( $game );
+        $self->add_to_active_games( $game );
+    }
 }
 
 sub chat {
@@ -34,6 +47,39 @@ sub chat {
         );
     return '';
 } #chat
+
+#makes sure the cron is checking turns every minute or so
+sub _update_cron {
+    my $self = shift;
+
+    my $sg = $self->get_cron_entry();
+
+    unless( $sg ) {
+        my $root = Yote::Root::fetch_root;
+        my $cron = $root->_cron();
+        
+        my $sg = new Yote::RootObj( {
+            name    => 'SG',
+            enabled => 1,
+            script  => 'my $r = Yote::Root::fetch_root(); my $a = $r->fetch_app_by_class( "SG::App" ); if( $a ) { print STDERR " SG :: checking turns\n""; $a->_check_turns; print STDERR " SG :: checking turns done\n";  } else { print STDERR "Could not find SG::App\n" };',
+            new Yote::Obj( { repeat_interval => 1, repeat_infinite => 1, repeat_times => 0 } ),
+                                       } );
+        $cron->add_to_entries( $sg );
+        $self->set_cron_entry( $sg );
+    }
+    return $sg;
+} #update_cron
+
+#checks the turns of all active games
+sub _check_turns {
+    my $self = shift;
+    
+    my $games = $self->get_active_games();
+    for my $game (@$games) {
+        
+    }
+
+} #_check_turns
 
 sub create_game {
     my( $self, $data, $acct, $env ) = @_;
