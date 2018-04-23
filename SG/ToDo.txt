@@ -1,0 +1,13 @@
+Space Game
+
+The Stack :
+
+
+_____________________
+
+Random Ideas :
+
+ * different planet fertility types. changes how fast the planet grows
+
+ * communications gaps? Does it take time for information to flow? Are there couriers needed? Might make for an interesting
+   flavor if its not too annoying to play.

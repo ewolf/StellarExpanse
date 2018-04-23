@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple Space Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="/yote/js"></script>
+
+    <script>
+    var intev;
+    $().ready(function(){
+        $.yote.debug = false;
+        $.yote.templates.import_templates( '/templates/default_templates.html' );
+        $.yote.templates.import_templates( '/templates/yote_templates.html' );
+
+        $.yote.templates.import_templates( 'templates/communications.html' );
+        $.yote.templates.import_templates( 'templates/game_main.html' );
+        $.yote.templates.import_templates( 'templates/lobby.html' );
+        $.yote.templates.import_templates( 'templates/util.html' );
+
+        var app = $.yote.init( 'SG::Simple::App' );
+        app.precache();
+        $.yote.templates.init();
+        $.yote.templates.refresh();
+        $( '#spinner' ).hide();
+    } );
+    </script>
+
+    <style>
+      .navpanel,.viewport,.updates {
+          border: solid 1px;
+          vertical-align: top;
+          display: inline-block;
+          margin: 1em;
+          padding: 1em;
+      }
+      .hide { display: none; }
+
+@media handheld {
+
+      html, body {
+      font: 12px/15px sans-serif;
+      background: #fff;
+      padding: 3px;
+      color: #000;
+      margin: 0;
+      }
+      #sidebar, #footer {
+      display: none;
+      }
+      h1, h2, h3, h4, h5, h6 {
+      font-weight: normal;
+      }
+      #content img { 
+      max-width: 250px;
+      }
+      .center {
+      width: 100% !important;
+      text-align: center;
+      }
+      a:link, a:visited {
+      text-decoration: underline;
+      color: #0000CC;
+      }
+      a:hover, a:active {
+      text-decoration: underline;
+      color: #660066;
+      }
+
+}
+/* iPhone-specific styles */
+@media only screen and (max-device-width: 480px) { 
+
+      html {
+      -webkit-text-size-adjust: none;
+      }
+
+
+      div.collapserhead {
+         background-color: yellow;
+      }
+      div.collapserbody {
+         margin-bottom : .8em;
+      }
+    </style>
+
+  </head>
+
+  <script type="text/template" class="yote_template_definition" template_name="LoggedIn">
+    <?? function(ctx) {
+        var cur_game = ctx._acct_.get( 'current_game' );
+
+        return cur_game ? '<$$ InGame $$>' : '<$$ Lobby $$>';
+    } ??>
+    <# LoggedIn #>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Splash">
+     Welcome to space game __SIMPLE__ prototype
+     <br>
+     <$$ Logged_out $$>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="MainBody">
+    <??? function( ctx ) {
+            ctx.refresh = function() {
+                $( '#spinner' ).show();
+                $.yote.templates.refresh();
+                $( '#spinner' ).hide();
+            }
+         } ???>
+    <?? function( ctx ) { ctx.scratch.message = ''; return $.yote.is_logged_in() ? '<$$ LoggedIn $$>' : '<$$ Splash $$>'; } ??>
+  </script>
+
+  <BODY>
+    <img id="spinner" src="spinnerLarge.gif">
+    <$$ MainBody $$>
+  </BODY>
+
+</html>
