@@ -1,0 +1,75 @@
+<script type="text/template" class="yote_template_definition" template_name="InGame">
+  <???
+
+      /* initialization of vars */
+      ctx.vars.game = ctx._acct_.get_current_game();
+      var player = ctx.vars.game.player();
+      ctx.vars.player = player;
+
+      ctx.vars.components = ctx.vars.game.get_components();
+      ctx.vars.resources  = ctx.vars.game.get_resources();
+
+      /* this updates the ui every minute or so */
+      var doing_stuff = false;
+      if( intev ) clearInterval( intev );
+      intev = setInterval( function() {
+          if( doing_stuff ) return;
+          doing_stuff = true;
+          player.sync_all();
+          if( $.yote.has_updated )
+              ctx.refresh();
+          doing_stuff = false;
+       }, 30000 );
+
+
+      // find defaults
+      var v = player.get( 'current_view' );
+      if( ! v ) {
+          v = 'planet';
+      } 
+      ctx.vars.view = v;
+
+      var p = player.get( 'current_planet' );
+      if( ! p ) {
+          p = player.get_planets().get(0);
+          player.set( 'current_planet', p );
+
+          var sys = p.get_system();
+          ctx.vars.system = sys;
+          player.set( 'current_system', sys );
+
+          var s = sys.get_sector();
+          ctx.vars.sector = s;
+          player.set( 'current_sector', sys );
+      }
+      ctx.vars.planet = p;
+  ???>
+
+  <div class="header">
+    <h1><$ game|name $></h1>
+    <$$$ lob <a href="#">Back to lobby</a> $$$>
+  </div>
+  <$$ SystemMap $$>
+  <$$ InTransitFleets $$>
+
+  <? 
+        $( ctx.controls.lob ).click( function() {
+            ctx._acct_.set( 'current_game', '' );
+            ctx.refresh();
+        } );
+  ?>
+
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="SystemMap">
+  <div>
+    Map of System
+    <# a list of planets that are here and the relaitve distances to them #>
+      <$ game@planets $>
+    <$$ List PlanetOnMap game|planets@ $$>
+  </div>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="PlanetOnMap">
+  <div><$ _|name $> <$ _|x $> </div>
+</script>

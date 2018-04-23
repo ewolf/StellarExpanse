@@ -1,0 +1,35 @@
+<script type="text/template" class="yote_template_definition" template_name="Chat">
+  <div style="border: solid 2px white; background-color: lightblue; max-width: 30em">
+    <h4>Global Chat</h4>
+    <$$$ chativ <div style="border: groove 2px; background-color: grey; padding:5px; max-height: 100px; overflow: auto"> $$$>
+      <$$ Chatter $$>
+    </div>
+    <$$$ whatsay <input type="text"> $$$> <$$$ say <button type="button">Say</button> $$$>
+  </div>
+  <? function( ctx ) {
+      $( ctx.controls.chativ ).scrollTop($( ctx.controls.chativ ).prop('scrollHeight'));
+
+      $.yote.util.button_actions( {
+          button : ctx.controls.say,
+          texts : [ ctx.controls.whatsay ],
+          action : function() {
+              ctx._app_.chat( $( ctx.controls.whatsay ).val() );
+              ctx.refresh();
+          }
+      } );
+     } ?>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="Chatter">
+  <??? function( ctx ) {
+          ctx.vars.chatlog = ctx.parse( '_app_.chatter' );
+          var l = ctx.vars.chatlog.to_list();
+          l = l.reverse();
+          var b = [];
+          for( var i=0; i<l.length && b.length < 12; i++ ) {
+              b.push( '<b>' + l[ i ].get_from() + ':</b> ' + l[i].get_msg() );
+          }
+          b.reverse();
+          return b.join('<br>');
+       } ???>
+</script>

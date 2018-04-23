@@ -1,0 +1,163 @@
+<script type="text/template" class="yote_template_definition" template_name="Lobby">
+  <??? function( ctx ) {
+      // find games you can join, games you have joined that are pending starting, and active games you are in
+
+      var ag = [];
+      var myg = ctx._acct_.get( 'joined_games' ) ? ctx._acct_.get( 'joined_games' ).to_hash() : {};
+      var appg = ctx._app_.get( 'available_games' );
+
+      // games you can join, or available games are the joinable games overall - the ones
+      //       already joined
+
+      // games you can join
+      if( appg ) {
+          for( var i=0; i<appg.length(); i++ ) {
+              var g = appg.get(i);
+              if( ! myg[ g.id ] )
+                  ag.push( g );
+          }
+      }
+
+      var actv = [];
+      var pend = [];
+      for( var gid in myg ) {
+          var g = myg[ gid ];
+          if( g.get( 'is_active' ) )
+              actv.push( g );
+          else
+              pend.push( g );
+      }
+      ctx.vars.active_games    = actv;
+      ctx.vars.pending_games   = pend;
+      ctx.vars.available_games = ag;
+  } ???>
+  <#
+            logged-in/logout link ( hamburger? )
+            active_games ( show open by default )
+            available_games ( open by default if there are no active games )
+            pending_games
+            create game
+            
+   #>
+  <h1>Space Game</h1>
+  <p>
+  Logged in as <$ _acct_|handle $>. <$$$ logout <a href="#">$$$>logout</a>
+  </p>
+  <$$ Collapser activeHead List 1 ActGame active_games $$>
+
+  <$$ Collapser pendingHead List 1 PendGame pending_games $$>
+
+  <$$ Collapser availHead List 1 AvailGame available_games $$>
+
+  <$$ CreateGame $$>
+
+  <?
+    $( ctx.controls.logout ).click( function() { $.yote.logout(); ctx.refresh() } );
+   ?>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="activeHead">
+  <?? return ctx.vars.active_games.length > 0 ? ctx.vars.active_games.length : "No"; ??> Active Game<?? return ctx.vars.active_games == 1 ? '' : 's' ??>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="pendingHead">
+  <?? return ctx.vars.pending_games.length > 0 ? ctx.vars.pending_games.length : "No"; ??> Pending Game<?? return ctx.vars.pending_games == 1 ? '' : 's' ??>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="availHead">
+  <?? return ctx.vars.available_games.length > 0 ? ctx.vars.available_games.length : "No"; ??> Available Game<?? return ctx.vars.available_games == 1 ? '' : 's' ??>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="PendGame">
+  <br>
+  <b><$  _|name $></b> : Created by <$  _|created_by|handle $>.
+    <??? function( ctx ) {
+          if( ctx._acct_.is( ctx.vars._.get( 'created_by' ) ) )
+              return '<$$$ remove_game <button type="button">Delete</button> $$$>';
+      } ???>
+  <? function( ctx ) {
+        var leave_idx = ctx.hashkey_or_index;
+        $( ctx.controls.remove_game ).click( function() {
+            ctx._app_.remove_game( ctx.vars._ );
+            ctx.refresh();
+        } );
+  }
+  ?>
+  <# PendGame #>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="CreateGame">
+  <div>
+  Create a new game
+  <$$$ newgamename <input type="text" placeholder="game name"> $$$>
+  <$$$ newgamego <button type="button">Create</button> $$$>
+  </div>
+  <? function( ctx ) {
+      $.yote.util.button_actions( {
+          button : ctx.controls.newgamego,
+          texts  : [ ctx.controls.newgamename ],
+          action : function() {
+              var game = ctx._app_.create_game( {
+                  name : $( ctx.controls.newgamename ).val(),
+                  number_players : 1
+              });
+              ctx.refresh();
+          }
+      } );
+  } ?>
+  <# CreateGame #>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="ActGame">
+  <br>
+  <$$$ go_game <button type="button">$$$><b><$  _|name $></b></button> by <$ _|created_by|handle $> for <$  _|number_players $> player<?? return ctx.vars.number_players > 1 ? 's' : ''; ??>
+    <??? return ctx.vars._.get_created_by().equals( ctx._acct_ ) ? '<$$$ del_game <button type="button">Delete Game</button> $$$>' : ''; ???>
+  <? function( ctx ) {
+   $( ctx.controls.go_game ).click( function() {
+       var acct = $.yote.fetch_account();
+       acct.set( 'current_game', ctx.vars._ );
+       ctx.refresh();
+   } );
+   $( ctx.controls.del_game ).click( function() {
+       var key = ctx.hashkey_or_index;
+       if( confirm( 'Really delete running game ' + ctx.vars._.get_name() + '?' ) ) {
+           ctx._app_.remove_game( ctx.vars._ );
+           ctx.refresh();
+       }
+   } );
+     }
+  ?>
+  <# ActGame #>
+</script>
+
+<script type="text/template" class="yote_template_definition" template_name="AvailGame">
+  <br>
+  <b><$  _|name $></b> :
+  Created by <$  _|created_by|handle $>. <$$$ join_game <button type="button">Join</button> $$$>
+  <??? function( ctx ) {
+      if( ctx._acct_.is( ctx.vars._.get( 'created_by' ) ) ) {
+          return '<$$$ remove_game <button type="button">Delete</button> $$$>';
+      }
+  } ???>
+
+  <? function( ctx ) {
+        $( ctx.controls.remove_game ).click( function() {
+            ctx._app_.remove_game( ctx.vars._ );
+            ctx.refresh();
+        } );
+
+       $( ctx.controls.join_game ).click( function() {
+           ctx._app_.add_player(ctx.vars._,
+                                     function(msg){
+                                         ctx.scratch.avail_message = "Joined game '" + ctx.vars._.get_name() + "'";
+                                     },
+                                     function(err){
+                                         ctx.scratch.avail_err_message = err;
+                                     });
+           if( ctx.vars._.get( 'is_active' ) ) {
+               ctx._acct_.set( 'active_game', ctx.vars._ );
+           }
+           ctx.refresh();
+        } );
+     } ?>
+</script>

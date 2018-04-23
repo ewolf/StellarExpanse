@@ -1,0 +1,263 @@
+Maybe this is a new game, but here is a simplified version.
+
+Maybe no/little combat, but a far flung trading game. With that, you would certainly need fuel. Could hire folks, to make runs, too.
+Different places might degrade different ships. Gold Rush in the galaxy. W00t. See if that is sufficient to not need combat.
+
+Maybe something like monopoly. You can pay for claims and then rent them out. You could have wildcatters who just mine without claims. If
+they are caught, they are fined? Or you do have to go there and plop down a flag or something. Read up on the gold rush.
+
+
+    move some of the templates into 
+
+    templates.html
+
+    simple.html
+
+Pages in simple - make them mobile.
+
+Just one system with a few planets of different orbits.
+( dont orbit yet, just give distances from each other )
+
+page 0 : splash / login page
+
+page 1 : lobby, list of games
+
+page 2 : in game menu :
+    location
+    total value
+    debts
+    warehouse contents (buy/sell)
+    ships (buy/sell)
+
+ in order to buy or sell, each party must have a ship, 
+     office or warehouse in the location
+
+ 
+#------------------------------------------------------------------------------
+
+more detail on UI screens ( and maybe this is a different game, the space trade game )
+
+elements of
+ - building
+ - motion
+ - spending resources
+
+There are ships and buildings and places and resources. Everything can be bought and sold.
+There is an authority that regulates plots of land. There can be wildcatting, but that means
+multiple people can be mining a plot at once and dividing the bounty. 
+The goal is to have the most luxury goods in the time allotted. 
+There can be debts ( and possibly the ability to buy and sell them ). 
+
+The goal is to have the most stuff, I suppose.
+
+resources :
+  - fuel
+  - ore
+  - 
+
+One goal I suppose
+
+A player starts with
+ - an office/warehouse at the home world
+ - a simple ship
+__ or __
+  just credits to buy something
+
+'The House' 
+  - the part of the economy that is not controlled by players
+  - starts off with a home base, warehouse, factory, office and goods
+
+a ship has the following qualities :
+ - cargo capacity
+ - fuel capacity
+ - jump distance ( engine power )
+
+a warehouse has a certain size
+
+a mine has
+ - capacity
+ - fuel requirements
+
+a factory has
+ - capacity
+ - fuel requirements
+ - production
+
+A player can :
+ - sell a debt
+ - buy anything
+ - sell anything
+ - pay off a debt
+ - a player is in a location, be it a ship or a warehouse
+
+#------------------------------------------------
+
+ __ Space Trader __
+ 
+ ++++++++++++++++++++++++++++++++++++++++++++++++
+ +  log in  + create account + forgot password  +
+ ++++++++++++++++++++++++++++++++++++++++++++++++
+
+ splash image
+
+ About 
+
+
+#-------------------------------------------------
+
+ __ Space Trader __
+ logged in as : #######   _logout_
+
+ +                                    +
+   The year is 4949. 
+   You got your mule (ship) 
+   and are ready to make your fortune
+   in the Zinland ring system.
+ +                                    +
+
+ +                                                     +
+  The goal of this game is to retire with the most toys 
+  You can buy ships, offices, mining claims, factories 
+  ((banks)), and refineries. You can create ship designs.
+  You can sell your debt to finance you endevors.
+  You can mine ores and fuel. You can sell what you've 
+  mined to refineries and factories. There are even
+  credits that you can use. ((If you own a bank, you can
+  charge a fee for each transaction, either fixed,
+  percentage and have a minimum charge -- or maybe
+  banking is automatic ))
+ +                                                     +
+
+ [[ start ]]
+
+#--------------------------------------------------
+
+version 1 of mobile ui
+
+ __ Space Trader __
+ logged in as : #######   _logout_
+
+ You have #### credits
+
+ Your ship, the <*ship A*> is in <location>
+ and is doing <bluh>
+
+ Your resources at this location:
+   ore : z = <x on ship> + <y in warehouse>
+   fuel
+   otherstuffs
+
+ - Location features/destinations
+   list of others' offices
+   list of others' factories
+   list of others' refineries
+   list of others' mines
+   list of others' ships   
+
+ - Actions
+   *stop/start mining operation* 
+   *build*
+     *office*
+     *warehouse*
+     *mine*
+     *factory*
+     *refinery*
+   *buy*
+     - list of contracts offered -
+       *fuel*
+       *ore*
+       *crystals or some other sort of matierial*
+   *offer* ( create contract )
+       offer _###_ x  for _###_ y
+     
+
+ - Choose View <select>
+   **ship A**
+   *ship B*
+   office I
+   office II
+   factory alpha
+   mine i
+   refinery ii
+
+ - Showing view
+   [ ship ] 
+      cargo capacity
+      fuel capacity
+      max jump distance ( based on engine size )
+      crew capacity ( for work teams )
+      fuel regeneration capcity ( all ships have. if you run out of fuel, it will eventually
+                                  build up some from harvesting ions or something )
+   [ office ]
+      all contracts offered no matter the location of the office owner
+   [ factory ]
+      sale contracts offered
+      resource contracts offered
+   [ mine ]
+      sale contracts offered
+      resource contracts offered
+   [ refinery ]
+      sale contracts offered
+      resource contracts offered
+
+#--------------------------------
+
+( should there be workers? robotic workers? should there be food produced?
+  what would attract workers? wages/food/amenities.
+  maybe later
+)
+
+Start : 
+  You are a prospector and start on the homeworld with some amounts of credits
+  You get X amounts of credits/day from a trust or something
+  
+#--------------------------------
+
+version 2 of mobile ui
+
+ __ Space Trader __
+ logged in as : #######   _logout_
+
+ You have #### credits, #### ore, ##### fuel
+
+ - Choose View <select>
+     list of ships, offices, factories, mines and refineries
+
+ - Show View your entity
+   [ship]
+      cargo capacity
+      fuel capacity
+      max jump distance ( based on engine size )
+      crew capacity ( for work teams )
+      ship efficiency ( if there are exotic material that adjust this )
+      fuel regeneration capcity ( all ships have. if you run out of fuel, it will eventually
+                                  build up some from harvesting ions or something )
+   [ office ]
+      all contracts offered no matter the location of the office owner
+   [ factory ]
+      sale contracts offered
+      resource contracts offered
+   [ mine ]
+      sale contracts offered
+      resource contracts offered
+   [ refinery ]
+      sale contracts offered
+      resource contracts offered
+
+ - Show View Location ( What is also here )
+   [ list of offices ]
+     expand into menu of contracts offered
+   [ list of mines ]
+   [ list of refineries ]
+   [ list of factories ]
+
+ - Show Actions
+     [ship]
+       change location
+
+     [mine/refinery]
+        buy stuff
+
+     [factory]
+
+     [office]

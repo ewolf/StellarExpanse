@@ -1,0 +1,44 @@
+<script type="text/template" class="yote_template_definition" template_name="Collapser">
+  <# 
+              takes template_for_header template_for_body open-close args-for-templates
+   #>
+  <???
+       if( ctx.args.length > 2 ) {
+           var header_template = ctx.args[ 0 ];
+           var body_template   = ctx.args[ 1 ];
+           var start_open      = ctx.args[ 2 ];
+           var rest            = ctx.args.slice( 3, ctx.args.length );
+           return '<$$$ head_div <div class="collapserhead">$$$><$$ ' + header_template + ' ' + rest.join( ' ' ) + ' $$>' + 
+               '</div><$$$ body_div <div class="collapserbody' +  ( start_open != '0' ? '' : ' hide' ) + '">$$$>' + 
+               '<$$ ' + body_template + ' ' + rest.join( ' ' ) + ' $$></div>';
+       }
+   ???>
+   <?
+              $( ctx.controls.head_div ).click( function() {
+                  $( ctx.controls.body_div ).toggleClass( 'hide' );
+              } );
+    ?>
+</script>
+
+
+<script type="text/template" class="yote_template_definition" template_name="TitleCollapser">
+  <# 
+              takes template_for_header template_for_body open-close args-for-templates
+   #>
+  <???
+       if( ctx.args.length > 2 ) {
+           var body_template   = ctx.args[ 0 ];
+           var start_open      = ctx.args[ 1 ];
+           var title           = ctx.args[ 2 ];
+           var rest            = ctx.args.slice( 3, ctx.args.length );
+           return '<$$$ head_div <div class="collapserhead">$$$>' + title + 
+               '</div><$$$ body_div <div class="collapserbody' +  ( start_open != '0' ? '' : ' hide' ) + '">$$$>' + 
+               '<$$ ' + body_template + ' ' + rest.join( ' ' ) + ' $$></div>';
+       }
+   ???>
+   <?
+              $( ctx.controls.head_div ).click( function() {
+                  $( ctx.controls.body_div ).toggleClass( 'hide' );
+              } );
+    ?>
+</script>
