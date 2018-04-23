@@ -1,0 +1,186 @@
+<html>
+
+  <head>
+    <title>Stellar Expanse</title>
+    <link rel="stylesheet" type="text/css" href="/sg/css/main.css" title="Default">
+  </head>
+
+  <body class="col">
+    <header class="row">
+
+      <a href="?" class="splash col">
+        <p>Stellar Expanse</p>
+        <p>Conquor the galaxy</p>
+      </a>
+      
+      : if $user {
+      <aside class="column">
+        <p><: $user.get('display_name') :></p>
+        
+        : my $ava = $user.get('avatar')
+        <a href="?path=/profile">
+          : if $ava {
+          <img src="<:$ava.size(150,150):>">
+        : } else {
+          my profile
+        : }
+        </a>
+      </aside>
+      
+      : } else if $path != '/register' {
+      <aside class="column">
+      <form method="POST" action="?path=/login" class="col" id="loginblock">
+        : if $errs.size() > 0 {
+        <div id="err col">
+          : for $errs -> $err {
+             <p><: $err :></p>
+          : }
+        </div>
+        <a href="?path=/recover_request">recover password</a>
+        : } 
+        <input type="text" name="un" placeholder="user or email">
+        <input type="password" name="pw" placeholder="password">
+        <button type="submit">Log In</button>
+        <a id="reglink" href="?path=/register">sign up</a>
+      </form>
+      </aside>
+      : }
+      
+      
+    </header>
+    <nav class="row">
+      : my $comics = $app.get( 'finished_comics' )      
+      : if $comics.size() > 0 {
+      <a href="?path=/read&sort=recent">read comics</a>
+      : }
+      <a href="?path=/artists">artists</a>
+      : if $user {
+      <a href="?path=/play">play</a>
+      <a href="?path=/start">start a comic</a>
+      <a href="?path=/mine&sort=recent">my comics</a>
+      <a href="?path=/unfinished&sort=recent">unfinished</a>
+      : if $user.get('_bookmarks').size() > 0  {
+        <a href="?path=/bookmarked&sort=recent">bookmarks</a>
+      : }
+      : if $user.get('_updates').size() > 0 {
+        <a href="?path=/notices">notices</a>
+      : }
+      <a href="?path=/lounge">artist lounge</a>  
+      <a href="?path=/profile">my profile</a>
+      <a href="?path=/logout">log out</a>
+        : if $user.get('_is_admin') {
+      <a href="?path=/all_comics" class="admin">all comics</a>
+      <a href="?path=/users" class="admin">users</a>
+      <a href="?path=/newsedit" class="admin">edit news</a>
+      <a href="?path=/logs" class="admin">logs</a>
+        : }
+      : }
+    </nav>
+
+    : if $msgs.size() > 0 {
+    <div class="message col">
+        : for $msgs -> $msg {
+           <p><: $msg :></p>
+        : }
+    </div>
+    : }
+
+    <main class="col">
+      
+      : if $path == '/register' && ! $user {
+        : include "register.tx"
+      : } else if $path == '/lounge' && $user {
+        : include "lounge.tx"
+      : } else if $path == '/profile' && $user {
+        : include "profile.tx"
+      : } else if( $path == '/play' && $user ) {
+        : include "play.tx"
+      : } else if $path == '/start' && $user && ( $params.action != 'start-comic' || $err ) {
+        : include "start.tx"
+      : } else if $path == '/recover_request' && ! $msg {
+        : include "recover_request.tx"
+      : } else if $path == '/recover' {
+        : if $user {
+          : include "update_password.tx" { path => '/recover', tok => $user.get__reset_token }
+        : } else {
+          <div class="err bigerr">reset link is stale</div>
+        : }
+      : } else if $path == '/mine' && $user {
+          : include "read.tx" { comics => $user.get_finished_comics }
+      : } else if $path == '/unfinished' && $user {
+          : include "read.tx" { comics => $user.get__unfinished_comics }
+      : } else if $path == '/bookmarked' && $user {
+          : include "read.tx" { comics => $user.get('_bookmarks') }
+      : } else if $path == '/newsedit' && $user && $user.get('_is_admin') {
+          : include "editnews.tx"
+      : } else if $path == '/logs' && $user && $user.get('_is_admin') {
+          : include "logs.tx"
+      : } else if $path == '/all_comics' && $user && $user.get('_is_admin') {
+          : include "read.tx" { comics => $app.get('_all_comics') }
+      : } else if $path == '/artists' {
+          : include "artists.tx"
+      : } else if $path == '/users' && $user && $user.get('_is_admin') {
+          : include "users.tx"
+      : } else if $path == '/notices' && $user {
+          : include "notices.tx"
+      : } else if $path == '/comic' && $user {
+          : my $ucomics = $user.get( '_comics' );
+          : include "read.tx" { comics => $user.get('_all_comics') }
+      : } else if $path == '/artist' {
+        : my $artist = $app.artist( $params.artist )
+          
+        : if $artist {
+          : include "read.tx" { comics => $artist.get_finished_comics, artist => $artist }
+        : } else {
+          : include "read.tx" { comics => $comics }
+        : }
+      : } elsif $path == '/read' {
+          : include "read.tx" { comics => $comics }
+      : } else {
+        : include "about.tx" { comics => $comics }
+      : }
+      
+      
+    </main>
+
+    : if $user && $user.get__is_admin {
+    <hr>
+    <footer class="message" style="margin-top:100px">
+      Min Viable Product
+      TODOS
+      <ul>
+        <li>news &amp; gossip (artists lounge)</li>
+        <li>bug reports</li>
+        <li>correct level of mail check in production</li>
+        <li>site contact info</li>
+      </ul>
+      Other TODOS
+      <ul>
+        <li>modperl</li>
+        
+        <li>admin deactivate comics - remove from finished and put into deactivated and mark them deactivated</li>
+        <li>admin edit comics</li>
+        
+        <li>group chat</li>
+
+        <li>email for account verification</li>
+
+        
+        <li>testing comic</li>
+        <li>UI advice</li>
+        
+        <li>sg_admin.pl actions</li>
+
+        <li>logging for all things done</li>
+        
+        <li>porting comics and users</li>
+        
+        <li>RPC</li>
+        <li>yote js -> server</li>
+      </ul>
+    </footer>
+    : }
+    
+  </body>
+  
+</html>
