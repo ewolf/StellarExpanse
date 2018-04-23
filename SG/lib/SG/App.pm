@@ -6,7 +6,7 @@ no warnings 'uninitialized';
 
 use base 'Yote::AppRoot';
 
-use Yote::Root;
+use Yote::WebRoot;
 
 use SG::Game;
 
@@ -19,10 +19,6 @@ sub _init {
 sub _init_account {
     my( $self, $acct ) = @_;
 }
-
-sub precache {
-    my( $self, $data, $acct ) = @_;
-} #precache
 
 sub _load {
     my $self = shift;
@@ -56,7 +52,7 @@ sub _update_cron {
 
     unless( $sg ) {
         # check to see if this is in the cron already. Remove it if it is
-        my $root = Yote::Root::fetch_root;
+        my $root = Yote::WebRoot::fetch_webroot;
         my $cron = $root->_cron();
 
         my( $old_cron ) = grep { $_->get_name() eq 'SG' } @{$cron->get_entries()};
@@ -67,7 +63,7 @@ sub _update_cron {
         $sg = new Yote::RootObj( {
             name    => 'SG',
             enabled => 1,
-            script  => 'use Yote::Root; use SG::App; my $r = Yote::Root::fetch_root(); my $a = $r->fetch_app_by_class( "SG::App" ); if( $a ) { print STDERR " SG :: checking turns\n"; $a->_check_turns; print STDERR " SG :: checking turns done\n";  } else { print STDERR "Could not find SG::App\n" };',
+            script  => 'use Yote::WebRoot; use SG::App; my $r = Yote::WebRoot::fetch_webroot(); my $a = $r->fetch_app_by_class( "SG::App" ); if( $a ) { print STDERR " SG :: checking turns\n"; $a->_check_turns; print STDERR " SG :: checking turns done\n";  } else { print STDERR "Could not find SG::App\n" };',
             repeats => [new Yote::Obj( { repeat_interval => 1, repeat_infinite => 1, repeat_times => 0 } ) ],
                                     } );
         $cron->add_to_entries( $sg );

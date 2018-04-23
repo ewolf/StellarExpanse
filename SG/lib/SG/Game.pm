@@ -60,6 +60,7 @@ sub _init {
         },
         resources => [qw( ore fastium shrinkium growium blastium turtlite tofunite featheride organium plastica )],
                     } );
+    $self->set_components( [ keys %{$self->get_component_cost()} ] );
 } #_init
 
 #
@@ -162,7 +163,8 @@ sub _activate {
 
         # add one system for now for the player
         my $start_system = new Yote::Obj( {
-            name => 'start system',
+            name   => 'start system',
+            sector => $ps1,
                                               } );
 
         my $player = $players[ $_ ];
@@ -177,6 +179,7 @@ sub _activate {
         my $homeworld = new SG::Planet();
         $homeworld->_setup( $self, {
             name => 'homeworld',
+            system => $start_system,
             abundance => 30,
             max_pop => 10,
                             } );
@@ -240,13 +243,13 @@ sub _activate {
 
         $start_system->add_to_planets( $homeworld, $otherworld );
 
-        # TODO - better coord system. 
-        # for now, just set up a 200x200 matrix
-        my $coords = $start_system->set_coords( [ map { [] } (1..80) ] );
-
-        $coords->[ 10 ][ 10 ] = [ $homeworld ]; #list of items at that location
-
-        $coords->[ 80 ][ 60 ] = [ $otherworld ]; #list of items at that location
+        # TODO - planetary calculations to find del theta ( and possibly del others 
+        #list of items at that location
+        $start_system->set_items( [   # [ radius, theta radians, thing ]
+                                      [ 10, .4, $homeworld ],
+                                      [ 14, .4, $otherworld ],
+                                  ] );
+        $start_system->set_radius( 100 );
         
         # for home systems, they have a fixed amount of materials in random proportions
         # the planets in the system are somewhat random, too
@@ -370,7 +373,7 @@ sub calculate_recipe_stats {
     my $tofu_boost = 1 + $composition->{ tofunite };
     my $size_diff = $tofu_boost * ( $composition->{ growium } - $composition->{ shrinkium } );
 
-    $stats->{ blast_power }    = $components->{ blaster } + $tofu_boost * $composition->{ blastium };
+    $stats->{ blast_power }    = sprintf( "%d.2", $components->{ blaster } + $tofu_boost * $composition->{ blastium } );
     $stats->{ cargo_capacity } = $components->{ cargo_hold } * $sizes->{ cargo_hold } +  $size_diff;
     $stats->{ colonize_size }  = $components->{ colony } + $tofu_boost * $composition->{ organium };
 
@@ -389,9 +392,9 @@ sub calculate_recipe_stats {
     $mass -= $tofu_boost * $composition->{ featheride };
     $mass = 1 if $mass < 1;
     $stats->{ mass } = $mass;
-    $stats->{ thrust_rating } = (10*$components->{ thrusters }) / ( 1 + $mass );
-    $stats->{ warp_rating } = (10*$components->{ warp }) / ( 1 + $mass );
-    $stats->{ jump_rating } = (10*$components->{ jump_drive }) / ( 1 + $size );
+    $stats->{ thrust_rating } = sprintf( "%d.2", (10*$components->{ thrusters }) / ( 1 + $mass ));
+    $stats->{ warp_rating } = sprintf( "%d.2",  (10*$components->{ warp }) / ( 1 + $mass ) );
+    $stats->{ jump_rating } = sprintf( "%d.2", (10*$components->{ jump_drive }) / ( 1 + $size ) );
                        
     my $build_rate = $build_size - $composition->{ plastica };
 

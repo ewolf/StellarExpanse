@@ -4,104 +4,85 @@
     <title>Space Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <script src="/yote/JS"></script>  
+    <script src="/yote/js"></script>
 
-    <link href="/yote.css" rel="stylesheet" type="text/css" media="all" />
-    <link href="/css/main.css" rel="stylesheet" type="text/css" media="all" />
-
-    <SCRIPT>
+    <script>
     var intev;
     $().ready(function(){
-        startme();
-    } );
-
-    function startme() {
         $.yote.debug = false;
         $.yote.templates.import_templates( '/templates/default_templates.html' );
-        
+        $.yote.templates.import_templates( '/templates/yote_templates.html' );
+
         var app = $.yote.init( 'SG::App' );
         app.precache();
         $.yote.templates.init();
         $.yote.templates.refresh();
         $( '#spinner' ).hide();
-    }
+    } );
     </script>
-    <style>
-      .emp   { font-family:"Lucida Console",monospace;  }
-      .bordered { border: 1px solid black;padding:5px; margin: 5px;}
-      #comm_div { margin:10px;border: 3px solid black;background-color:rgba(200,150,30,.4) }
-      #chat_panel { margin:10px;border: 3px solid black;background-color:rgba(150,200,30,.4) }
-      #whos_panel { margin:10px;border: 3px solid black;background-color:rgba(150,30,200,.4) }
-      #side_panel { float: left; }
-      #game { background-color:#8A9 }
-      .not-ready { background-color:#FDD }
-      .ready { background-color:#DFD }
-      td.number { text-align: center; }
-      td.panel { border : 1px solid black; padding: 3px; }
-      .messages { margin : 12px; padding: 5px; border : solid 3px brown; text-align:center; }
-      .err { background-color: lightorange; border : 2px red solid; }
-      .owned { background-color: lightgreen; border : 2px green solid; }
-      .row td { border-top: 1px solid black; }
-      .emph { background-color: lightgreen; font-size: larger; font-decoration: bold }
 
-      .gamepicker { border : dotted 2px gold; margin-left: 15px; padding: 4px; }
-      .err { background-color: #FAB }
-      .bigpanel { 
-          background-color: lightblue;
-          min-width : 500px;
-          min-height : 500px;
-          margin : 15px;
-          padding : 15px;
+    <style>
+      .navpanel,.viewport,.updates {
+          border: solid 1px;
+          vertical-align: top;
           display: inline-block;
-      } 
-      .sidepanel { 
-          background-color: lightblue;
-          min-width : 300px;
-          min-height : 500px;
-          margin : 15px;
-          padding : 15px;
-          display: inline-block;
-          float: right;
-      } 
-      .innerpanel { 
-          background-color: lightgreen;
-          margin: 15px;
+          margin: 1em;
+          padding: 1em;
+      }
+      .hide { display: none; }
+
+@media handheld {
+
+      html, body {
+      font: 12px/15px sans-serif;
+      background: #fff;
+      padding: 3px;
+      color: #000;
+      margin: 0;
+      }
+      #sidebar, #footer {
+      display: none;
+      }
+      h1, h2, h3, h4, h5, h6 {
+      font-weight: normal;
+      }
+      #content img { 
+      max-width: 250px;
+      }
+      .center {
+      width: 100% !important;
+      text-align: center;
+      }
+      a:link, a:visited {
+      text-decoration: underline;
+      color: #0000CC;
+      }
+      a:hover, a:active {
+      text-decoration: underline;
+      color: #660066;
+      }
+
+}
+/* iPhone-specific styles */
+@media only screen and (max-device-width: 480px) { 
+
+      html {
+      -webkit-text-size-adjust: none;
+      }
+
+
+      div.collapserhead {
+         background-color: yellow;
+      }
+      div.collapserbody {
+         margin-bottom : .8em;
       }
     </style>
+
   </head>
 
   <script type="text/template" class="yote_template_definition" template_name="Dummy">
     map goes here
-    </script>
-
-  <script type="text/template" class="yote_template_definition" template_name="SystemMap">
-   <???
-    function( ctx ) {
-      var sys = ctx.vars.system;
-      var coords = sys.get_coords().to_list();
-      var buf = '<table>'
-      for( var i=1; i<coords.length; i++ ) {
-          buf += '<tr>';
-          for( var j=1; j<coords[ i ].length(); j++ ) {
-              var loc = coords[ i ].get( j );
-              buf += '<td><div class="location" ' + ( loc ? ' class="occupied" data-has="' + loc.id + '"' : '' ) + ' data-x="' + j + '" data-y="' + i + '">';
-              buf += loc ? "X" : "&nbsp;";
-              buf += '</div></td>';
-          }
-          buf += '</tr>';
-      }
-      buf += '</table>';
-      return buf;
-     }
-    ???>
-    <?
-     function( ctx ) {
-         var sys = ctx.vars.system;
-         $( ctx.controls.occupied ).click( function() {
-             
-         } );
-     }
-    ?>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="WorkerSelect">
@@ -128,7 +109,7 @@
             var fld = ctx.args[ 1 ];
             $( ctx.controls.sel ).change( function() {
                 if( obj.class == 'HASH' ) {
-                    
+
                 } else {
                     obj.set( fld, $( this ).val() );
                 }
@@ -136,19 +117,20 @@
             } );
         }
       } ?>
-    
+
   </script>
 
-  <script type="text/template" class="yote_template_definition" template_name="field">
-    <??? function( ctx ) {
-        if( ctx.args.length > 1 ) { 
-            
-        }
-    } ???>
+  <script type="text/template" class="yote_template_definition" template_name="Recipes">
+
+    <h3>Ship Designs</h3>
+    <ul>
+     <$$ ListPaginate RecipeRow player|recipes@@ 7 $$> <$$ Paginator player|recipes@@ $$>
+    </ul>
   </script>
+
 
   <script type="text/template" class="yote_template_definition" template_name="ResourceRow">
-    <??? function( ctx ) { 
+    <??? function( ctx ) {
            var res = ctx.vars._;
            var dist = ctx.vars.dist[ res ];
            var depot_contents = ctx.vars.depot.get_contents().to_hash();
@@ -157,18 +139,18 @@
            ctx.vars.in_depot = dist > 0 ? 1*depot_contents[ res ] + '/' + ctx.vars.depot.get_capacity() : '-';
            ctx.vars.market   = ctx.vars.player.get_marketplace().get( res );
     } ???>
-    <tr> <td><$ _ $></td> 
-         <td><$ mined $></td> 
-         <td><$ untapped $></td> 
-         <td><$ in_depot $></td> 
-         <td><$ market.buy_cost $></td>
-         <td><$ market.sell_cost $></td>
+    <tr> <td><$ _ $></td>
+         <td><$ mined $></td>
+         <td><$ untapped $></td>
+         <td><$ in_depot $></td>
+         <td><$ market|buy_cost $></td>
+         <td><$ market|sell_cost $></td>
     </tr>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="PlanetShips">
-    <??? function(ctx) { return ctx.scratch.do_fleet_check ? '<$$$ toFleet <input type="checkbox"> $$$>' : ''; } ???> 
-     <$ _.recipe.name $> <BR>
+    <??? function(ctx) { return ctx.scratch.do_fleet_check ? '<$$$ toFleet <input type="checkbox"> $$$>' : ''; } ???>
+     <$ _|recipe|name $> <br>
     <? function(ctx) {
         $( ctx.controls.toFleet ).click( function() {
             if( $( this ).is(':checked') ) {
@@ -185,12 +167,12 @@
            ctx.vars.assign = ctx.vars.factory.get_build_assignments();
          } ???>
     <tr><td class="number"> <?? function( ctx ) { return '<$$ WorkerSelect assign ' + ctx.vars._.id + ' ' + ctx.vars.factory.get_build_rate() + ' $$>'; } ??> </td>
-        <td> <$ _.recipe.name $> </td>
-        <td> <$ _.materials_completed $> of <$ _.recipe.total_material_cost $> </td>
+        <td> <$ _|recipe|name $> </td>
+        <td> <$ _|materials_completed $> of <$ _|recipe|total_material_cost $> </td>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="MyPlanet">
-    <??? 
+    <???
     function( ctx ) {
         ctx.vars.factory = ctx.vars.planet.get_factory();
         ctx.vars.depot   = ctx.vars.planet.get_depot();
@@ -198,7 +180,7 @@
         ctx.vars.mines = mines;
 
         ctx.vars.col = ctx.vars.planet.get_colony();
-        ctx.vars.avail_workers = 1*ctx.vars.col.get_population() - 
+        ctx.vars.avail_workers = 1*ctx.vars.col.get_population() -
             ( 1*ctx.vars.col.get_workers_expanding() +
               1*ctx.vars.factory.get_workers_expanding() );
 
@@ -220,67 +202,71 @@
                 mined_amount += 1*mine.get_workers_mining();
                 developed_amount += 1*mine.get_rate();
                 ctx.vars.avail_workers -= (
-                    1* mine.get_workers_expanding() + 
+                    1* mine.get_workers_expanding() +
                         1*mine.get_workers_mining() );
             }
         }
         ctx.vars.mined_amount = mined_amount;
         ctx.vars.developed_amount = developed_amount;
-        
+
         ctx.vars.avail_workers -= ctx.vars.depot.get_workers_expanding()
     } ???>
     <div class="innerpanel">
-      <h3>Showing planet <$ planet.name $></h3>
-      money : <$ player.money $><br>
-      population : <$ planet.colony.population $>
+      <h3>Showing planet <$ planet|name $></h3>
+      money : <$ player|money $><br>
+      population : <$ planet|colony|population $>
              <?? function( ctx ) { return ctx.vars.planet.get_colony().get_population()*1 < ctx.vars.planet.get_max_pop()*1 ?
                                    '/' + ctx.vars.planet.get_max_pop() : ''; } ??>
         <br>
         <br>
-        developed <$ developed_amount 0 $> of <$ planet.abundance $> planetary resources.
+        developed <$ developed_amount 0 $> of <$ planet|abundance $> planetary resources.
         <br>
         mining <$ mined_amount 0 $> of those resources.
         <br>
         <br>
           <table> <tr> <th>resource</th> <th>mined</th> <th>untapped</th> <th>in depot</th> <th>buy price</th> <th>sale price</th> </tr>
-            <@ ResourceRow @resources 15 @>
+            <$$ List ResourceRow |resources@ $$>
           </table>
           <br>
-          factory output rate : <$ factory.build_rate $> 
+          factory output rate : <$ factory|build_rate $>
     </div>
 
     <div class="innerpanel">
-      <??? function( ctx ) { 
+      <??? 
           ctx.scratch.ships_selected = [];
-          ctx.scratch.do_fleet_check = ctx.vars.planet.get_ships().length() > 1;
-         } ???>
-      <h3>Ships</h3>
-      <@ PlanetShips planet.ships 10 @>
-      <???    function( ctx ) {
+          ctx.vars.ships = ctx.vars.planet.get_ships();
+          ctx.scratch.do_fleet_check = ctx.vars.ships.length() > 1;
+      ???>
+      <div>
+        <h3>Ships</h3>
+        <$$ List PlanetShips planet|ships@ $$>
+        <#?? if( ctx.vars.planet.get_ships().length()#>
+      </div>
+      <???
         if( ctx.vars.planet.get_ships().length() == 0 ) return;
           console.log( ctx.vars.system.get_planets().to_list() );
-        var buf = 'move orders <$$$ move_sel <select> $$$>' + 
-              '<option value="">stay</option>' + 
-            // TODO : add jump points and warp here
-            ctx.vars.system.get_planets().to_list().map( function( it, idx ) {
-                return ctx.vars.planet.is( it ) ? '' : 
-                    '<option value="' + it.id + '">' + it.get_name() + '</option>';
-            } ).join( '' ) + 
-              '</select>' + 
-              'disposition flee fight' + 
-        
-        return buf; } ???>
+          var buf = 'move orders <$$$ move_sel <select> $$$>' +
+              '<option value="">stay</option>' +
+              // TODO : add jump points and warp here
+              ctx.vars.system.get_planets().to_list().map( function( it, idx ) {
+                  return ctx.vars.planet.is( it ) ? '' :
+                      '<option value="' + it.id + '">' + it.get_name() + '</option>';
+              } ).join( '' ) +
+              '</select>' +
+              'disposition flee, fight';
+
+        return buf; ???>
     </div>
 
     <div class="innerpanel">
       <table> <tr> <th>Workers</th> <th>Task</th> <th>Progress</th> </tr>
-      <tr> <td class="number"><?? function( ctx ) { return ctx.vars.avail_workers || '0'; } ??></td> <td>Workers Available</td> </tr>
-      <?? function( ctx ) { return 1*ctx.vars.col.get_population() < 1*ctx.vars.planet.get_max_pop() ? 
-                                '<tr> <td class="number"> <$$ WorkerSelect col workers_expanding $$> </td> ' + 
-                                   '<td> Expand Colony    </td> <td> <$ planet.colony.expansion_progress $> of <$ game.development_costs.colony $> </td> </tr>' : ''; } ??>
-      <tr> <td class="number"> <$$ WorkerSelect depot workers_expanding $$> </td> 
-           <td> Expand Depot    </td> <td> <$ depot.expansion_progress $> of <$ game.development_costs.depot $> </td> </tr>
-      <?? function( ctx ) { 
+      <tr> <td class="number"><?? return ctx.vars.avail_workers || '0'; ??></td> <td>Workers Available</td> </tr>
+      <?? return 1*ctx.vars.col.get_population() < 1*ctx.vars.planet.get_max_pop() ?
+                                '<tr> <td class="number"> <$$ WorkerSelect col workers_expanding $$> </td> ' +
+                                   '<td> Expand Colony    </td> <td> <$ planet|colony|expansion_progress $> of <$ game|development_costs|colony $> </td> </tr>' : ''; ??>
+      <tr> <td class="number"> <$$ WorkerSelect depot workers_expanding $$> </td>
+           <td> Expand Depot    </td> <td> <$ depot|expansion_progress $> of <$ game|development_costs|depot $> </td> </tr>
+      <?? 
         var dist = ctx.vars.planet.get( 'resource_distribution' );
         var mines = ctx.vars.mines;
         var buf = '';
@@ -294,21 +280,21 @@
                 var res = resses[ i ];
                 var rate = mines[ res ] ? 1*mines[ res ].get_rate() : 0;
                 if( 1*dist[ res ] > 0 && rate < dist[ res ] * ctx.vars.planet.get_abundance() )
-                    buf += '<tr><td class="number"> <$$ WorkerSelect mines.' + res + ' workers_expanding $$> </td><td> ' + ( rate > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' mine </td> <td> <$ mines.' + res + '.expansion_progress $> of <$ game.development_costs.mine $> </tr>';
+                    buf += '<tr><td class="number"> <$$ WorkerSelect mines|' + res + ' workers_expanding $$> </td><td> ' + ( rate > 0 ? 'Expand' : 'Build' ) + ' ' + res + ' mine </td> <td> <$ mines|' + res + '|expansion_progress $> of <$ game|development_costs|mine $> </tr>';
 
                 if( rate > 0 )
-                    buf += '<tr><td class="number"> <$$ WorkerSelect mines.' + res + ' workers_mining ' + rate + ' $$> </td><td> mining ' + res + '</td></tr>';
+                    buf += '<tr><td class="number"> <$$ WorkerSelect mines|' + res + ' workers_mining ' + rate + ' $$> </td><td> mining ' + res + '</td></tr>';
             }
         }
         return buf;
-       } ??>
+      ??>
 
-      <tr> <td class="number"> <$$ WorkerSelect factory workers_expanding $$> </td> 
-           <td> <?? function( ctx ) { return ctx.vars.factory.get_build_rate()*1 > 0 ? "Develop" : "Build"; } ??> Factory </td> <td> <$ factory.expansion_progress $> of <$ game.development_costs.factory $>
+      <tr> <td class="number"> <$$ WorkerSelect factory workers_expanding $$> </td>
+           <td> <?? return ctx.vars.factory.get_build_rate()*1 > 0 ? "Develop" : "Build"; ??> Factory </td> <td> <$ factory|expansion_progress $> of <$ game|development_costs|factory $>
          </tr>
       <tr><th colspan=2>Build Queue</th></tr>
 
-    <@ BuildQueue factory@build_queue 10 @>
+    <$$ List BuildQueue factory|build_queue@ $$>
       </tr>
      </table>
     </div>
@@ -320,13 +306,13 @@
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="OtherPlanet">
-    Other
+    Other Planet
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="Recipe">
-    <??? function(ctx) { 
-        var r = ctx.scratch.view_recipe; 
-        ctx.vars.view_recipe = r;
+    <??? function(ctx) {
+        var r = ctx.scratch.view_recipe;
+        ctx.vars.recipe = r;
         if( r ) {
             ctx.vars.game.calculate_recipe_stats( r );
             ctx.vars.components = ctx.vars.game.get( 'component_size' ).keys();
@@ -334,137 +320,327 @@
         }
         ctx.vars.selist = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 ];
     } ???>
-    Recipe for <$ view_recipe.name $>
+    Recipe for <$ recipe|name $>
     <div>
-    <@ ComponentRow @components 10 @>
+    <$$ List ComponentRow components@ $$>
     </div>
-    Stats for  <$ view_recipe.name $>
+    Stats for  <$ recipe|name $>
     <div>
-    <@ StatRow @stats 10 @>
+    <$$ List StatRow stats@ $$>
     </div>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="StatRow">
-    <br><$ _ $> : <?? function( ctx ) { 
-        var val = 1 * ctx.vars.view_recipe.get( 'stats' ).get( ctx.vars._ ) || 0;
-        return ctx.vars._ == 'jump_rating' ? 
+    <br><$ _ $> : <?? 
+        var val = 1 * ctx.vars.recipe.get( 'stats' ).get( ctx.vars._ ) || 0;
+        return ctx.vars._ == 'jump_rating' ?
             val >= 1 ? '<span class="green">can jump</span>' : '<span class="red">cannot jump</span>'
-            : val; 
-    }  ??>
-  </script>
-
-  <script type="text/template" class="yote_template_definition" template_name="ComponentRow">
-    <br><$$ edit_hash_with_select_scalars selist view_recipe components _  $$><$ _ $> 
+            : val;
+    ??>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="RecipeRow">
 
     <li>
-        <$ _.name $>
+        <$ _|name $>
         <$$$ toedit <a href="#">$$$>edit</a>
         <$$$ tobuild <a href="#">$$$>queue up to build</a>
       </li>
-    <? function( ctx ) {
+    <?
         $( ctx.controls.toedit ).click( function() {
+            ctx.vars.player.set_current_view( 'recipe' );
+            ctx.vars.player.set( 'current_design', ctx.vars._ );
             ctx.scratch.view_recipe = ctx.vars._;
-            ctx.scratch.view = 'Recipe';
             ctx.refresh();
         } );
         $( ctx.controls.tobuild ).click( function() {
-$.yote.debug = true;
             ctx.vars.factory.queue_build( ctx.vars._  );
             ctx.refresh();
-$.yote.debug = false;
         } );
-    } ?>
+    ?>
   </script>
 
-  <script type="text/template" class="yote_template_definition" template_name="Recipes">
+  <script type="text/template" class="yote_template_definition" template_name="Navpanel">
+    <???
+        var curv = ctx.vars.player.get( 'current_view' );
+        var links = [ 'galaxy', 'sector', 'system', 'planet', 'designs', 'communications' ];
+        var secsysplan = [ 'sector', 'system', 'planet' ].map( function( it, idx ) {
+            return ctx.vars.player.get( 'current_' + it ) ? 
+                ctx.vars.player.get( 'current_' +it ).get_name() : '';
+        } );
+        var headers = [ 'showing galaxy', 'showing sector ' + secsysplan[ 0 ], 'showing system ' + secsysplan[ 1 ], 'showing planet ' + secsysplan[ 2 ], 'showing designs', 'showing communications' ];
 
+        return '<h3>' + links.map( function( it, idx ) { return curv == it ? headers[ idx ] : ''; } ).join('') + '</h3>' + 
+          'Show : ' + 
+            '<ul>' + 
+              links.map( function( it,idx ) { 
+                  return curv == it ? 
+                      '<ul><b>' + it + '</b></ul>' 
+                  :
+                  '<ul><a class="navlink" href="#" data-to="' + it + '">' + it + '</a></ul>';
+              } ).join('') + '</ul>';
+    ???>
+    <? 
+      $( '.navlink' ).click( function() {
+          ctx.vars.player.set( 'current_view', $( this ).data( 'to' ) );
+          ctx.refresh();
+      } );
+    ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="DesignRow">
+    <tr>
+      <td> <$$$ link <a href="#"> $$$> <$ _|name $> </a> </td>
+      <td> <$ _|size $> </td>
+      <td> <$ _|stats|blast_rating $> </td>
+      <td> <$ _|stats|warp_rating $> </td>
+      <td> <??
+              var r = ctx.vars._;
+              var notes = [];
+              if( r.get_components().get( 'colony' ) > 0 ) notes.push( 'has colony size 2' );
+              
+              if( r.get_stats().get( 'cargo_capacity' ) > 0 ) notes.push( 'cargo size ' + r.get_stats().get( 'cargo_capacity' ) );
+              
+//              if( r.components.get( 'colony' ) > 0 ) notes.push( 'has colony size 2' );
+              return notes.join('');
+           ??> </td>
+    </tr>
+    <?
+        $( ctx.controls.link ).click( function() {
+            ctx.vars.player.set( 'current_view', 'recipe' );
+            ctx.vars.player.set( 'current_design', ctx.vars._ );
+            ctx.refresh();
+        } );
+    ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="ComponentRow">
+    <br><$$ edit_hash_with_select_scalars selist@ recipe components% _  $$><$ _ $> 
+  </script>
+
+
+  <script type="text/template" class="yote_template_definition" template_name="View_recipe">
+    <??? 
+       var r = ctx.vars.player.get( 'current_design' );
+       ctx.vars.recipe = r;
+       ctx.vars.selist = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 ];
+       if( r ) {
+           ctx.vars.game.calculate_recipe_stats( r );
+           ctx.vars.stats = r.get_stats().keys().sort();
+       }
+    ???>
+     <b><$ recipe|name $></b> design
+     <div>
+       <div style="float:right">
+         <$$ List ComponentRow game|components@ $$>
+       </div>
+       <div>
+         Stats for  <$ recipe|name $>
+         <$$ List StatRow stats $$>
+       </div>    
+     </div>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Designs">
+    <??? var d = ctx.scratch.view_recipe;
+         if( ! d ) {
+             d = ctx.vars.player.get_current_design(); 
+             ctx.scratch.view_recipe = d;
+         }
+         return d ? '<$$ Recipe $$>' : '<$$ View_designs $$>'; ???>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="View_designs">
     <h3>Ship Designs</h3>
-    <ul>
-     <@ RecipeRow player@recipes 10 @> <$$ Paginator player@recipes $$>
-    </ul>
+    <table> 
+      <tr>
+        <th> Design </th>   <th> Size </th>   <th>  Blast </th>  <th> Speed </th>  <th> Notes </th>
+      </tr>
+     <$$ List DesignRow player|recipes@ $$>
+    </table>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="View_system">
+    System here
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="View_sector">
+    Sector here
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="View_galaxy">
+    Galaxy here
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="View_planet">
+    <?? 
+        return ctx.vars.planet && ctx.vars.player.is( ctx.vars.planet.get_owner() ) ?
+            '<$$ MyPlanet $$>'
+            :
+            '<$$ OtherPlanet $$>';
+    ??>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="View_fleets">
+    Fleets here
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Viewport">
+    <??? return '<$$ View_' + ctx.vars.view + ' $$>'; ???>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="UpdatePanel">
+    <div class="updates">
+       Updates go here.
+    </div>
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="InGame">
-    <??? function( ctx ) {
-        var doing_stuff = false;
-        if( intev ) clearInterval( intev );
-        intev = setInterval( function() {  
-            if( doing_stuff ) return;
-            doing_stuff = true;
-            ctx.scratch.player.sync_all();
-            ctx.refresh();                                   
-            doing_stuff = false;
-         }, 60000 );
+    <???
 
+        /* initialization of vars */
         ctx.vars.game = ctx._acct_.get_current_game();
         var player = ctx.vars.game.player();
         ctx.vars.player = player;
-        ctx.scratch.player = player;
-        
-        // resources in ascending price order
-        var resources = ctx.vars.game.get_resources();
-        resources.sort( function( a, b ) {
-            return a == 'ore' ? -1 : b == 'ore' ? 1 : a.localeCompare( b );
-        } );
 
-        ctx.vars.resources = resources.to_list();
+        ctx.vars.components = ctx.vars.game.get_components();
+        ctx.vars.resources  = ctx.vars.game.get_resources();
 
-        ctx.vars.systems = player.get_systems();
-        ctx.vars.system = ctx.vars.systems.get( 0 );
-        var lastp = player.get( 'last_planet' );
-        if( lastp ) {
-            ctx.vars.planet = lastp;
-        } else {
-            lastp = ctx.vars.system.get_planets().get(0);
-            player.set( 'last_planet', lastp );
-            ctx.vars.planet = lastp;
+        /* this updates the ui every minute or so */
+        var doing_stuff = false;
+        if( intev ) clearInterval( intev );
+        intev = setInterval( function() {
+            if( doing_stuff ) return;
+            doing_stuff = true;
+            player.sync_all();
+            if( $.yote.has_updated )
+                ctx.refresh();
+            doing_stuff = false;
+         }, 30000 );
+
+
+        // find defaults
+        var v = player.get( 'current_view' );
+        if( ! v ) {
+            v = 'planet';
+        } 
+        ctx.vars.view = v;
+
+        var p = player.get( 'current_planet' );
+        if( ! p ) {
+            p = player.get_planets().get(0);
+            player.set( 'current_planet', p );
+
+            var sys = p.get_system();
+            ctx.vars.system = sys;
+            player.set( 'current_system', sys );
+
+            var s = sys.get_sector();
+            ctx.vars.sector = s;
+            player.set( 'current_sector', sys );
         }
-        
-        ctx.vars.colony = ctx.vars.planet.get( 'colony' );
-        if( ! ctx.scratch.view ) {
-//            ctx.scratch.view = 'SystemMap';
-ctx.scratch.view = 'Dummy';
-        }
-    } ???>
+        ctx.vars.planet = p;
+    ???>
+
+    <h1><$ game|name $></h1>
     <$$$ lob <a href="#">Back to lobby</a> $$$>
-    
-    <h3>Playing <b><$ game.name $></b> game</h3>
+    <$$ TitleCollapser View_galaxy 0 "Galaxy" $$>
+    <$$ TitleCollapser View_sector 0 "Sector" $$>
+    <$$ TitleCollapser View_system 0 "System" $$>
+    <$$ TitleCollapser View_planet 0 "Planet" $$>
+    <$$ TitleCollapser View_fleets 0 "Fleets" $$>
+    <$$ TitleCollapser Designs 0 "Ship Designs" $$>
 
-    <div>
-      <$$$ bigpanel <div class="bigpanel"> $$$>
-        <?? function( ctx ) { return '<$$ ' + ctx.scratch.view + ' $$>'; } ??>
-      </div>
-
-      <div class="sidepanel">
-
-        <?? function( ctx ) { return ctx.vars.colony && ctx.vars.player.is( ctx.vars.colony.get_owner() ) ? '<$$ MyPlanet $$>' : '<$$ OtherPlanet $$>'; } ??>
-
-      </div>
-    </div>
-    
-    <? function( ctx ) {
+    <? 
           $( ctx.controls.lob ).click( function() {
               ctx._acct_.set( 'current_game', '' );
               ctx.refresh();
           } );
-       } ?>
+    ?>
+
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="InGameOld">
+    <???
+
+        /* initialization of vars */
+        ctx.vars.game = ctx._acct_.get_current_game();
+        var player = ctx.vars.game.player();
+        ctx.vars.player = player;
+
+        ctx.vars.components = ctx.vars.game.get_components();
+        ctx.vars.resources  = ctx.vars.game.get_resources();
+
+        /* this updates the ui every minute or so */
+        var doing_stuff = false;
+        if( intev ) clearInterval( intev );
+        intev = setInterval( function() {
+            if( doing_stuff ) return;
+            doing_stuff = true;
+            player.sync_all();
+            if( $.yote.has_updated )
+                ctx.refresh();
+            doing_stuff = false;
+         }, 30000 );
+
+
+        // find defaults
+        var v = player.get( 'current_view' );
+        if( ! v ) {
+            v = 'planet';
+        } 
+        ctx.vars.view = v;
+
+        var p = player.get( 'current_planet' );
+        if( ! p ) {
+            p = player.get_planets().get(0);
+            player.set( 'current_planet', p );
+
+            var sys = p.get_system();
+            ctx.vars.system = sys;
+            player.set( 'current_system', sys );
+
+            var s = sys.get_sector();
+            ctx.vars.sector = s;
+            player.set( 'current_sector', sys );
+        }
+        ctx.vars.planet = p;
+    ???>
+
+    <$$$ lob <a href="#">Back to lobby</a> $$$>
+
+    <h3>Playing <b><$ game|name $></b> game</h3>
+
+    <div class="navpanel">
+      <$$ Navpanel $$>
+      <$$ UpdatePanel $$>
+    </div>
+    <div class="viewport">
+      <$$ Viewport $$>
+    </div>
+      
+    </div>
+
+    <? 
+          $( ctx.controls.lob ).click( function() {
+              ctx._acct_.set( 'current_game', '' );
+              ctx.refresh();
+          } );
+    ?>
   </script>
 
   <! ---------------------------- LOBBY ----------------------------->
 
   <script type="text/template" class="yote_template_definition" template_name="PendGame">
     <br>
-    <b><$  _.name $></b> : Created by <$  _.created_by.handle $>. 
-      <??? function( ctx ) { 
-            if( ctx._acct_.is( ctx.vars._.get( 'created_by' ) ) ) 
+    <b><$  _|name $></b> : Created by <$  _|created_by|handle $>.
+      <??? function( ctx ) {
+            if( ctx._acct_.is( ctx.vars._.get( 'created_by' ) ) )
                 return '<$$$ remove_game <button type="button">Delete</button> $$$>';
         } ???>
     <? function( ctx ) {
           var leave_idx = ctx.hashkey_or_index;
-          $( ctx.controls.remove_game ).click( function() { 
+          $( ctx.controls.remove_game ).click( function() {
               ctx._app_.remove_game( ctx.vars._ );
               ctx.refresh();
           } );
@@ -497,9 +673,8 @@ ctx.scratch.view = 'Dummy';
 
   <script type="text/template" class="yote_template_definition" template_name="ActGame">
     <br>
-    <b><$  _.name $></b> : for <$  _.number_players $> players.
-    Created by <$  _.created_by.handle $>. <$$$ go_game <button type="button">Play</button> $$$>
-      <$$$ del_game <button type="button">Delete Game</button> $$$>
+    <$$$ go_game <button type="button">$$$><b><$  _|name $></b></button> by <$ _|created_by|handle $> for <$  _|number_players $> player<?? return ctx.vars.number_players > 1 ? 's' : ''; ??>
+      <??? return ctx.vars._.get_created_by().equals( ctx._acct_ ) ? '<$$$ del_game <button type="button">Delete Game</button> $$$>' : ''; ???>
     <? function( ctx ) {
      $( ctx.controls.go_game ).click( function() {
          var acct = $.yote.fetch_account();
@@ -520,8 +695,8 @@ ctx.scratch.view = 'Dummy';
 
   <script type="text/template" class="yote_template_definition" template_name="AvailGame">
     <br>
-    <b><$  _.name $></b> : 
-    Created by <$  _.created_by.handle $>. <$$$ join_game <button type="button">Join</button> $$$>
+    <b><$  _|name $></b> :
+    Created by <$  _|created_by|handle $>. <$$$ join_game <button type="button">Join</button> $$$>
     <??? function( ctx ) {
         if( ctx._acct_.is( ctx.vars._.get( 'created_by' ) ) ) {
             return '<$$$ remove_game <button type="button">Delete</button> $$$>';
@@ -529,12 +704,12 @@ ctx.scratch.view = 'Dummy';
     } ???>
 
     <? function( ctx ) {
-          $( ctx.controls.remove_game ).click( function() { 
+          $( ctx.controls.remove_game ).click( function() {
               ctx._app_.remove_game( ctx.vars._ );
               ctx.refresh();
           } );
 
-         $( ctx.controls.join_game ).click( function() { 
+         $( ctx.controls.join_game ).click( function() {
              ctx._app_.add_player(ctx.vars._,
                                        function(msg){
                                            ctx.scratch.avail_message = "Joined game '" + ctx.vars._.get_name() + "'";
@@ -545,12 +720,12 @@ ctx.scratch.view = 'Dummy';
              if( ctx.vars._.get( 'is_active' ) ) {
                  ctx._acct_.set( 'active_game', ctx.vars._ );
              }
-             ctx.refresh(); 
+             ctx.refresh();
           } );
        } ?>
   </script>
 
-  <script type="text/template" class="yote_template_definition" template_name="Lobby">
+  <script type="text/template" class="yote_template_definition" template_name="LobbyOld">
     <??? function( ctx ) {
         // find games you can join, games you have joined that are pending starting, and active games you are in
 
@@ -560,7 +735,7 @@ ctx.scratch.view = 'Dummy';
 
         // games you can join, or available games are the joinable games overall - the ones
         //       already joined
-        
+
         // games you can join
         if( appg ) {
             for( var i=0; i<appg.length(); i++ ) {
@@ -569,43 +744,43 @@ ctx.scratch.view = 'Dummy';
                     ag.push( g );
             }
         }
-        ctx.vars.available_games = ag;
 
         var actv = [];
         var pend = [];
         for( var gid in myg ) {
             var g = myg[ gid ];
-            if( g.get( 'is_active' ) ) 
+            if( g.get( 'is_active' ) )
                 actv.push( g );
             else
                 pend.push( g );
         }
-        ctx.vars.active_games = actv;
-        ctx.vars.pending_games = pend;
+        ctx.vars.active_games    = actv;
+        ctx.vars.pending_games   = pend;
+        ctx.vars.available_games = ag;
     } ???>
     <div>
       <div style="display:inline-block">
-        Welcome <b> <$ _acct_.handle $> <$$$ logout <a href="#">$$$>logout</a></b>
-          <h4>Active Games</h4> 
+        Welcome <b> <$ _acct_|handle $> <$$$ logout <a href="#">$$$>logout</a></b>
+          <h4>Active Games</h4>
             <div class="gamepicker">
-             <?? function(ctx){ return ctx._acct_.count( 'active_games' ) > 0 ? '' : 'not playing any games';} ??>
-             <@ ActGame @active_games 10 @><$$ Paginator @active_games $$>
+             <?? function(ctx){ return ctx.vars.active_games.length > 0 ? '' : 'not playing any games';} ??>
+             <$$ List ActGame active_games $$>
             </div>
           <???
-              function(ctx){ 
+              function(ctx){
                   if( ctx.vars.pending_games.length > 0 )
-                      return ' <h4>Pending Games</h4> ' + 
-                               '<div class="gamepicker"> ' + 
+                      return ' <h4>Pending Games</h4> ' +
+                               '<div class="gamepicker"> ' +
                                '<$$$ pend_msg <p class="messages" style="display:none"></p> $$$>' +
-                               '<@ PendGame @pending_games 10 @><$$ Paginator @pending_games $$>' + 
+                               '<$$ List PendGame pending_games $$>' + 
                                '</div>';
                   } ???>
-          <h4>Available Games</h4> 
+          <h4>Available Games</h4>
             <div class="gamepicker">
               <$$$ avail_msg <p class="messages" style="display:none"></p> $$$>
 
-              <?? function(ctx){ return ctx.parse( '@available_games' ).to_list().length > 0 ? '' : 'no games available.';} ??>
-              <@ AvailGame @available_games 10 @><$$ Paginator @available_games $$> 
+              <?? function(ctx){ return ctx.vars.available_games.length > 0 ? '' : 'no games available.';} ??>
+              <$$ List AvailGame available_games $$>
             </div>
           <p>
             <$$ CreateGame $$>
@@ -620,13 +795,135 @@ ctx.scratch.view = 'Dummy';
         if( ctx.scratch.avail_message ) {
             $( ctx.controls.avail_msg ).append( ctx.scratch.avail_message ).show();
             ctx.scratch.avail_message = '';
-        }         
+        }
         else if( ctx.scratch.avail_err_message ) {
             $( ctx.controls.avail_msg ).append( ctx.scratch.avail_err_message ).addClass( 'err' ).show();
             ctx.scratch.avail_err_message = '';
         }
     } ?>
   </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Lobby">
+    <??? function( ctx ) {
+        // find games you can join, games you have joined that are pending starting, and active games you are in
+
+        var ag = [];
+        var myg = ctx._acct_.get( 'joined_games' ) ? ctx._acct_.get( 'joined_games' ).to_hash() : {};
+        var appg = ctx._app_.get( 'available_games' );
+
+        // games you can join, or available games are the joinable games overall - the ones
+        //       already joined
+
+        // games you can join
+        if( appg ) {
+            for( var i=0; i<appg.length(); i++ ) {
+                var g = appg.get(i);
+                if( ! myg[ g.id ] )
+                    ag.push( g );
+            }
+        }
+
+        var actv = [];
+        var pend = [];
+        for( var gid in myg ) {
+            var g = myg[ gid ];
+            if( g.get( 'is_active' ) )
+                actv.push( g );
+            else
+                pend.push( g );
+        }
+        ctx.vars.active_games    = actv;
+        ctx.vars.pending_games   = pend;
+        ctx.vars.available_games = ag;
+    } ???>
+      <#
+                logged-in/logout link ( hamburger? )
+                active_games ( show open by default )
+                available_games ( open by default if there are no active games )
+                pending_games
+                create game
+                
+       #>
+      <h1>Space Game</h1>
+      <p>
+      Logged in as <$ _acct_|handle $>. <$$$ logout <a href="#">$$$>logout</a>
+      </p>
+      <$$ Collapser activeHead List 1 ActGame active_games $$>
+
+      <$$ Collapser pendingHead List 1 PendGame pending_games $$>
+
+      <$$ Collapser availHead List 1 AvailGame available_games $$>
+
+      <$$ CreateGame $$>
+
+      <?
+        $( ctx.controls.logout ).click( function() { $.yote.logout(); ctx.refresh() } );
+       ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="activeHead">
+    <?? return ctx.vars.active_games.length > 0 ? ctx.vars.active_games.length : "No"; ??> Active Game<?? return ctx.vars.active_games == 1 ? '' : 's' ??>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="pendingHead">
+    <?? return ctx.vars.pending_games.length > 0 ? ctx.vars.pending_games.length : "No"; ??> Pending Game<?? return ctx.vars.pending_games == 1 ? '' : 's' ??>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="availHead">
+    <?? return ctx.vars.available_games.length > 0 ? ctx.vars.available_games.length : "No"; ??> Available Game<?? return ctx.vars.available_games == 1 ? '' : 's' ??>
+  </script>
+
+
+  <script type="text/template" class="yote_template_definition" template_name="test">
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="test">
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="Collapser">
+    <# 
+                takes template_for_header template_for_body open-close args-for-templates
+     #>
+    <???
+         if( ctx.args.length > 2 ) {
+             var header_template = ctx.args[ 0 ];
+             var body_template   = ctx.args[ 1 ];
+             var start_open      = ctx.args[ 2 ];
+             var rest            = ctx.args.slice( 3, ctx.args.length );
+             return '<$$$ head_div <div class="collapserhead">$$$><$$ ' + header_template + ' ' + rest.join( ' ' ) + ' $$>' + 
+                 '</div><$$$ body_div <div class="collapserbody' +  ( start_open != '0' ? '' : ' hide' ) + '">$$$>' + 
+                 '<$$ ' + body_template + ' ' + rest.join( ' ' ) + ' $$></div>';
+         }
+     ???>
+     <?
+                $( ctx.controls.head_div ).click( function() {
+                    $( ctx.controls.body_div ).toggleClass( 'hide' );
+                } );
+      ?>
+  </script>
+
+  <script type="text/template" class="yote_template_definition" template_name="TitleCollapser">
+    <# 
+                takes template_for_header template_for_body open-close args-for-templates
+     #>
+    <???
+         if( ctx.args.length > 2 ) {
+             var body_template   = ctx.args[ 0 ];
+             var start_open      = ctx.args[ 1 ];
+             var title           = ctx.args[ 2 ];
+             var rest            = ctx.args.slice( 3, ctx.args.length );
+             return '<$$$ head_div <div class="collapserhead">$$$>' + title + 
+                 '</div><$$$ body_div <div class="collapserbody' +  ( start_open != '0' ? '' : ' hide' ) + '">$$$>' + 
+                 '<$$ ' + body_template + ' ' + rest.join( ' ' ) + ' $$></div>';
+         }
+     ???>
+     <?
+                $( ctx.controls.head_div ).click( function() {
+                    $( ctx.controls.body_div ).toggleClass( 'hide' );
+                } );
+      ?>
+  </script>
+
 
   <script type="text/template" class="yote_template_definition" template_name="Chat">
     <div style="border: solid 2px white; background-color: lightblue; max-width: 30em">
@@ -642,7 +939,7 @@ ctx.scratch.view = 'Dummy';
         $.yote.util.button_actions( {
             button : ctx.controls.say,
             texts : [ ctx.controls.whatsay ],
-            action : function() { 
+            action : function() {
                 ctx._app_.chat( $( ctx.controls.whatsay ).val() );
                 ctx.refresh();
             }
@@ -652,9 +949,9 @@ ctx.scratch.view = 'Dummy';
 
   <script type="text/template" class="yote_template_definition" template_name="Chatter">
     <??? function( ctx ) {
-            ctx.vars.chatlog = ctx.parse( '_app_@chatter' );
-            ctx.vars.chatlog.sort_reverse = true;
-            var l = ctx.parse( 'chatlog' ).to_list();
+            ctx.vars.chatlog = ctx.parse( '_app_.chatter' );
+            var l = ctx.vars.chatlog.to_list();
+            l = l.reverse();
             var b = [];
             for( var i=0; i<l.length && b.length < 12; i++ ) {
                 b.push( '<b>' + l[ i ].get_from() + ':</b> ' + l[i].get_msg() );
@@ -666,9 +963,8 @@ ctx.scratch.view = 'Dummy';
 
   <script type="text/template" class="yote_template_definition" template_name="LoggedIn">
     <?? function(ctx) {
-    
         var cur_game = ctx._acct_.get( 'current_game' );
-        
+
         return cur_game ? '<$$ InGame $$>' : '<$$ Lobby $$>';
     } ??>
     <# LoggedIn #>
@@ -681,7 +977,7 @@ ctx.scratch.view = 'Dummy';
   </script>
 
   <script type="text/template" class="yote_template_definition" template_name="MainBody">
-    <??? function( ctx ) { 
+    <??? function( ctx ) {
             ctx.refresh = function() {
                 $( '#spinner' ).show();
                 $.yote.templates.refresh();
@@ -693,7 +989,7 @@ ctx.scratch.view = 'Dummy';
 
   <BODY>
     <img id="spinner" src="spinnerLarge.gif">
-    <DIV class="yote_template" template="MainBody"></div>
+    <$$ MainBody $$>
   </BODY>
 
 </html>

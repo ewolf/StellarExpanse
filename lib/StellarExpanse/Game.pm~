@@ -1,9 +1,0 @@
-package StellarExpanse::Game;
-
-use strict;
-
-use StellarExpanse::Game;
-
-use base 'Yote::Obj
-';
-1;

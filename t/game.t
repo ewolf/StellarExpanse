@@ -47,7 +47,7 @@ if( 1 ) {
 	databasename   => 'yote_test',
 	} );
 }
-Yote::Root::fetch_root();
+Yote::WebRoot::fetch_webroot();
 Yote::ObjProvider::stow_all();
 
 test_suite();
@@ -74,7 +74,7 @@ sub test_suite {
 
 
     # create login account to use for app commands
-    my $root = Yote::Root::fetch_root();
+    my $root = Yote::WebRoot::fetch_webroot();
     ok( $root->create_login( { h => 'root', 
                                p => 'toor', 
                                e => 'foo@bar.com' } )->{l},
